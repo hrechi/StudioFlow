@@ -13,6 +13,41 @@ One Next.js application is both the **frontend** and the **backend** (pages, Ser
 
 ---
 
+## Quick start with Docker (one command)
+
+Only **Docker Desktop** is needed: no Node.js or MongoDB install.
+
+```bash
+cp .env.example .env            # Windows PowerShell: Copy-Item .env.example .env
+```
+
+In `.env`, set `AUTH_SECRET` (any long random string, e.g. `openssl rand -base64 32`) and choose `ADMIN_PASSWORD`. Then:
+
+```bash
+docker compose up --build
+```
+
+This starts three services:
+
+| Service | What it does |
+| --- | --- |
+| `mongo` | MongoDB 8 with a persistent volume. Compass: `mongodb://127.0.0.1:27018` |
+| `seed` | Creates the first ADMIN from `.env` if none exists, then exits |
+| `app` | The production build of StudioFlow on <http://localhost:3000> |
+
+Useful commands:
+
+| Command | What it does |
+| --- | --- |
+| `docker compose up -d --build` | Same, in the background |
+| `docker compose logs -f app` | Follow the app logs |
+| `docker compose down` | Stop (data is kept) |
+| `docker compose down -v` | Stop and **delete** the Docker database (the admin is re-seeded on the next `up`) |
+
+**"ports are not available … 3000"** means something else (usually `npm run dev`) already uses port 3000: stop it, or add `APP_PORT=3001` to `.env` and open <http://localhost:3001>.
+
+The Docker database is separate from a local MongoDB on port 27017. For day-to-day coding with hot reload, use `npm run dev` (sections below); use Docker to run the full stack, check a production build before a PR, or demo.
+
 ## 1. Prerequisites
 
 - **Node.js 20.9+** (developed with Node 22) and npm.
@@ -28,10 +63,10 @@ One Next.js application is both the **frontend** and the **backend** (pages, Ser
 ```bash
 npm install
 cp .env.example .env.local      # Windows PowerShell: Copy-Item .env.example .env.local
-npx auth secret                 # writes AUTH_SECRET into .env.local
+openssl rand -base64 32        # paste the output as AUTH_SECRET in .env.local
 ```
 
-Then open `.env.local` and choose `ADMIN_PASSWORD` (at least 8 characters, with a letter and a digit).
+Then open `.env.local`, paste `AUTH_SECRET` and choose `ADMIN_PASSWORD` (at least 8 characters, with a letter and a digit).
 
 ### Environment variables
 

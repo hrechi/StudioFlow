@@ -1,0 +1,55 @@
+# StudioFlow — full stack in one command:  docker compose up --build
+# Reads AUTH_SECRET / ADMIN_EMAIL / ADMIN_PASSWORD from .env (copy .env.example). See README > "Run with Docker".
+name: studioflow
+
+x-mongo-uri: &mongo-uri mongodb://mongo:27017/studioflow
+
+services:
+  mongo:
+    image: mongo:8
+    attach: false # keep `docker compose up` readable; see its logs with `docker compose logs mongo`
+    restart: unless-stopped
+    ports:
+      - "27018:27017" # Compass: mongodb://127.0.0.1:27018 (27017 stays free for a local MongoDB)
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+
+  # Creates the first ADMIN if none exists, then exits (safe to run on every `up`).
+  seed:
+    build:
+      context: .
+      target: builder
+    command: ["npx", "tsx", "scripts/seed-admin.ts"]
+    environment:
+      MONGODB_URI: *mongo-uri
+      ADMIN_EMAIL: ${ADMIN_EMAIL:?Set ADMIN_EMAIL in .env}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?Set ADMIN_PASSWORD in .env}
+    depends_on:
+      mongo:
+        condition: service_healthy
+    restart: "no"
+
+  app:
+    build:
+      context: .
+      target: runner
+    restart: unless-stopped
+    ports:
+      - "${APP_PORT:-3000}:3000" # APP_PORT in .env if 3000 is taken (e.g. by npm run dev)
+    environment:
+      MONGODB_URI: *mongo-uri
+      AUTH_SECRET: ${AUTH_SECRET:?Set AUTH_SECRET in .env (e.g. openssl rand -base64 32)}
+    depends_on:
+      mongo:
+        condition: service_healthy
+      seed:
+        condition: service_completed_successfully
+
+volumes:
+  mongo-data:
