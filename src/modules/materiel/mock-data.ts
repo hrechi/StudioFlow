@@ -1,0 +1,257 @@
+/**
+ * Module : Gestion du Matériel · Responsable : Amel Mediouni
+ * MOCK DATA — replace with materiel.service.ts / reservation.service.ts.
+ */
+import { MOCK_PHOTOGRAPHES, inDays } from "@/lib/mock-data-helpers";
+import { mockImage } from "@/lib/mock-images";
+import type { KitSuggere, Materiel, Reservation } from "./materiel.types";
+
+const [yassine, ines, mehdi] = MOCK_PHOTOGRAPHES;
+
+export const MATERIELS: Materiel[] = [
+  {
+    id: "mat-1",
+    nom: "Canon EOS R5",
+    categorie: "APPAREIL_PHOTO",
+    marque: "Canon",
+    modele: "EOS R5",
+    numeroSerie: "CR5-0349211",
+    etat: "BON",
+    dateAchat: inDays(-620),
+    prix: 11900,
+    disponible: false,
+    photo: mockImage("studio", 2),
+  },
+  {
+    id: "mat-2",
+    nom: "Sony Alpha 7 IV",
+    categorie: "APPAREIL_PHOTO",
+    marque: "Sony",
+    modele: "A7 IV",
+    numeroSerie: "SA7-5520193",
+    etat: "NEUF",
+    dateAchat: inDays(-90),
+    prix: 8400,
+    disponible: true,
+    photo: mockImage("studio", 1),
+  },
+  {
+    id: "mat-3",
+    nom: "RF 85 mm f/1.2",
+    categorie: "OBJECTIF",
+    marque: "Canon",
+    modele: "RF 85mm F1.2 L",
+    numeroSerie: "RF85-11823",
+    etat: "BON",
+    dateAchat: inDays(-540),
+    prix: 9200,
+    disponible: false,
+    photo: mockImage("studio", 3),
+  },
+  {
+    id: "mat-4",
+    nom: "RF 24-70 mm f/2.8",
+    categorie: "OBJECTIF",
+    marque: "Canon",
+    modele: "RF 24-70mm F2.8 L",
+    numeroSerie: "RF2470-7731",
+    etat: "USE",
+    dateAchat: inDays(-1100),
+    prix: 7600,
+    disponible: true,
+    photo: mockImage("studio", 3),
+  },
+  {
+    id: "mat-5",
+    nom: "Profoto B10X",
+    categorie: "ECLAIRAGE",
+    marque: "Profoto",
+    modele: "B10X",
+    numeroSerie: "PB10-22019",
+    etat: "BON",
+    dateAchat: inDays(-400),
+    prix: 6500,
+    disponible: true,
+    photo: mockImage("studio", 0),
+  },
+  {
+    id: "mat-6",
+    nom: "Octagonal softbox 120 cm",
+    categorie: "ECLAIRAGE",
+    marque: "Godox",
+    modele: "OCTA 120",
+    numeroSerie: "GD-OC-8821",
+    etat: "BON",
+    dateAchat: inDays(-700),
+    prix: 480,
+    disponible: true,
+    photo: mockImage("studio", 0),
+  },
+  {
+    id: "mat-7",
+    nom: "Carbon tripod",
+    categorie: "TREPIED",
+    marque: "Manfrotto",
+    modele: "190 Carbon",
+    numeroSerie: "MF190-3310",
+    etat: "USE",
+    dateAchat: inDays(-1500),
+    prix: 1100,
+    disponible: true,
+    photo: mockImage("studio", 4),
+  },
+  {
+    id: "mat-8",
+    nom: "Speedlight flash",
+    categorie: "ECLAIRAGE",
+    marque: "Godox",
+    modele: "V1",
+    numeroSerie: "GV1-55120",
+    etat: "EN_PANNE",
+    dateAchat: inDays(-800),
+    prix: 950,
+    disponible: false,
+    photo: mockImage("studio", 2),
+  },
+  {
+    id: "mat-9",
+    nom: "Drone DJI Mini 4 Pro",
+    categorie: "ACCESSOIRE",
+    marque: "DJI",
+    modele: "Mini 4 Pro",
+    numeroSerie: "DJM4-77120",
+    etat: "NEUF",
+    dateAchat: inDays(-60),
+    prix: 3900,
+    disponible: true,
+    photo: mockImage("studio", 1),
+  },
+  {
+    id: "mat-10",
+    nom: "5-in-1 reflector",
+    categorie: "ACCESSOIRE",
+    marque: "Neewer",
+    modele: "110 cm",
+    numeroSerie: "NW-RF-1010",
+    etat: "BON",
+    dateAchat: inDays(-300),
+    prix: 120,
+    disponible: true,
+    photo: mockImage("studio", 0),
+  },
+];
+
+const ref = (m: Materiel) => ({ id: m.id, nom: m.nom, categorie: m.categorie });
+
+export const RESERVATIONS: Reservation[] = [
+  {
+    id: "res-1",
+    dateDebut: inDays(2, 12),
+    dateFin: inDays(3, 10),
+    statut: "CONFIRMEE",
+    materiel: ref(MATERIELS[0]),
+    seance: { id: "seance-1", titre: "Sarra & Amine Wedding" },
+    photographe: yassine,
+  },
+  {
+    id: "res-2",
+    dateDebut: inDays(2, 12),
+    dateFin: inDays(3, 10),
+    statut: "CONFIRMEE",
+    materiel: ref(MATERIELS[2]),
+    seance: { id: "seance-1", titre: "Sarra & Amine Wedding" },
+    photographe: yassine,
+  },
+  {
+    id: "res-3",
+    dateDebut: inDays(2, 12),
+    dateFin: inDays(3, 10),
+    statut: "EN_ATTENTE",
+    materiel: ref(MATERIELS[8]),
+    seance: { id: "seance-1", titre: "Sarra & Amine Wedding" },
+    photographe: yassine,
+  },
+  {
+    id: "res-4",
+    dateDebut: inDays(1, 8),
+    dateFin: inDays(1, 13),
+    statut: "CONFIRMEE",
+    materiel: ref(MATERIELS[4]),
+    seance: { id: "seance-2", titre: "Corporate portraits — Atelier Médina" },
+    photographe: ines,
+  },
+  {
+    id: "res-5",
+    dateDebut: inDays(0, 8),
+    dateFin: inDays(0, 18),
+    statut: "EN_COURS",
+    materiel: ref(MATERIELS[1]),
+    seance: { id: "seance-x4", titre: "Carthage Gardens location scouting" },
+    photographe: mehdi,
+  },
+  {
+    id: "res-6",
+    dateDebut: inDays(3, 9),
+    dateFin: inDays(3, 17),
+    statut: "CONFIRMEE",
+    materiel: ref(MATERIELS[5]),
+    seance: { id: "seance-3", titre: "Autumn collection — Maison Jasmin" },
+    photographe: mehdi,
+  },
+  {
+    id: "res-7",
+    dateDebut: inDays(-4, 15),
+    dateFin: inDays(-4, 21),
+    statut: "RETOURNEE",
+    remarqueRetour: "All good, battery needs charging.",
+    materiel: ref(MATERIELS[0]),
+    seance: { id: "seance-6", titre: "Leïla & Sami engagement" },
+    photographe: yassine,
+  },
+  {
+    id: "res-8",
+    dateDebut: inDays(-9, 8),
+    dateFin: inDays(-9, 14),
+    statut: "RETOURNEE",
+    remarqueRetour: "Softbox stand slightly bent.",
+    materiel: ref(MATERIELS[5]),
+    seance: { id: "seance-7", titre: "Watch shoot — Atelier Médina" },
+    photographe: mehdi,
+  },
+  {
+    id: "res-9",
+    dateDebut: inDays(-2, 8),
+    dateFin: inDays(-2, 18),
+    statut: "ANNULEE",
+    materiel: ref(MATERIELS[6]),
+    seance: { id: "seance-9", titre: "Tech Tunis conference" },
+    photographe: mehdi,
+  },
+];
+
+export const KIT_SUGGERE: KitSuggere = {
+  seance: {
+    id: "seance-4",
+    titre: "Nour Cosmetics launch party",
+    type: "Event",
+    date: inDays(5, 19),
+  },
+  items: [
+    { materiel: ref(MATERIELS[1]), raison: "Excellent high-ISO performance for dark venues." },
+    {
+      materiel: ref(MATERIELS[3]),
+      raison: "Versatile zoom used at 9 of the last 10 events.",
+    },
+    { materiel: ref(MATERIELS[4]), raison: "Fill light for guest portraits." },
+    { materiel: ref(MATERIELS[9]), raison: "Recommended for group photos." },
+  ],
+  confiance: 0.87,
+};
+
+export function getMateriel(id: string): Materiel | undefined {
+  return MATERIELS.find((m) => m.id === id);
+}
+
+export function getReservationsOf(materielId: string): Reservation[] {
+  return RESERVATIONS.filter((r) => r.materiel.id === materielId);
+}

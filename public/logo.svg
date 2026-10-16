@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 104" role="img" aria-label="StudioFlow">
+  <defs>
+    <linearGradient id="sf-a" x1="76" y1="17" x2="36" y2="46" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#36B8F4"/>
+      <stop offset="1" stop-color="#146BFF"/>
+    </linearGradient>
+    <linearGradient id="sf-b" x1="42" y1="48" x2="62" y2="58" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#146BFF"/>
+      <stop offset="1" stop-color="#7546E8"/>
+    </linearGradient>
+    <linearGradient id="sf-c" x1="66" y1="60" x2="24" y2="87" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#7546E8"/>
+      <stop offset="0.45" stop-color="#146BFF"/>
+      <stop offset="1" stop-color="#36B8F4"/>
+    </linearGradient>
+  </defs>
+  <linearGradient id="sf-word" x1="250" y1="0" x2="410" y2="0" gradientUnits="userSpaceOnUse">
+    <stop offset="0" stop-color="#146BFF"/>
+    <stop offset="1" stop-color="#7546E8"/>
+  </linearGradient>
+  <g transform="translate(-4 0)">
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="22">
+    <path stroke="url(#sf-a)" d="M76 17.2 L43.7 30.5 C32.6 35.1 32.3 43.4 43.1 48.8"/>
+    <path stroke="url(#sf-c)" d="M56.7 55.7 C67.5 61.1 67.2 69.4 56.1 74 L23.8 87.3"/>
+    <path stroke="url(#sf-b)" d="M43.1 48.8 L56.7 55.7"/>
+  </g>
+  </g>
+  <text x="108" y="66" font-family="'Plus Jakarta Sans', 'Segoe UI', Arial, sans-serif" font-size="46" font-weight="800" letter-spacing="-1.2" fill="#0B0F14">Studio<tspan fill="url(#sf-word)">Flow</tspan></text>
+  <text x="110" y="92" font-family="'Plus Jakarta Sans', 'Segoe UI', Arial, sans-serif" font-size="12.5" font-weight="600" letter-spacing="4.2" fill="#6B7280">PHOTOGRAPHY STUDIO OS</text>
+</svg>
