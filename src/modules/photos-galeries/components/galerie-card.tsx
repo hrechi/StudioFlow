@@ -4,7 +4,7 @@ import { SafeImage } from "@/components/shared/safe-image";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { fullName } from "@/lib/mock-data-helpers";
 import { cn, formatDate } from "@/lib/utils";
-import { statutGalerieConfig, type Galerie } from "../galerie.types";
+import { categorieGalerieLabels, statutGalerieConfig, type Galerie } from "../galerie.types";
 
 /** Photo-first gallery card (backoffice and client area). */
 export function GalerieCard({
@@ -38,7 +38,7 @@ export function GalerieCard({
             className="bg-white ring-white"
           />
         </div>
-        {galerie.motDePasse && (
+        {galerie.protegeeParMotDePasse && (
           <span
             className="absolute top-3 right-3 grid size-7 place-items-center rounded-full bg-white/90 text-slate"
             title="Password protected"
@@ -47,7 +47,7 @@ export function GalerieCard({
           </span>
         )}
         <p className="absolute bottom-3 left-4 text-xs font-semibold tracking-wide text-white/90 uppercase">
-          {galerie.categorie}
+          {categorieGalerieLabels[galerie.categorie]}
         </p>
       </div>
       <div className="space-y-2 p-4">

@@ -22,7 +22,7 @@ import { formatCurrency, formatDate, formatTime } from "@/lib/utils";
 import { statutFactureConfig } from "@/modules/facturation/facturation.types";
 import { MES_FACTURES } from "@/modules/facturation/mock-data";
 import { statutGalerieConfig } from "@/modules/photos-galeries/galerie.types";
-import { MES_GALERIES } from "@/modules/photos-galeries/mock-data";
+import { listGaleriesOfClient } from "@/modules/photos-galeries/galerie.service";
 import { MES_SEANCES } from "@/modules/seances/mock-data";
 import { typeSeanceLabels } from "@/modules/seances/seance.types";
 
@@ -41,7 +41,7 @@ export default async function EspaceClientPage() {
   const prochaine = MES_SEANCES.filter((s) => s.dateDebut >= now && s.statut !== "ANNULEE").sort(
     (a, b) => a.dateDebut.localeCompare(b.dateDebut),
   )[0];
-  const galerie = [...MES_GALERIES].sort((a, b) => b.dateCreation.localeCompare(a.dateCreation))[0];
+  const [galerie] = await listGaleriesOfClient(user.id); // newest first
   const facture = MES_FACTURES.find((f) => f.statut !== "PAYEE");
 
   return (

@@ -18,6 +18,7 @@ import {
   type Role,
   type StatutCompte,
   type UtilisateurDTO,
+  type UtilisateurRef,
 } from "./utilisateur.types";
 
 /**
@@ -130,6 +131,36 @@ export async function findUtilisateurByEmail(email: string): Promise<Utilisateur
   await connectDB();
   const doc = await Utilisateur.findOne({ email: email.toLowerCase() }).lean<UtilisateurLean>();
   return doc ? toUtilisateurDTO(doc) : null;
+}
+
+const REF_FIELDS = "nom prenom photoProfil";
+type UtilisateurRefLean = Pick<IUtilisateur, "nom" | "prenom" | "photoProfil"> & {
+  _id: Types.ObjectId;
+};
+
+function toUtilisateurRef(doc: UtilisateurRefLean): UtilisateurRef {
+  return { id: doc._id.toString(), nom: doc.nom, prenom: doc.prenom, photoProfil: doc.photoProfil };
+}
+
+/** Minimal references for other modules (client of a gallery, photographer of a session…). */
+export async function findUtilisateurRefs(ids: string[]): Promise<Map<string, UtilisateurRef>> {
+  const objectIds = [...new Set(ids)].map(toObjectId).filter((id) => id !== null);
+  if (!objectIds.length) return new Map();
+  await connectDB();
+  const docs = await Utilisateur.find({ _id: { $in: objectIds } })
+    .select(REF_FIELDS)
+    .lean<UtilisateurRefLean[]>();
+  return new Map(docs.map((doc) => [doc._id.toString(), toUtilisateurRef(doc)]));
+}
+
+/** Active clients, by name — for the "client" pickers of other modules. */
+export async function listClientRefs(): Promise<UtilisateurRef[]> {
+  await connectDB();
+  const docs = await Utilisateur.find({ role: "CLIENT", statut: "ACTIF" })
+    .select(REF_FIELDS)
+    .sort({ prenom: 1, nom: 1 })
+    .lean<UtilisateurRefLean[]>();
+  return docs.map(toUtilisateurRef);
 }
 
 export type UserListResult = {

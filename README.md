@@ -6,7 +6,7 @@ One Next.js application is both the **frontend** and the **backend** (pages, Ser
 
 | Area | URL | Who |
 | --- | --- | --- |
-| Public site (front office) | `/`, `/portfolio` | Everyone |
+| Public site (front office) | `/`, `/portfolio`, `/galerie` (open a shared gallery) | Everyone |
 | Sign in / sign up | `/login`, `/register` | Visitors |
 | Client area (front office) | `/espace-client` | `CLIENT` |
 | Backoffice | `/dashboard` | `ADMIN`, `PHOTOGRAPHE`, `RETOUCHEUR` |
@@ -100,9 +100,16 @@ Production build: `npm run build` then `npm run start`.
 ## 5. MongoDB Compass
 
 1. Open Compass → **New connection** → URI `mongodb://127.0.0.1:27017` → **Connect**.
-2. The `studioflow` database appears after the first seed or sign-up, with two collections:
+2. The `studioflow` database appears after the first seed or sign-up, with these collections:
    - `utilisateurs` — accounts (`motDePasse` is a bcrypt hash, never the clear password; `email` has a unique index);
-   - `notifications` — notifications shown in the top-bar bell.
+   - `notifications` — notifications shown in the top-bar bell;
+   - `galeries` — client galleries (`client` → `utilisateurs`, `photoCouverture` → `photos`, optional `motDePasse` is a bcrypt hash);
+   - `photos` — photo metadata and culling status (`galerie` → `galeries`);
+   - `photoFiles.files` / `photoFiles.chunks` — the image bytes, stored in MongoDB with **GridFS** (an original and a WebP thumbnail per photo). They are served by `/api/photos/[id]/file` and `/api/photos/[id]/miniature`, which check the session (staff, or the client who owns the shared gallery).
+
+**Downloads.** When the studio allows downloads on a gallery, the assigned client can download one photo (`/api/photos/[id]/file?download=1`) or all non-rejected originals as a ZIP (`/api/galeries/[id]/zip`, streamed with `fflate`).
+
+**Guest link.** Each gallery has a random `lienAcces` token. Once the gallery is shared, the client can send `/g/<lienAcces>` to a guest (second opinion, family). The guest opens it, or types the link at `/galerie`, enters the gallery password if one is set, and sees the non-rejected photos **read only**: preview images only, never the original files, no downloads. The unlock is kept in an httpOnly cookie signed with `AUTH_SECRET`; changing or removing the password locks old guests out. Guest previews are served by `/api/g/[token]/photos/[id]`.
 3. Refresh Compass (↻) after actions in the app to see new documents.
 
 ## 6. Scripts
@@ -131,7 +138,7 @@ src/
 ├── modules/
 │   ├── utilisateurs/           CORE — fully implemented (model, service, schemas, actions, UI)
 │   ├── seances/                Template: types + mock-data + components
-│   ├── photos-galeries/        Template
+│   ├── photos-galeries/        Galerie + Photo CRUD (models, services, actions, GridFS storage); AI features still templates
 │   ├── materiel/               Template
 │   ├── facturation/            Template
 │   ├── portfolio/              Template
@@ -166,7 +173,7 @@ Layers inside a module: **UI → Server Actions → service → Mongoose model**
 | --- | --- | --- | --- | --- |
 | Gestion des Utilisateurs (core) | Louay Herichi + équipe | `modules/utilisateurs` | `/dashboard/utilisateurs`, `/dashboard/profil`, `/dashboard/notifications` | `/login`, `/register`, `/espace-client/profil`, `/espace-client/notifications` |
 | Gestion des Séances | Yosser Rafrafi | `modules/seances` | `/dashboard/seances`, `/dashboard/seances/nouvelle`, `/dashboard/seances/[id]`, `/dashboard/lieux` | `/espace-client/seances`, `/espace-client/seances/reserver` |
-| Gestion des Photos & Galeries | Louay Herichi | `modules/photos-galeries` | `/dashboard/photos`, `/dashboard/photos/recherche`, `/dashboard/galeries`, `/dashboard/galeries/[id]` | `/espace-client/galeries`, `/espace-client/galeries/[id]` |
+| Gestion des Photos & Galeries | Louay Herichi | `modules/photos-galeries` | `/dashboard/photos`, `/dashboard/photos/recherche`, `/dashboard/galeries`, `/dashboard/galeries/[id]` | `/espace-client/galeries`, `/espace-client/galeries/[id]`, `/galerie`, `/g/[lienAcces]` (guest link) |
 | Gestion du Matériel | Amel Mediouni | `modules/materiel` | `/dashboard/materiel`, `/dashboard/materiel/[id]`, `/dashboard/materiel/reservations` | — |
 | Gestion de la Facturation | Aya Flah | `modules/facturation` | `/dashboard/facturation/devis`, `/dashboard/facturation/devis/nouveau`, `/dashboard/facturation/factures` | `/espace-client/factures` |
 | Gestion du Portfolio | Anas Ben Ibrahim | `modules/portfolio` | `/dashboard/portfolio`, `/dashboard/portfolio/[id]` | `/portfolio`, `/portfolio/[slug]` |
@@ -194,4 +201,4 @@ Your module already has `xxx.types.ts` (types and enums from the class diagram),
 
 - Next.js **16**: route protection uses `src/proxy.ts`, `params` / `searchParams` are Promises, `error.tsx` receives `retry()`. Read `node_modules/next/dist/docs/` for the exact APIs.
 - **Cache Components is disabled** (`next.config.ts`): every page here depends on the session or MongoDB, so pages render on each request. Turning it on later requires wrapping session/database reads in `<Suspense>` (see the "Authentication with Cache Components" guide in the bundled docs).
-- Template photos come from `images.unsplash.com` (allowed in `next.config.ts`); `SafeImage` falls back to `/images/placeholder.svg`. Real photos will come from Cloudinary.
+- Template photos come from `images.unsplash.com` (allowed in `next.config.ts`); `SafeImage` falls back to `/images/placeholder.svg`. Uploaded photos are stored in MongoDB (GridFS) and served by `/api/photos/...`; `SafeImage` loads those `/api/` URLs unoptimized because the image optimizer does not forward the session cookie.

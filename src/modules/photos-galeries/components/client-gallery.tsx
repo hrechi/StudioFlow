@@ -101,9 +101,11 @@ export function ClientGallery({ galerie, photos }: { galerie: Galerie; photos: P
         </Tabs>
         <div className="flex gap-2">
           {galerie.telechargementAutorise && (
-            <Button variant="outline" onClick={() => comingSoon("Download the photos")}>
-              <Download aria-hidden />
-              Download
+            <Button asChild variant="outline">
+              <a href={`/api/galeries/${galerie.id}/zip`} download>
+                <Download aria-hidden />
+                Download all (.zip)
+              </a>
             </Button>
           )}
           <Button onClick={() => setConfirmOpen(true)} disabled={selection.size === 0}>
@@ -151,6 +153,22 @@ export function ClientGallery({ galerie, photos }: { galerie: Galerie; photos: P
                     {index + 1} / {list.length}
                   </span>
                   <div className="flex gap-2">
+                    {galerie.telechargementAutorise && (
+                      <Button
+                        asChild
+                        size="sm"
+                        className="rounded-full bg-white/20 text-white backdrop-blur hover:bg-white/30"
+                      >
+                        <a
+                          href={`${current.url}?download=1`}
+                          download
+                          aria-label={`Download ${current.nomFichier}`}
+                        >
+                          <Download aria-hidden />
+                          Download
+                        </a>
+                      </Button>
+                    )}
                     <Button
                       size="sm"
                       onClick={() => toggle(favoris, setFavoris, current.id)}

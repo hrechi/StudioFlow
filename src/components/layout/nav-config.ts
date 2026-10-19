@@ -164,6 +164,7 @@ export const SEGMENT_LABELS: Record<string, string> = {
 export const PUBLIC_LINKS = [
   { label: "Home", href: "/" },
   { label: "Portfolio", href: "/portfolio" },
+  { label: "Shared gallery", href: "/galerie" },
   { label: "Services", href: "/#services" },
   { label: "Reviews", href: "/#avis" },
   { label: "Contact", href: "/#contact" },

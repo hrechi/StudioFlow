@@ -9,29 +9,39 @@ import { UserAvatar } from "@/components/shared/user-avatar";
 import { requireArea } from "@/lib/guards";
 import { fullName } from "@/lib/mock-data-helpers";
 import { cn, formatDate } from "@/lib/utils";
+import { GalerieActions } from "@/modules/photos-galeries/components/galerie-actions";
 import { GalerieManager } from "@/modules/photos-galeries/components/galerie-manager";
-import { GALERIE_PIPELINE, statutGalerieConfig } from "@/modules/photos-galeries/galerie.types";
-import { getGalerie, getPhotosOfGalerie } from "@/modules/photos-galeries/mock-data";
+import { getGalerieById } from "@/modules/photos-galeries/galerie.service";
+import {
+  GALERIE_PIPELINE,
+  categorieGalerieLabels,
+  statutGalerieConfig,
+} from "@/modules/photos-galeries/galerie.types";
+import { listPhotosOfGalerie } from "@/modules/photos-galeries/photo.service";
+import { listClientRefs } from "@/modules/utilisateurs/utilisateur.service";
 
 export const metadata: Metadata = { title: "Gallery" };
 
 export default async function GalerieDetailPage({ params }: PageProps<"/dashboard/galeries/[id]">) {
   await requireArea("photos-galeries");
   const { id } = await params;
-  const galerie = getGalerie(id);
+  const galerie = await getGalerieById(id);
   if (!galerie) notFound();
-  const photos = getPhotosOfGalerie(id);
+  const [photos, clients] = await Promise.all([listPhotosOfGalerie(id), listClientRefs()]);
   const currentStep = GALERIE_PIPELINE.indexOf(galerie.statut);
 
   return (
     <div className="space-y-6">
-      <Link
-        href="/dashboard/galeries"
-        className="inline-flex items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground"
-      >
-        <ArrowLeft className="size-4" aria-hidden />
-        Galleries
-      </Link>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <Link
+          href="/dashboard/galeries"
+          className="inline-flex items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground"
+        >
+          <ArrowLeft className="size-4" aria-hidden />
+          Galleries
+        </Link>
+        <GalerieActions galerie={galerie} clients={clients} />
+      </div>
       <div className="flex flex-col gap-5 rounded-xl bg-white p-5 shadow-soft ring-1 ring-border md:flex-row md:items-center">
         <div className="relative h-24 w-36 shrink-0 overflow-hidden rounded-lg bg-muted">
           <SafeImage
@@ -45,7 +55,9 @@ export default async function GalerieDetailPage({ params }: PageProps<"/dashboar
         <div className="min-w-0 flex-1 space-y-2">
           <div className="flex flex-wrap items-center gap-2">
             <StatusBadge value={galerie.statut} config={statutGalerieConfig} />
-            <span className="text-xs text-muted-foreground">{galerie.categorie}</span>
+            <span className="text-xs text-muted-foreground">
+              {categorieGalerieLabels[galerie.categorie]}
+            </span>
           </div>
           <h1 className="text-2xl font-bold tracking-tight text-charcoal">{galerie.titre}</h1>
           <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-sm text-slate">
@@ -57,12 +69,14 @@ export default async function GalerieDetailPage({ params }: PageProps<"/dashboar
               <CalendarDays className="size-4 text-muted-foreground" aria-hidden />
               Created {formatDate(galerie.dateCreation)}
             </span>
-            <Link
-              href={`/dashboard/seances/${galerie.seance.id}`}
-              className="text-primary-text hover:underline"
-            >
-              View session
-            </Link>
+            {galerie.seance && (
+              <Link
+                href={`/dashboard/seances/${galerie.seance.id}`}
+                className="text-primary-text hover:underline"
+              >
+                View session
+              </Link>
+            )}
           </div>
         </div>
         <ol className="flex items-center gap-1.5" aria-label="Gallery steps">

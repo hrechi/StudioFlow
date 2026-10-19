@@ -9,6 +9,10 @@ import type { UtilisateurRef } from "@/modules/utilisateurs/utilisateur.types";
 export const STATUTS_GALERIE = ["EN_TRI", "PARTAGEE", "VALIDEE", "LIVREE"] as const;
 export type StatutGalerie = (typeof STATUTS_GALERIE)[number];
 
+/** Proposé (cahier §2.1: wedding, portrait, product, event) — same values as TYPES_SEANCE. */
+export const CATEGORIES_GALERIE = ["MARIAGE", "PORTRAIT", "PRODUIT", "EVENEMENT"] as const;
+export type CategorieGalerie = (typeof CATEGORIES_GALERIE)[number];
+
 export const STATUTS_CULLING = ["RETENUE", "REJETEE", "EN_ATTENTE"] as const;
 export type StatutCulling = (typeof STATUTS_CULLING)[number];
 
@@ -21,7 +25,7 @@ export type Photo = {
   urlMiniature: string;
   format: string;
   taille: number; // bytes
-  datePrise: string;
+  datePrise?: string;
   scoreQualite: number; // 0–100 (AI)
   estFloue: boolean; // AI
   yeuxFermes?: boolean; // proposé (AI culling: closed eyes)
@@ -37,19 +41,19 @@ export type Photo = {
   dateUpload: string;
 };
 
-/** Collection `galeries`. */
+/** Collection `galeries` — DTO sent to the UI (the password hash never leaves the server). */
 export type Galerie = {
   id: string;
   titre: string;
-  categorie: string;
+  categorie: CategorieGalerie;
   photoCouverture: string;
   lienAcces: string;
-  motDePasse?: string;
+  protegeeParMotDePasse: boolean;
   dateExpiration: string;
   telechargementAutorise: boolean;
   statut: StatutGalerie;
   dateCreation: string;
-  seance: { id: string; titre: string };
+  seance?: { id: string; titre?: string }; // optional until the Séances module has its model
   client: UtilisateurRef;
   nombrePhotos: number; // UI summary
   nombreSelection: number; // UI summary
@@ -73,6 +77,17 @@ export const statutCullingConfig: StatusConfig<StatutCulling> = {
   REJETEE: { label: "Rejected", tone: "danger" },
   EN_ATTENTE: { label: "Pending", tone: "neutral" },
 };
+
+export const categorieGalerieLabels: Record<CategorieGalerie, string> = {
+  MARIAGE: "Wedding",
+  PORTRAIT: "Portrait",
+  PRODUIT: "Product",
+  EVENEMENT: "Event",
+};
+
+/** Upload rules shared by the dialog (client) and the upload route (server). */
+export const PHOTO_MIME_TYPES = ["image/jpeg", "image/png", "image/webp"] as const;
+export const PHOTO_MAX_BYTES = 20 * 1024 * 1024;
 
 /** Gallery lifecycle, in order (EN_TRI → PARTAGEE → VALIDEE → LIVREE). */
 export const GALERIE_PIPELINE = STATUTS_GALERIE;

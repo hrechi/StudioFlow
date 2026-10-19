@@ -32,7 +32,8 @@ import { RECLAMATIONS } from "@/modules/avis-reclamations/mock-data";
 import { FACTURES } from "@/modules/facturation/mock-data";
 import { RESERVATIONS } from "@/modules/materiel/mock-data";
 import { statutGalerieConfig } from "@/modules/photos-galeries/galerie.types";
-import { GALERIES, PHOTOS } from "@/modules/photos-galeries/mock-data";
+import { countGaleriesByStatut, listGaleries } from "@/modules/photos-galeries/galerie.service";
+import { countPhotosByCulling } from "@/modules/photos-galeries/photo.service";
 import { PORTFOLIOS } from "@/modules/portfolio/mock-data";
 import { SEANCES } from "@/modules/seances/mock-data";
 import { statutSeanceConfig } from "@/modules/seances/seance.types";
@@ -89,14 +90,17 @@ export default async function DashboardPage() {
   const thisWeek = SEANCES.filter(
     (s) => s.dateDebut >= nowIso && s.dateDebut <= weekEnd.toISOString() && s.statut !== "ANNULEE",
   );
-  const toCull = PHOTOS.filter((p) => p.statutCulling === "EN_ATTENTE").length;
+  const [galeriesParStatut, photosParCulling, galeries] = await Promise.all([
+    countGaleriesByStatut(),
+    countPhotosByCulling(),
+    listGaleries(),
+  ]);
+  const toCull = photosParCulling.EN_ATTENTE;
   const unpaid = FACTURES.filter((f) => f.statut !== "PAYEE");
   const openComplaints = RECLAMATIONS.filter(
     (r) => r.statut === "OUVERTE" || r.statut === "EN_COURS",
   );
-  const recentGalleries = [...GALERIES]
-    .sort((a, b) => b.dateCreation.localeCompare(a.dateCreation))
-    .slice(0, 4);
+  const recentGalleries = galeries.slice(0, 4); // already newest first
 
   const stats: {
     label: string;
@@ -110,13 +114,13 @@ export default async function DashboardPage() {
           { label: "Photos awaiting culling", value: toCull, icon: Images, tone: "amber" },
           {
             label: "Galleries in culling",
-            value: GALERIES.filter((g) => g.statut === "EN_TRI").length,
+            value: galeriesParStatut.EN_TRI,
             icon: GalleryHorizontalEnd,
             tone: "blue",
           },
           {
             label: "Approved selections",
-            value: GALERIES.filter((g) => g.statut === "VALIDEE").length,
+            value: galeriesParStatut.VALIDEE,
             icon: TrendingUp,
             tone: "green",
           },
@@ -166,7 +170,7 @@ export default async function DashboardPage() {
             : [
                 {
                   label: "Shared galleries",
-                  value: GALERIES.filter((g) => g.statut === "PARTAGEE").length,
+                  value: galeriesParStatut.PARTAGEE,
                   icon: GalleryHorizontalEnd,
                   tone: "blue" as const,
                 },
@@ -174,7 +178,7 @@ export default async function DashboardPage() {
         ];
 
   const insights = [
-    `${toCull} photos are waiting to be culled: the AI has already pre-sorted ${PHOTOS.filter((p) => p.statutCulling !== "EN_ATTENTE").length}.`,
+    `${toCull} photos are waiting to be culled: the AI has already pre-sorted ${photosParCulling.RETENUE + photosParCulling.REJETEE}.`,
     "Saturday afternoon slots are 90% booked: offer Fridays to new clients.",
     can(user.role, "facturation")
       ? `${FACTURES.filter((f) => (f.risqueRetardIA ?? 0) >= 0.6).length} invoice(s) have a high risk of late payment.`

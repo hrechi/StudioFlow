@@ -75,7 +75,11 @@ export function GaleriesBrowser({ galeries }: { galeries: Galerie[] }) {
         <EmptyState
           icon={FolderSearch}
           title="No galleries"
-          description="No gallery matches these criteria."
+          description={
+            galeries.length === 0
+              ? "Create a gallery for a client, then import its photos."
+              : "No gallery matches these criteria."
+          }
         />
       ) : (
         <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">

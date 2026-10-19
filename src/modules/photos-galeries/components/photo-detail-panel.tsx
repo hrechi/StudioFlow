@@ -1,13 +1,17 @@
 "use client";
 
 import { Check, CheckCircle2, Copy, EyeOff, ScanEye, ScanSearch, X, XCircle } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useTransition } from "react";
+import { toast } from "sonner";
 import { AIBadge } from "@/components/shared/ai-badge";
 import { comingSoon } from "@/components/shared/coming-soon-button";
 import { SafeImage } from "@/components/shared/safe-image";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { Button } from "@/components/ui/button";
 import { cn, formatDateTime } from "@/lib/utils";
-import { statutCullingConfig, type Photo } from "../galerie.types";
+import { statutCullingConfig, type Photo, type StatutCulling } from "../galerie.types";
+import { setCullingAction } from "../photo.actions";
 import { scoreTone } from "./photo-thumb";
 
 function Check2({ ok, label, icon: Icon }: { ok: boolean; label: string; icon: typeof EyeOff }) {
@@ -26,12 +30,27 @@ function Check2({ ok, label, icon: Icon }: { ok: boolean; label: string; icon: t
 
 /** Details of the selected photo: metadata, AI analysis, culling actions. */
 export function PhotoDetailPanel({ photo, onClose }: { photo: Photo; onClose?: () => void }) {
+  const router = useRouter();
+  const [pending, startTransition] = useTransition();
+  const setStatus = (statut: StatutCulling) =>
+    startTransition(async () => {
+      const result = await setCullingAction({ ids: [photo.id], statut });
+      if (!result.ok) {
+        toast.error(result.error);
+        return;
+      }
+      toast.success(`${photo.nomFichier}: ${statutCullingConfig[statut].label.toLowerCase()}`);
+      router.refresh();
+    });
+
   return (
     <div className="space-y-4">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <p className="truncate font-semibold text-charcoal">{photo.nomFichier}</p>
-          <p className="text-xs text-muted-foreground">{formatDateTime(photo.datePrise)}</p>
+          <p className="text-xs text-muted-foreground">
+            {formatDateTime(photo.datePrise ?? photo.dateUpload)}
+          </p>
         </div>
         {onClose && (
           <Button variant="ghost" size="icon-sm" onClick={onClose} aria-label="Close details">
@@ -95,11 +114,19 @@ export function PhotoDetailPanel({ photo, onClose }: { photo: Photo; onClose?: (
       </section>
 
       <div className="grid grid-cols-2 gap-2">
-        <Button variant="outline" onClick={() => comingSoon("Mark as kept")}>
+        <Button
+          variant="outline"
+          disabled={pending || photo.statutCulling === "RETENUE"}
+          onClick={() => setStatus("RETENUE")}
+        >
           <Check aria-hidden />
           Keep
         </Button>
-        <Button variant="destructive-soft" onClick={() => comingSoon("Mark as rejected")}>
+        <Button
+          variant="destructive-soft"
+          disabled={pending || photo.statutCulling === "REJETEE"}
+          onClick={() => setStatus("REJETEE")}
+        >
           <X aria-hidden />
           Reject
         </Button>
