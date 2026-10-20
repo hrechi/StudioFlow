@@ -15,7 +15,7 @@ export default async function NouvelUtilisateurPage() {
       <PageHeader
         eyebrow={<BackLink />}
         title="New user"
-        description="Staff accounts (photographers, retouchers, administrators) are created here, never through public sign-up."
+        description="Staff accounts (photographers, administrators) are created here, never through public sign-up."
       />
       <UserForm mode="create" />
     </div>

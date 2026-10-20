@@ -14,7 +14,6 @@ import {
   Package,
   Receipt,
   ScanSearch,
-  TrendingUp,
 } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -34,7 +33,6 @@ import { RESERVATIONS } from "@/modules/materiel/mock-data";
 import { statutGalerieConfig } from "@/modules/photos-galeries/galerie.types";
 import { countGaleriesByStatut, listGaleries } from "@/modules/photos-galeries/galerie.service";
 import { countPhotosByCulling } from "@/modules/photos-galeries/photo.service";
-import { PORTFOLIOS } from "@/modules/portfolio/mock-data";
 import { SEANCES } from "@/modules/seances/mock-data";
 import { statutSeanceConfig } from "@/modules/seances/seance.types";
 import { roleConfig } from "@/modules/utilisateurs/utilisateur.types";
@@ -108,74 +106,55 @@ export default async function DashboardPage() {
     icon: LucideIcon;
     tone: "blue" | "green" | "amber" | "red" | "ai";
     hint?: string;
-  }[] =
-    user.role === "RETOUCHEUR"
+  }[] = [
+    {
+      label: "Sessions this week",
+      value: thisWeek.length,
+      icon: CalendarDays,
+      tone: "blue",
+      hint: `${SEANCES.filter((s) => s.statut === "PLANIFIEE").length} to confirm`,
+    },
+    { label: "Photos awaiting culling", value: toCull, icon: Images, tone: "amber" },
+    ...(can(user.role, "facturation")
       ? [
-          { label: "Photos awaiting culling", value: toCull, icon: Images, tone: "amber" },
           {
-            label: "Galleries in culling",
-            value: galeriesParStatut.EN_TRI,
-            icon: GalleryHorizontalEnd,
-            tone: "blue",
+            label: "Unpaid invoices",
+            value: unpaid.length,
+            icon: Receipt,
+            tone: "red" as const,
+            hint:
+              formatCurrency(unpaid.reduce((s, f) => s + f.montantTTC - f.montantPaye, 0)) +
+              " to collect",
           },
-          {
-            label: "Approved selections",
-            value: galeriesParStatut.VALIDEE,
-            icon: TrendingUp,
-            tone: "green",
-          },
-          { label: "Portfolio collections", value: PORTFOLIOS.length, icon: BookImage, tone: "ai" },
         ]
       : [
           {
-            label: "Sessions this week",
-            value: thisWeek.length,
-            icon: CalendarDays,
-            tone: "blue",
-            hint: `${SEANCES.filter((s) => s.statut === "PLANIFIEE").length} to confirm`,
+            label: "Reserved equipment",
+            value: RESERVATIONS.filter((r) => r.statut === "CONFIRMEE" || r.statut === "EN_COURS")
+              .length,
+            icon: Package,
+            tone: "green" as const,
           },
-          { label: "Photos awaiting culling", value: toCull, icon: Images, tone: "amber" },
-          ...(can(user.role, "facturation")
-            ? [
-                {
-                  label: "Unpaid invoices",
-                  value: unpaid.length,
-                  icon: Receipt,
-                  tone: "red" as const,
-                  hint:
-                    formatCurrency(unpaid.reduce((s, f) => s + f.montantTTC - f.montantPaye, 0)) +
-                    " to collect",
-                },
-              ]
-            : [
-                {
-                  label: "Reserved equipment",
-                  value: RESERVATIONS.filter(
-                    (r) => r.statut === "CONFIRMEE" || r.statut === "EN_COURS",
-                  ).length,
-                  icon: Package,
-                  tone: "green" as const,
-                },
-              ]),
-          ...(can(user.role, "avis-reclamations")
-            ? [
-                {
-                  label: "Open complaints",
-                  value: openComplaints.length,
-                  icon: MessageSquareWarning,
-                  tone: "red" as const,
-                  hint: `${openComplaints.filter((r) => r.priorite === "URGENTE").length} urgent`,
-                },
-              ]
-            : [
-                {
-                  label: "Shared galleries",
-                  value: galeriesParStatut.PARTAGEE,
-                  icon: GalleryHorizontalEnd,
-                  tone: "blue" as const,
-                },
-              ]),
-        ];
+        ]),
+    ...(can(user.role, "avis-reclamations")
+      ? [
+          {
+            label: "Open complaints",
+            value: openComplaints.length,
+            icon: MessageSquareWarning,
+            tone: "red" as const,
+            hint: `${openComplaints.filter((r) => r.priorite === "URGENTE").length} urgent`,
+          },
+        ]
+      : [
+          {
+            label: "Shared galleries",
+            value: galeriesParStatut.PARTAGEE,
+            icon: GalleryHorizontalEnd,
+            tone: "blue" as const,
+          },
+        ]),
+  ];
 
   const insights = [
     `${toCull} photos are waiting to be culled: the AI has already pre-sorted ${photosParCulling.RETENUE + photosParCulling.REJETEE}.`,

@@ -48,10 +48,10 @@ export default async function UtilisateursPage({
         <StatCard label="Total accounts" value={stats.TOTAL} icon={Users} />
         <StatCard
           label="Studio staff"
-          value={stats.ADMIN + stats.PHOTOGRAPHE + stats.RETOUCHEUR}
+          value={stats.ADMIN + stats.PHOTOGRAPHE}
           icon={Camera}
           tone="green"
-          hint={`${stats.ADMIN} admin · ${stats.PHOTOGRAPHE} photo · ${stats.RETOUCHEUR} retouch`}
+          hint={`${stats.ADMIN} admin · ${stats.PHOTOGRAPHE} photographers`}
         />
         <StatCard label="Clients" value={stats.CLIENT} icon={UsersRound} tone="amber" />
         <StatCard label="Blocked accounts" value={stats.BLOQUE} icon={Ban} tone="red" />

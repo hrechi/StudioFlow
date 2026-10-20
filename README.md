@@ -9,7 +9,7 @@ One Next.js application is both the **frontend** and the **backend** (pages, Ser
 | Public site (front office) | `/`, `/portfolio`, `/galerie` (open a shared gallery) | Everyone |
 | Sign in / sign up | `/login`, `/register` | Visitors |
 | Client area (front office) | `/espace-client` | `CLIENT` |
-| Backoffice | `/dashboard` | `ADMIN`, `PHOTOGRAPHE`, `RETOUCHEUR` |
+| Backoffice | `/dashboard` | `ADMIN`, `PHOTOGRAPHE` |
 
 ---
 
@@ -85,7 +85,7 @@ Then open `.env.local`, paste `AUTH_SECRET` and choose `ADMIN_PASSWORD` (at leas
 npm run seed:admin
 ```
 
-It creates the `ADMIN` account if no admin exists (running it again does nothing). Staff accounts (photographers, retouchers, other admins) are then created by the admin in **Backoffice → Utilisateurs → Nouvel utilisateur**. Public sign-up always creates a `CLIENT`.
+It creates the `ADMIN` account if no admin exists (running it again does nothing). Staff accounts (photographers, other admins) are then created by the admin in **Backoffice → Users → New user**. Public sign-up always creates a `CLIENT`.
 
 ## 4. Run
 

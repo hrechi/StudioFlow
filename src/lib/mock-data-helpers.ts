@@ -18,10 +18,7 @@ export const MOCK_PHOTOGRAPHES: UtilisateurRef[] = [
   { id: "u-photo-1", prenom: "Yassine", nom: "Gharbi", photoProfil: MOCK_AVATARS[1] },
   { id: "u-photo-2", prenom: "Ines", nom: "Trabelsi", photoProfil: MOCK_AVATARS[2] },
   { id: "u-photo-3", prenom: "Mehdi", nom: "Ben Salah", photoProfil: MOCK_AVATARS[3] },
-];
-
-export const MOCK_RETOUCHEURS: UtilisateurRef[] = [
-  { id: "u-retouche-1", prenom: "Karim", nom: "Mansour", photoProfil: MOCK_AVATARS[10] },
+  { id: "u-photo-4", prenom: "Karim", nom: "Mansour", photoProfil: MOCK_AVATARS[10] },
 ];
 
 export const MOCK_CLIENTS: UtilisateurRef[] = [

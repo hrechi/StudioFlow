@@ -6,7 +6,6 @@ import {
   MOCK_CLIENTS,
   MOCK_CURRENT_CLIENT,
   MOCK_PHOTOGRAPHES,
-  MOCK_RETOUCHEURS,
   inDays,
 } from "@/lib/mock-data-helpers";
 import type { Avis, Reclamation } from "./avis.types";
@@ -140,7 +139,7 @@ export const RECLAMATIONS: Reclamation[] = [
     dateCreation: inDays(-4),
     client: nour,
     seance: { id: "seance-x3", titre: "Nour Cosmetics party 2025" },
-    traitePar: MOCK_RETOUCHEURS[0],
+    traitePar: MOCK_PHOTOGRAPHES[3],
   },
   {
     id: "rec-4",

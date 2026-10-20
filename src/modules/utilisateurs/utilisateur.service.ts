@@ -210,7 +210,6 @@ export async function getUserStats(): Promise<Record<Role | "BLOQUE" | "TOTAL", 
   const stats = {
     ADMIN: 0,
     PHOTOGRAPHE: 0,
-    RETOUCHEUR: 0,
     CLIENT: 0,
     BLOQUE: bloques,
     TOTAL: total,

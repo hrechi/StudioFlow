@@ -4,14 +4,10 @@
  */
 import type { StatusConfig } from "@/components/shared/status-badge";
 
-export const ROLES = ["ADMIN", "PHOTOGRAPHE", "RETOUCHEUR", "CLIENT"] as const;
+export const ROLES = ["ADMIN", "PHOTOGRAPHE", "CLIENT"] as const;
 export type Role = (typeof ROLES)[number];
 
-export const STAFF_ROLES = [
-  "ADMIN",
-  "PHOTOGRAPHE",
-  "RETOUCHEUR",
-] as const satisfies readonly Role[];
+export const STAFF_ROLES = ["ADMIN", "PHOTOGRAPHE"] as const satisfies readonly Role[];
 export type StaffRole = (typeof STAFF_ROLES)[number];
 
 export const TYPES_CLIENT = ["PARTICULIER", "ENTREPRISE"] as const;
@@ -65,7 +61,6 @@ export type NotificationDTO = {
 export const roleConfig: StatusConfig<Role> = {
   ADMIN: { label: "Administrator", tone: "dark" },
   PHOTOGRAPHE: { label: "Photographer", tone: "info" },
-  RETOUCHEUR: { label: "Retoucher", tone: "outline" },
   CLIENT: { label: "Client", tone: "neutral" },
 };
 

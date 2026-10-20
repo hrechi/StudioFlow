@@ -3,7 +3,7 @@ import { requireArea } from "@/lib/guards";
 import { getNotificationSummary } from "@/modules/utilisateurs/notification.service";
 import { roleConfig } from "@/modules/utilisateurs/utilisateur.types";
 
-/** Backoffice (ADMIN / PHOTOGRAPHE / RETOUCHEUR). Each page also checks its own module permission. */
+/** Backoffice (ADMIN / PHOTOGRAPHE). Each page also checks its own module permission. */
 export default async function BackofficeLayout({ children }: LayoutProps<"/dashboard">) {
   const user = await requireArea("dashboard");
   const notifications = await getNotificationSummary(user.id);
