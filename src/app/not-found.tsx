@@ -11,7 +11,9 @@ export default function NotFound() {
         <Compass className="size-8" aria-hidden />
       </span>
       <div className="space-y-2">
-        <h1 className="text-3xl font-bold text-charcoal">Page not found</h1>
+        <h1 className="text-3xl font-medium tracking-[0.08em] text-foreground uppercase">
+          Page not found
+        </h1>
         <p className="max-w-md text-sm text-muted-foreground">
           This page doesn&apos;t exist or has been moved.
         </p>

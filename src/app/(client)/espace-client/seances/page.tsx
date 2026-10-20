@@ -32,7 +32,7 @@ export default async function MesSeancesPage() {
         }
       />
       <section className="space-y-4">
-        <h2 className="text-lg font-semibold text-charcoal">Upcoming</h2>
+        <h2 className="text-lg font-semibold text-foreground">Upcoming</h2>
         {aVenir.length === 0 ? (
           <EmptyState
             icon={CalendarX2}
@@ -53,7 +53,7 @@ export default async function MesSeancesPage() {
         )}
       </section>
       <section className="space-y-4">
-        <h2 className="text-lg font-semibold text-charcoal">History</h2>
+        <h2 className="text-lg font-semibold text-foreground">History</h2>
         <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {passees.map((seance) => (
             <SeanceCard key={seance.id} seance={seance} className="opacity-90" />

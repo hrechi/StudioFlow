@@ -31,7 +31,7 @@ export function TypeClientPicker({
             <label
               key={optionValue}
               className={cn(
-                "relative flex cursor-pointer items-start gap-3 rounded-xl border bg-white p-3 transition-colors",
+                "relative flex cursor-pointer items-start gap-3 rounded-xl border bg-card p-3 transition-colors",
                 "has-[:focus-visible]:ring-3 has-[:focus-visible]:ring-ring/50",
                 checked ? "border-primary bg-accent/60" : "border-border hover:border-gray/40",
               )}
@@ -47,13 +47,13 @@ export function TypeClientPicker({
               <span
                 className={cn(
                   "grid size-8 shrink-0 place-items-center rounded-lg",
-                  checked ? "bg-primary text-white" : "bg-muted text-slate",
+                  checked ? "bg-primary text-primary-foreground" : "bg-muted text-slate",
                 )}
               >
                 <Icon className="size-4" aria-hidden />
               </span>
               <span className="min-w-0">
-                <span className="block text-sm font-semibold text-charcoal">
+                <span className="block text-sm font-semibold text-foreground">
                   {typeClientLabels[optionValue]}
                 </span>
                 <span className="block text-xs text-muted-foreground">{hint}</span>

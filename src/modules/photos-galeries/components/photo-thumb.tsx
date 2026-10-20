@@ -18,7 +18,7 @@ export function scoreTone(score: number) {
 export function AILabels({ photo, className }: { photo: Photo; className?: string }) {
   const labels = [
     photo.estFloue && { text: "Blurry", icon: EyeOff, cls: "bg-destructive text-white" },
-    photo.yeuxFermes && { text: "Eyes closed", icon: ScanEye, cls: "bg-warning text-charcoal" },
+    photo.yeuxFermes && { text: "Eyes closed", icon: ScanEye, cls: "bg-warning text-foreground" },
     photo.groupeDoublon && { text: "Duplicate", icon: Copy, cls: "bg-charcoal/85 text-white" },
   ].filter(Boolean) as { text: string; icon: typeof Copy; cls: string }[];
   if (!labels.length) return null;
@@ -85,7 +85,7 @@ export function PhotoThumb({
         className={cn(
           "absolute top-2 left-2 grid size-6 cursor-pointer place-items-center rounded-md border-2 shadow-sm transition-all has-[:focus-visible]:ring-3 has-[:focus-visible]:ring-ring/60",
           selected
-            ? "border-primary bg-primary text-white"
+            ? "border-primary bg-primary text-primary-foreground"
             : "border-white bg-white/30 text-transparent opacity-80 group-hover:opacity-100",
         )}
       >
@@ -100,7 +100,7 @@ export function PhotoThumb({
       </label>
 
       <span
-        className="absolute top-2 right-2 inline-flex items-center gap-1 rounded-full bg-white/95 px-1.5 py-0.5 text-[0.7rem] font-bold shadow-sm"
+        className="absolute top-2 right-2 inline-flex items-center gap-1 rounded-full bg-black/70 px-1.5 py-0.5 text-[0.7rem] font-bold shadow-sm backdrop-blur-sm"
         title="AI quality score"
       >
         <Sparkles className="size-3 text-ai" aria-hidden />

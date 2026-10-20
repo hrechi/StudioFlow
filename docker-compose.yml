@@ -1,8 +1,8 @@
-# StudioFlow — full stack in one command:  docker compose up --build
+# ReFrame — full stack in one command:  docker compose up --build
 # Reads AUTH_SECRET / ADMIN_EMAIL / ADMIN_PASSWORD from .env (copy .env.example). See README > "Run with Docker".
-name: studioflow
+name: reframe
 
-x-mongo-uri: &mongo-uri mongodb://mongo:27017/studioflow
+x-mongo-uri: &mongo-uri mongodb://mongo:27017/reframe
 
 services:
   mongo:

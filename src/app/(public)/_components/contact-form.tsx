@@ -18,20 +18,30 @@ export function ContactForm() {
       }}
     >
       <FormField id="contact-nom" label="Full name" required>
-        <Input id="contact-nom" autoComplete="name" className="h-11 bg-white" />
+        <Input id="contact-nom" autoComplete="name" className="h-11 rounded-none bg-transparent" />
       </FormField>
       <FormField id="contact-email" label="Email" required>
-        <Input id="contact-email" type="email" autoComplete="email" className="h-11 bg-white" />
+        <Input
+          id="contact-email"
+          type="email"
+          autoComplete="email"
+          className="h-11 rounded-none bg-transparent"
+        />
       </FormField>
       <FormField id="contact-message" label="Your shoot" required className="sm:col-span-2">
         <Textarea
           id="contact-message"
           rows={5}
           placeholder="Session type, preferred date, location…"
-          className="bg-white"
+          className="rounded-none bg-transparent"
         />
       </FormField>
-      <Button type="submit" size="lg" className="sm:col-span-2 sm:justify-self-start">
+      <Button
+        type="submit"
+        variant="cinematic"
+        size="cta"
+        className="sm:col-span-2 sm:justify-self-start"
+      >
         <Send aria-hidden />
         Send message
       </Button>

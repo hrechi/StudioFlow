@@ -156,8 +156,8 @@ export function UploadDialog({
         <DialogHeader>
           <DialogTitle>Import photos</DialogTitle>
           <DialogDescription>
-            Photos are stored by StudioFlow with a thumbnail. AI analysis (sharpness, tags…) comes
-            in a later step.
+            Photos are stored by ReFrame with a thumbnail. AI analysis (sharpness, tags…) comes in a
+            later step.
           </DialogDescription>
         </DialogHeader>
 
@@ -167,7 +167,7 @@ export function UploadDialog({
               Gallery
             </Label>
             <Select value={galerieId} onValueChange={setGalerieId} disabled={running}>
-              <SelectTrigger id="upload-galerie" className="h-10 w-full bg-white">
+              <SelectTrigger id="upload-galerie" className="h-10 w-full bg-card">
                 <SelectValue placeholder="Choose a gallery">
                   {galeries?.find((g) => g.id === galerieId)?.titre}
                 </SelectValue>
@@ -207,7 +207,7 @@ export function UploadDialog({
           <span className="grid size-12 place-items-center rounded-full bg-accent text-primary-text">
             <CloudUpload className="size-6" aria-hidden />
           </span>
-          <span className="text-sm font-semibold text-charcoal">Drag your photos here</span>
+          <span className="text-sm font-semibold text-foreground">Drag your photos here</span>
           <span className="text-xs text-muted-foreground">
             or click to browse · JPG, PNG, WebP · {MAX_MB} MB max per file
           </span>
@@ -231,7 +231,7 @@ export function UploadDialog({
                 <FileImage className="size-5 shrink-0 text-muted-foreground" aria-hidden />
                 <div className="min-w-0 flex-1 space-y-1">
                   <div className="flex justify-between gap-2 text-xs">
-                    <span className="truncate font-medium text-charcoal">{item.file.name}</span>
+                    <span className="truncate font-medium text-foreground">{item.file.name}</span>
                     <span
                       className={cn(
                         "shrink-0",

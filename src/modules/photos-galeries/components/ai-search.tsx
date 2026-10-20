@@ -97,7 +97,7 @@ export function AISearch({ photos, exemple }: { photos: Photo[]; exemple: string
           e.preventDefault();
           search();
         }}
-        className="flex flex-col gap-2 rounded-2xl bg-white p-2 shadow-soft ring-1 ring-ai/20 sm:flex-row"
+        className="flex flex-col gap-2 rounded-2xl bg-card p-2 shadow-soft ring-1 ring-ai/20 sm:flex-row"
       >
         <div className="relative flex-1">
           <Sparkles
@@ -123,7 +123,7 @@ export function AISearch({ photos, exemple }: { photos: Photo[]; exemple: string
           <div className="space-y-3 border-b p-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div>
-                <h2 className="flex items-center gap-2 font-semibold text-charcoal">
+                <h2 className="flex items-center gap-2 font-semibold text-foreground">
                   AI search results <AIBadge />
                 </h2>
                 <p className="text-sm text-muted-foreground" aria-live="polite">
@@ -168,7 +168,7 @@ export function AISearch({ photos, exemple }: { photos: Photo[]; exemple: string
                       sizes="(min-width: 1280px) 20vw, 50vw"
                       className="object-cover transition-transform duration-500 group-hover:scale-105"
                     />
-                    <span className="absolute right-2 bottom-2 rounded-full bg-white/95 px-2 py-0.5 text-[0.7rem] font-bold text-ai-text shadow-sm">
+                    <span className="absolute right-2 bottom-2 rounded-full bg-black/70 px-2 py-0.5 text-[0.7rem] font-bold text-ai-text shadow-sm backdrop-blur-sm">
                       {Math.round(pertinence * 100)}%
                     </span>
                   </li>
@@ -194,7 +194,9 @@ export function AISearch({ photos, exemple }: { photos: Photo[]; exemple: string
                     aria-current={p === page ? "page" : undefined}
                     className={cn(
                       "grid size-8 place-items-center rounded-lg font-medium",
-                      p === page ? "bg-primary text-white" : "text-slate hover:bg-muted",
+                      p === page
+                        ? "bg-primary text-primary-foreground"
+                        : "text-slate hover:bg-muted",
                     )}
                   >
                     {p}
@@ -207,7 +209,7 @@ export function AISearch({ photos, exemple }: { photos: Photo[]; exemple: string
 
         <Card className="gap-0 self-start py-0">
           <div className="flex items-center justify-between border-b px-4 py-3">
-            <p className="flex items-center gap-2 text-sm font-semibold text-charcoal">
+            <p className="flex items-center gap-2 text-sm font-semibold text-foreground">
               <SlidersHorizontal className="size-4" aria-hidden />
               Refine
             </p>

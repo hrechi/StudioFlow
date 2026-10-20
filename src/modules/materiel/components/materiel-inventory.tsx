@@ -112,7 +112,7 @@ export function MaterielInventory({ materiels }: { materiels: Materiel[] }) {
                         />
                       </span>
                       <span>
-                        <span className="block font-semibold text-charcoal group-hover:text-primary-text">
+                        <span className="block font-semibold text-foreground group-hover:text-primary-text">
                           {m.nom}
                         </span>
                         <span className="block text-xs text-muted-foreground">

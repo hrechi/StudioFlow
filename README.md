@@ -1,4 +1,4 @@
-# StudioFlow
+# ReFrame
 
 **AI-Powered Operating System for Photography Studios** — university group assignment (Esprit School of Engineering).
 
@@ -33,7 +33,7 @@ This starts three services:
 | --- | --- |
 | `mongo` | MongoDB 8 with a persistent volume. Compass: `mongodb://127.0.0.1:27018` |
 | `seed` | Creates the first ADMIN from `.env` if none exists, then exits |
-| `app` | The production build of StudioFlow on <http://localhost:3000> |
+| `app` | The production build of ReFrame on <http://localhost:3000> |
 
 Useful commands:
 
@@ -56,7 +56,7 @@ The Docker database is separate from a local MongoDB on port 27017. For day-to-d
   - Windows: install with the *"Install MongoDB as a Service"* option, then check it runs:
     `Get-Service MongoDB` (PowerShell) → `Running`. Start it with `net start MongoDB` (admin terminal).
   - macOS: `brew services start mongodb-community`.
-  - Docker alternative: `docker run -d --name studioflow-mongo -p 27017:27017 mongo:8`.
+  - Docker alternative: `docker run -d --name reframe-mongo -p 27017:27017 mongo:8`.
 
 ## 2. Setup
 
@@ -72,9 +72,9 @@ Then open `.env.local`, paste `AUTH_SECRET` and choose `ADMIN_PASSWORD` (at leas
 
 | Variable | Example | Purpose |
 | --- | --- | --- |
-| `MONGODB_URI` | `mongodb://127.0.0.1:27017/studioflow` | Local database (`studioflow`) |
+| `MONGODB_URI` | `mongodb://127.0.0.1:27017/reframe` | Local database (`reframe`) |
 | `AUTH_SECRET` | *(generated)* | Signs the Auth.js session cookie (JWT) |
-| `ADMIN_EMAIL` | `admin@studioflow.tn` | First admin created by the seed |
+| `ADMIN_EMAIL` | `admin@reframe.tn` | First admin created by the seed |
 | `ADMIN_PASSWORD` | *(your choice)* | Its password (hashed with bcrypt before saving) |
 
 `.env.local` is git-ignored; never commit it. `.env.example` is the shared template.
@@ -100,7 +100,7 @@ Production build: `npm run build` then `npm run start`.
 ## 5. MongoDB Compass
 
 1. Open Compass → **New connection** → URI `mongodb://127.0.0.1:27017` → **Connect**.
-2. The `studioflow` database appears after the first seed or sign-up, with these collections:
+2. The `reframe` database appears after the first seed or sign-up, with these collections:
    - `utilisateurs` — accounts (`motDePasse` is a bcrypt hash, never the clear password; `email` has a unique index);
    - `notifications` — notifications shown in the top-bar bell;
    - `galeries` — client galleries (`client` → `utilisateurs`, `photoCouverture` → `photos`, optional `motDePasse` is a bcrypt hash);
@@ -202,3 +202,11 @@ Your module already has `xxx.types.ts` (types and enums from the class diagram),
 - Next.js **16**: route protection uses `src/proxy.ts`, `params` / `searchParams` are Promises, `error.tsx` receives `retry()`. Read `node_modules/next/dist/docs/` for the exact APIs.
 - **Cache Components is disabled** (`next.config.ts`): every page here depends on the session or MongoDB, so pages render on each request. Turning it on later requires wrapping session/database reads in `<Suspense>` (see the "Authentication with Cache Components" guide in the bundled docs).
 - Template photos come from `images.unsplash.com` (allowed in `next.config.ts`); `SafeImage` falls back to `/images/placeholder.svg`. Uploaded photos are stored in MongoDB (GridFS) and served by `/api/photos/...`; `SafeImage` loads those `/api/` URLs unoptimized because the image optimizer does not forward the session cookie.
+
+## 11. Brand and design system
+
+- **Logo** — "RE FRAME" wordmark traced from `docs/screens/logo reframe *.jpg` into vector paths (`src/components/shared/logo-paths.ts`). Use `<Logo />` (off-white, for dark backgrounds) or `<Logo tone="onLight" />` (black); `showWordmark={false}` gives the "RF" monogram. Set only a height (`iconClassName="h-5"`) so the proportions never change. Standalone files: `public/logo-reframe-white.svg`, `public/logo-reframe-black.svg`; favicon `src/app/icon.svg`, `src/app/apple-icon.png`; social preview `src/app/opengraph-image.png`.
+- **Tokens** — all colors, radii, shadows, spacing and type settings are CSS variables in `src/app/globals.css` (`:root`). The whole platform uses one dark theme: ink surfaces (`bg-background`, `bg-surface`, `bg-card`), off-white text (`text-foreground`, `text-bone`), greys (`text-muted-foreground`) and a single accent, champagne gold (`text-gold`, `--ring`), kept for small highlights. Purple stays reserved for AI features. Never hardcode a hex color in a component: use a token.
+- **Type** — headings in Outfit (`font-heading`), uppercase with wide tracking; body text in Inter. Showcase helpers: `display-xl`, `display-lg`, `display-md`, `eyebrow`, `section`, `container-wide`, `viewfinder` (gold corner brackets).
+- **Buttons** — `variant="cinematic"` / `"cinematic-outline"` with `size="cta"` / `"cta-sm"` on the showcase site; the regular variants in the management area.
+- **Motion** — `<Reveal>` (scroll reveal), `<Parallax>`, `ken-burns` (slow zoom), `img-zoom` (hover zoom), `page-enter` (page transition, `(public)/template.tsx`), `film-grain`. Everything is disabled by `prefers-reduced-motion`. Keep the management area to minimal animation.

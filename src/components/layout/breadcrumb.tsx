@@ -41,7 +41,7 @@ export function Breadcrumb({ className }: { className?: string }) {
                   aria-current={last ? "page" : undefined}
                   className={cn(
                     "truncate",
-                    last ? "font-semibold text-charcoal" : "text-muted-foreground",
+                    last ? "font-semibold text-foreground" : "text-muted-foreground",
                   )}
                 >
                   {crumb.label}

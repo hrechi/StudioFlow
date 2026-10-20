@@ -77,7 +77,7 @@ export function DevisEditor({
           <CardContent className="grid gap-4 sm:grid-cols-2">
             <FormField id="client" label="Client" required>
               <Select defaultValue={clients[0]?.id}>
-                <SelectTrigger id="client" className="h-10 w-full bg-white">
+                <SelectTrigger id="client" className="h-10 w-full bg-card">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -91,7 +91,7 @@ export function DevisEditor({
             </FormField>
             <FormField id="seance" label="Session" required>
               <Select defaultValue={seances[0]?.id}>
-                <SelectTrigger id="seance" className="h-10 w-full bg-white">
+                <SelectTrigger id="seance" className="h-10 w-full bg-card">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -143,7 +143,7 @@ export function DevisEditor({
                     onChange={(e) => update(ligne.key, { designation: e.target.value })}
                     placeholder="e.g. Wedding coverage (8 h)"
                     aria-label={`Description of line ${index + 1}`}
-                    className="h-9 bg-white pr-12"
+                    className="h-9 bg-card pr-12"
                   />
                   {ligne.ia && <AIBadge className="absolute top-1/2 right-2 -translate-y-1/2" />}
                 </div>
@@ -155,7 +155,7 @@ export function DevisEditor({
                     update(ligne.key, { quantite: Math.max(1, Number(e.target.value) || 1) })
                   }
                   aria-label={`Quantity line ${index + 1}`}
-                  className="h-9 bg-white"
+                  className="h-9 bg-card"
                 />
                 <Input
                   type="number"
@@ -166,9 +166,9 @@ export function DevisEditor({
                     update(ligne.key, { prixUnitaire: Math.max(0, Number(e.target.value) || 0) })
                   }
                   aria-label={`Unit price line ${index + 1}`}
-                  className="h-9 bg-white"
+                  className="h-9 bg-card"
                 />
-                <span className="self-center text-right text-sm font-semibold text-charcoal">
+                <span className="self-center text-right text-sm font-semibold text-foreground">
                   {formatCurrency(ligne.quantite * ligne.prixUnitaire)}
                 </span>
                 <Button
@@ -208,7 +208,7 @@ export function DevisEditor({
                   onChange={(e) =>
                     setRemise(Math.min(100, Math.max(0, Number(e.target.value) || 0)))
                   }
-                  className="h-9 bg-white"
+                  className="h-9 bg-card"
                 />
               </FormField>
               <FormField id="tva" label="VAT (%)">
@@ -219,7 +219,7 @@ export function DevisEditor({
                   max={100}
                   value={tva}
                   onChange={(e) => setTva(Math.min(100, Math.max(0, Number(e.target.value) || 0)))}
-                  className="h-9 bg-white"
+                  className="h-9 bg-card"
                 />
               </FormField>
             </div>
@@ -232,7 +232,7 @@ export function DevisEditor({
                 <dt>Discount</dt>
                 <dd>− {formatCurrency(totaux.montantRemise)}</dd>
               </div>
-              <div className="flex justify-between font-semibold text-charcoal">
+              <div className="flex justify-between font-semibold text-foreground">
                 <dt>Total excl. VAT</dt>
                 <dd>{formatCurrency(totaux.montantHT)}</dd>
               </div>
@@ -240,7 +240,7 @@ export function DevisEditor({
                 <dt>VAT {tva}%</dt>
                 <dd>{formatCurrency(totaux.montantTVA)}</dd>
               </div>
-              <div className="flex justify-between border-t pt-3 text-lg font-bold text-charcoal">
+              <div className="flex justify-between border-t pt-3 text-lg font-bold text-foreground">
                 <dt>Total incl. VAT</dt>
                 <dd>{formatCurrency(totaux.montantTTC)}</dd>
               </div>

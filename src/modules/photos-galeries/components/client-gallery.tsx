@@ -194,7 +194,7 @@ export function ClientGallery({ galerie, photos }: { galerie: Galerie; photos: P
                         "rounded-full",
                         selection.has(current.id)
                           ? "bg-success text-white hover:bg-success-text"
-                          : "bg-white text-charcoal hover:bg-white/90",
+                          : "bg-card text-foreground hover:bg-muted",
                       )}
                     >
                       {selection.has(current.id) ? (
@@ -248,7 +248,7 @@ export function ClientGallery({ galerie, photos }: { galerie: Galerie; photos: P
               </ul>
             </>
           ) : (
-            <div className="grid aspect-[3/2] place-items-center rounded-2xl border border-dashed bg-white text-center text-sm text-muted-foreground">
+            <div className="grid aspect-[3/2] place-items-center rounded-2xl border border-dashed bg-card text-center text-sm text-muted-foreground">
               {view === "favoris"
                 ? "Add photos to your favorites with the heart."
                 : view === "selection"
@@ -290,7 +290,7 @@ export function ClientGallery({ galerie, photos }: { galerie: Galerie; photos: P
                   rows={3}
                   aria-label="Your comment on this photo"
                   placeholder="A retouch, a crop, a note about this photo…"
-                  className="bg-white"
+                  className="bg-card"
                 />
                 <Button
                   type="submit"

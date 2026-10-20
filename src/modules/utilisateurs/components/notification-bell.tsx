@@ -68,7 +68,7 @@ export function NotificationBell({
         >
           <Bell aria-hidden />
           {unread > 0 && (
-            <span className="absolute -top-0.5 -right-0.5 grid h-4.5 min-w-4.5 place-items-center rounded-full bg-destructive px-1 text-[0.65rem] leading-none font-bold text-white ring-2 ring-white">
+            <span className="absolute -top-0.5 -right-0.5 grid h-4.5 min-w-4.5 place-items-center rounded-full bg-destructive px-1 text-[0.65rem] leading-none font-bold text-white ring-2 ring-card">
               {unread > 9 ? "9+" : unread}
             </span>
           )}
@@ -77,7 +77,7 @@ export function NotificationBell({
       <DropdownMenuContent align="end" className="w-[22rem] max-w-[calc(100vw-1.5rem)] p-0">
         <div className="flex items-center justify-between gap-2 px-4 py-3">
           <div>
-            <p className="text-sm font-semibold text-charcoal">Notifications</p>
+            <p className="text-sm font-semibold text-foreground">Notifications</p>
             <p className="text-xs text-muted-foreground">
               {unread ? `${unread} unread` : "All caught up"}
             </p>

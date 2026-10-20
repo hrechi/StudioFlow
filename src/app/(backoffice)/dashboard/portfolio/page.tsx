@@ -32,7 +32,7 @@ export default async function PortfolioAdminPage() {
           <Link
             key={p.id}
             href={`/dashboard/portfolio/${p.id}`}
-            className="group overflow-hidden rounded-2xl bg-white shadow-soft ring-1 ring-border transition-shadow hover:shadow-lift"
+            className="group overflow-hidden rounded-2xl bg-card shadow-soft ring-1 ring-border transition-shadow hover:shadow-lift"
           >
             <div className="relative aspect-[16/10] bg-muted">
               <SafeImage
@@ -43,14 +43,14 @@ export default async function PortfolioAdminPage() {
                 className="object-cover transition-transform duration-700 group-hover:scale-105"
               />
               <div className="absolute top-3 left-3">
-                <StatusBadge value={p.visibilite} config={visibiliteConfig} className="bg-white" />
+                <StatusBadge value={p.visibilite} config={visibiliteConfig} className="bg-card" />
               </div>
             </div>
             <div className="space-y-1.5 p-4">
               <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
                 {categoriePortfolioLabels[p.categorie]}
               </p>
-              <h2 className="font-semibold text-charcoal group-hover:text-primary-text">
+              <h2 className="font-semibold text-foreground group-hover:text-primary-text">
                 {p.titre}
               </h2>
               <p className="flex gap-4 text-xs text-muted-foreground">

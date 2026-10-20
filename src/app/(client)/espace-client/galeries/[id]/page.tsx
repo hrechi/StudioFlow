@@ -46,7 +46,9 @@ export default async function ClientGaleriePage({
             {categorieGalerieLabels[galerie.categorie]}
           </span>
         </div>
-        <h1 className="text-3xl font-bold tracking-tight text-charcoal">{galerie.titre}</h1>
+        <h1 className="text-3xl font-medium tracking-[0.08em] text-foreground uppercase">
+          {galerie.titre}
+        </h1>
         <p className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
           <span className="flex items-center gap-1.5">
             <CalendarClock className="size-4" aria-hidden />

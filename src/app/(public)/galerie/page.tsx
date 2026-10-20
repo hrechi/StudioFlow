@@ -17,7 +17,7 @@ export default function SharedGalerieAccessPage() {
           <p className="text-xs font-semibold tracking-[0.3em] text-white/60 uppercase">
             Shared gallery
           </p>
-          <h1 className="mt-4 max-w-3xl text-4xl font-bold tracking-tight text-balance sm:text-5xl">
+          <h1 className="mt-4 max-w-3xl text-4xl font-medium tracking-[0.08em] text-balance uppercase sm:text-5xl">
             A client shared their photos with you?
           </h1>
           <p className="mt-5 max-w-xl text-white/70">
@@ -27,13 +27,13 @@ export default function SharedGalerieAccessPage() {
       </section>
 
       <section className="mx-auto w-full max-w-md px-5 py-14 sm:px-8">
-        <div className="space-y-6 rounded-2xl bg-white p-6 shadow-soft ring-1 ring-border sm:p-8">
+        <div className="space-y-6 rounded-2xl bg-card p-6 shadow-soft ring-1 ring-border sm:p-8">
           <div className="flex items-center gap-3">
             <span className="grid size-10 place-items-center rounded-full bg-accent text-primary-text">
               <Images className="size-5" aria-hidden />
             </span>
             <div>
-              <h2 className="font-semibold text-charcoal">Open a gallery</h2>
+              <h2 className="font-semibold text-foreground">Open a gallery</h2>
               <p className="text-sm text-muted-foreground">View only: no account needed.</p>
             </div>
           </div>

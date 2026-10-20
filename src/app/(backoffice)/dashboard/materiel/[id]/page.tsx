@@ -71,7 +71,9 @@ export default async function MaterielDetailPage({
                   dot
                 />
               </div>
-              <h1 className="text-xl font-bold text-charcoal">{materiel.nom}</h1>
+              <h1 className="text-xl font-medium tracking-[0.08em] text-foreground uppercase">
+                {materiel.nom}
+              </h1>
             </div>
             <dl className="divide-y text-sm">
               {specs.map(([label, value]) => (
@@ -114,7 +116,7 @@ export default async function MaterielDetailPage({
                   <li key={r.id} className="flex flex-wrap items-center gap-3 px-5 py-3.5">
                     <UserAvatar {...r.photographe} size="sm" />
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-semibold text-charcoal">
+                      <p className="truncate text-sm font-semibold text-foreground">
                         {r.seance.titre}
                       </p>
                       <p className="text-xs text-muted-foreground">

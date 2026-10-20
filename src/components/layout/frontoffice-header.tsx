@@ -1,6 +1,6 @@
 "use client";
 
-import { Bell, LayoutDashboard, Menu, UserRound } from "lucide-react";
+import { ArrowUpRight, Bell, LayoutDashboard, Menu, UserRound } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -15,58 +15,52 @@ import { UserMenu, type MenuUser } from "./user-menu";
 export type HeaderUser = MenuUser & { role: Role };
 
 /**
- * Public site header: transparent over the landing hero, solid once scrolled
- * (and on every other page). Mobile: menu drawer.
+ * Public site header: transparent at the top of the page (over the dark hero),
+ * solid glass once the visitor scrolls. Mobile: full-height menu drawer.
  */
 export function FrontofficeHeader({ user }: { user: HeaderUser | null }) {
   const pathname = usePathname();
-  const overHero = pathname === "/";
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 24);
+    const onScroll = () => setScrolled(window.scrollY > 32);
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  const transparent = overHero && !scrolled && !open;
   const isClient = user?.role === "CLIENT";
   const homeHref = isClient ? "/espace-client" : "/dashboard";
+  const bookHref = isClient ? "/espace-client/seances/reserver" : user ? "/dashboard" : "/register";
 
   return (
     <header
       className={cn(
-        "fixed inset-x-0 top-0 z-40 transition-[background-color,box-shadow,color] duration-300",
-        transparent
-          ? "bg-transparent text-white"
-          : "bg-white/90 text-charcoal shadow-[0_1px_0_rgb(11_15_20/0.06)] backdrop-blur-md",
+        "fixed inset-x-0 top-0 z-40 text-bone transition-[background-color,border-color,backdrop-filter] duration-500",
+        scrolled
+          ? "border-b border-white/[0.06] bg-ink/80 backdrop-blur-xl"
+          : "border-b border-transparent bg-gradient-to-b from-ink/70 to-transparent",
       )}
     >
-      <div className="mx-auto flex h-18 max-w-7xl items-center gap-6 px-5 sm:px-8">
-        <Link href="/" aria-label="StudioFlow — home" className="shrink-0 rounded-md">
-          <Logo tone={transparent ? "onDark" : "onLight"} />
+      <div className="container-wide flex h-20 items-center gap-8">
+        <Link href="/" aria-label="ReFrame — home" className="shrink-0 rounded-sm py-2">
+          <Logo iconClassName="h-4 sm:h-[1.15rem]" />
         </Link>
 
-        <nav aria-label="Main navigation" className="hidden flex-1 justify-center lg:flex">
+        <nav aria-label="Main navigation" className="hidden flex-1 justify-center xl:flex">
           <ul className="flex items-center gap-1">
             {PUBLIC_LINKS.map((link) => {
-              const active =
-                link.href === "/"
-                  ? pathname === "/"
-                  : pathname.startsWith(link.href) && !link.href.includes("#");
+              const active = !link.href.includes("#") && pathname.startsWith(link.href);
               return (
                 <li key={link.href}>
                   <Link
                     href={link.href}
                     aria-current={active ? "page" : undefined}
                     className={cn(
-                      "rounded-full px-4 py-2 text-sm font-medium transition-colors",
-                      transparent
-                        ? "text-white/85 hover:bg-white/10 hover:text-white"
-                        : "text-slate hover:bg-muted",
-                      active && (transparent ? "text-white" : "text-primary-text"),
+                      "relative px-3.5 py-2 font-heading text-[0.7rem] font-medium tracking-[0.28em] uppercase transition-colors",
+                      "after:absolute after:inset-x-3.5 after:bottom-0.5 after:h-px after:origin-left after:scale-x-0 after:bg-gold after:transition-transform after:duration-500 hover:after:scale-x-100",
+                      active ? "text-bone after:scale-x-100" : "text-bone/70 hover:text-bone",
                     )}
                   >
                     {link.label}
@@ -77,26 +71,19 @@ export function FrontofficeHeader({ user }: { user: HeaderUser | null }) {
           </ul>
         </nav>
 
-        <div className="ml-auto flex items-center gap-2 lg:ml-0">
+        <div className="ml-auto flex items-center gap-3 xl:ml-0">
           {user ? (
             <>
-              <Button
-                asChild
-                variant={transparent ? "outline" : "default"}
-                className={cn(
-                  "hidden sm:inline-flex",
-                  transparent &&
-                    "border-white/40 bg-white/10 text-white hover:bg-white/20 hover:text-white",
-                )}
+              <Link
+                href={homeHref}
+                className="hidden items-center gap-2 font-heading text-[0.7rem] font-medium tracking-[0.24em] text-bone/80 uppercase transition-colors hover:text-bone sm:inline-flex"
               >
-                <Link href={homeHref}>
-                  <LayoutDashboard aria-hidden />
-                  {isClient ? "My account" : "Backoffice"}
-                </Link>
-              </Button>
+                <LayoutDashboard className="size-4" aria-hidden />
+                {isClient ? "My account" : "Backoffice"}
+              </Link>
               <UserMenu
                 user={user}
-                tone={transparent ? "dark" : "light"}
+                tone="dark"
                 showName={false}
                 links={
                   isClient
@@ -117,28 +104,28 @@ export function FrontofficeHeader({ user }: { user: HeaderUser | null }) {
               />
             </>
           ) : (
-            <div className="hidden items-center gap-2 sm:flex">
-              <Button
-                asChild
-                variant="ghost"
-                className={cn(transparent && "text-white hover:bg-white/10 hover:text-white")}
+            <div className="hidden items-center gap-5 sm:flex">
+              <Link
+                href="/login"
+                className="font-heading text-[0.7rem] font-medium tracking-[0.24em] text-bone/80 uppercase transition-colors hover:text-bone"
               >
-                <Link href="/login">Sign in</Link>
-              </Button>
-              <Button asChild>
-                <Link href="/register">Create an account</Link>
+                Sign in
+              </Link>
+              <Button asChild variant="cinematic" size="cta-sm">
+                <Link href={bookHref}>
+                  Book a session
+                  <ArrowUpRight aria-hidden />
+                </Link>
               </Button>
             </div>
           )}
           <Button
             variant="ghost"
             size="icon"
-            className={cn(
-              "lg:hidden",
-              transparent && "text-white hover:bg-white/10 hover:text-white",
-            )}
+            className="text-bone hover:bg-white/10 hover:text-bone xl:hidden"
             onClick={() => setOpen(true)}
             aria-label="Open menu"
+            aria-expanded={open}
           >
             <Menu aria-hidden />
           </Button>
@@ -146,43 +133,46 @@ export function FrontofficeHeader({ user }: { user: HeaderUser | null }) {
       </div>
 
       <Sheet open={open} onOpenChange={setOpen}>
-        <SheetContent side="right" className="w-80 p-0 sm:max-w-80">
+        <SheetContent side="right" className="w-full border-white/5 bg-ink p-0 sm:max-w-sm">
           <SheetTitle className="sr-only">Menu</SheetTitle>
-          <SheetDescription className="sr-only">StudioFlow website navigation</SheetDescription>
+          <SheetDescription className="sr-only">ReFrame website navigation</SheetDescription>
           <div className="flex h-full flex-col">
-            <div className="flex h-18 items-center border-b px-6">
-              <Logo />
+            <div className="flex h-20 items-center px-6">
+              <Logo iconClassName="h-4" />
             </div>
-            <nav aria-label="Mobile navigation" className="flex-1 px-3 py-4">
+            <nav aria-label="Mobile navigation" className="flex-1 px-6 py-6">
               <ul className="space-y-1">
-                {PUBLIC_LINKS.map((link) => (
+                {PUBLIC_LINKS.map((link, index) => (
                   <li key={link.href}>
                     <Link
                       href={link.href}
                       onClick={() => setOpen(false)}
-                      className="block rounded-lg px-3 py-3 text-base font-medium text-slate hover:bg-muted"
+                      className="flex items-baseline gap-4 border-b border-white/5 py-4 font-heading text-lg font-medium tracking-[0.18em] text-bone uppercase transition-colors hover:text-gold"
                     >
+                      <span className="text-[0.65rem] tracking-[0.2em] text-gold">
+                        0{index + 1}
+                      </span>
                       {link.label}
                     </Link>
                   </li>
                 ))}
               </ul>
             </nav>
-            <div className="space-y-2 border-t p-5">
+            <div className="space-y-3 p-6">
               {user ? (
-                <Button asChild className="w-full" size="lg">
+                <Button asChild variant="cinematic" className="w-full" size="cta">
                   <Link href={homeHref} onClick={() => setOpen(false)}>
                     {isClient ? "My account" : "Backoffice"}
                   </Link>
                 </Button>
               ) : (
                 <>
-                  <Button asChild className="w-full" size="lg">
-                    <Link href="/register" onClick={() => setOpen(false)}>
-                      Create an account
+                  <Button asChild variant="cinematic" className="w-full" size="cta">
+                    <Link href={bookHref} onClick={() => setOpen(false)}>
+                      Book a session
                     </Link>
                   </Button>
-                  <Button asChild variant="outline" className="w-full" size="lg">
+                  <Button asChild variant="cinematic-outline" className="w-full" size="cta">
                     <Link href="/login" onClick={() => setOpen(false)}>
                       Sign in
                     </Link>

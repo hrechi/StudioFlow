@@ -24,7 +24,9 @@ export default async function AccesRefusePage({
         <ShieldX className="size-8" aria-hidden />
       </span>
       <div className="space-y-2">
-        <h1 className="text-2xl font-bold text-charcoal">Access denied</h1>
+        <h1 className="text-2xl font-medium tracking-[0.08em] text-foreground uppercase">
+          Access denied
+        </h1>
         <p className="text-sm text-muted-foreground">
           Your role ({roleConfig[user.role].label.toLowerCase()}) doesn&apos;t give access to
           {moduleLabel ? ` the "${moduleLabel}" module` : " this page"}. If you think this is a

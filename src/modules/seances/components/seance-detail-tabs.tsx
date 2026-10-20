@@ -56,7 +56,7 @@ export function SeanceDetailTabs({
             <ol className="relative space-y-5 border-l border-border pl-6">
               {extras.timeline.map((step) => (
                 <li key={step.label} className="relative">
-                  <span className="absolute top-0.5 -left-[2.05rem] grid size-5 place-items-center rounded-full bg-white">
+                  <span className="absolute top-0.5 -left-[2.05rem] grid size-5 place-items-center rounded-full bg-card">
                     {step.etat === "fait" ? (
                       <CheckCircle2 className="size-5 text-success" aria-hidden />
                     ) : step.etat === "en_cours" ? (
@@ -68,7 +68,7 @@ export function SeanceDetailTabs({
                   <p
                     className={cn(
                       "text-sm font-semibold",
-                      step.etat === "a_venir" ? "text-muted-foreground" : "text-charcoal",
+                      step.etat === "a_venir" ? "text-muted-foreground" : "text-foreground",
                     )}
                   >
                     {step.label}
@@ -94,7 +94,7 @@ export function SeanceDetailTabs({
               <CardTitle>Location</CardTitle>
             </CardHeader>
             <CardContent className="space-y-1 text-sm">
-              <p className="font-semibold text-charcoal">{seance.lieu.nom}</p>
+              <p className="font-semibold text-foreground">{seance.lieu.nom}</p>
               <p className="text-muted-foreground">{typeLieuLabels[seance.lieu.type]}</p>
               {seance.notes && (
                 <p className="mt-3 rounded-lg bg-surface p-3 text-slate">{seance.notes}</p>
@@ -130,7 +130,7 @@ export function SeanceDetailTabs({
                     <Camera className="size-4" aria-hidden />
                   </span>
                   <div className="flex-1">
-                    <p className="text-sm font-semibold text-charcoal">{item.nom}</p>
+                    <p className="text-sm font-semibold text-foreground">{item.nom}</p>
                     <p className="text-xs text-muted-foreground">{item.categorie}</p>
                   </div>
                   <ToneBadge tone="success" label={item.statut} dot />
@@ -205,12 +205,12 @@ export function SeanceDetailTabs({
                     <FileText className="size-5" aria-hidden />
                   </span>
                   <div className="flex-1">
-                    <p className="text-sm font-semibold text-charcoal">
+                    <p className="text-sm font-semibold text-foreground">
                       Quote {extras.facturation.devis}
                     </p>
                     <p className="text-xs text-muted-foreground">{extras.facturation.statut}</p>
                   </div>
-                  <p className="text-lg font-bold text-charcoal">
+                  <p className="text-lg font-bold text-foreground">
                     {formatCurrency(extras.facturation.montantTTC)}
                   </p>
                 </div>

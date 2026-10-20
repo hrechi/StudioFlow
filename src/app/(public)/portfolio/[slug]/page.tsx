@@ -1,9 +1,9 @@
 /* Module : Gestion du Portfolio · Responsable : Anas Ben Ibrahim */
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, ArrowUpRight } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Button } from "@/components/ui/button";
+import { SafeImage } from "@/components/shared/safe-image";
 import { PortfolioGallery } from "@/modules/portfolio/components/portfolio-gallery";
 import { getPortfolioBySlug, PORTFOLIOS_PUBLICS } from "@/modules/portfolio/mock-data";
 import { categoriePortfolioLabels } from "@/modules/portfolio/portfolio.types";
@@ -28,40 +28,60 @@ export default async function PortfolioCollectionPage({ params }: PageProps<"/po
   const others = PORTFOLIOS_PUBLICS.filter((p) => p.id !== portfolio.id);
 
   return (
-    <main className="pt-18">
-      <section className="mx-auto max-w-7xl px-5 pt-12 pb-10 sm:px-8 lg:pt-16">
-        <Link
-          href="/portfolio"
-          className="inline-flex items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground"
-        >
-          <ArrowLeft className="size-4" aria-hidden />
-          Portfolio
-        </Link>
-        <p className="mt-8 text-xs font-semibold tracking-[0.3em] text-primary-text uppercase">
-          {categoriePortfolioLabels[portfolio.categorie]}
-        </p>
-        <h1 className="mt-3 max-w-3xl text-4xl font-bold tracking-tight text-charcoal sm:text-5xl">
-          {portfolio.titre}
-        </h1>
-        <p className="mt-4 max-w-2xl text-lg text-muted-foreground">{portfolio.description}</p>
+    <main>
+      <section className="relative flex min-h-[70vh] items-end overflow-hidden">
+        <SafeImage
+          src={portfolio.photoCouverture}
+          alt=""
+          fill
+          priority
+          sizes="100vw"
+          className="ken-burns object-cover"
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-ink via-ink/50 to-ink/40" />
+        <div className="container-wide relative pt-40 pb-16">
+          <Link
+            href="/portfolio"
+            className="inline-flex items-center gap-2 text-[0.65rem] tracking-[0.3em] text-bone/70 uppercase transition-colors hover:text-bone"
+          >
+            <ArrowLeft className="size-3.5" aria-hidden />
+            Portfolio
+          </Link>
+          <p className="eyebrow mt-10">{categoriePortfolioLabels[portfolio.categorie]}</p>
+          <h1 className="display-xl mt-5 max-w-5xl text-bone">{portfolio.titre}</h1>
+          <p className="mt-6 max-w-2xl text-bone/70">{portfolio.description}</p>
+        </div>
       </section>
 
-      <section className="mx-auto max-w-7xl px-5 pb-20 sm:px-8">
+      <section className="container-wide py-16 lg:py-24">
         <PortfolioGallery elements={elements} titre={portfolio.titre} />
       </section>
 
-      <section className="border-t bg-surface">
-        <div className="mx-auto flex max-w-7xl flex-col items-center gap-6 px-5 py-14 sm:px-8">
-          <p className="text-sm font-semibold tracking-wide text-muted-foreground uppercase">
-            Other collections
-          </p>
-          <div className="flex flex-wrap justify-center gap-2">
+      <section className="border-t border-white/[0.06]">
+        <div className="container-wide py-20">
+          <p className="eyebrow text-center">Other collections</p>
+          <ul className="mt-10 grid gap-px bg-white/[0.07] sm:grid-cols-2 lg:grid-cols-4">
             {others.map((p) => (
-              <Button key={p.id} asChild variant="outline" className="rounded-full bg-white">
-                <Link href={`/portfolio/${p.slug}`}>{p.titre}</Link>
-              </Button>
+              <li key={p.id} className="bg-ink">
+                <Link
+                  href={`/portfolio/${p.slug}`}
+                  className="group relative block aspect-[4/3] overflow-hidden"
+                >
+                  <SafeImage
+                    src={p.photoCouverture}
+                    alt=""
+                    fill
+                    sizes="(min-width: 1024px) 25vw, 50vw"
+                    className="img-zoom object-cover opacity-60 transition-opacity duration-700 group-hover:opacity-80"
+                  />
+                  <span className="absolute inset-x-0 bottom-0 flex items-center justify-between gap-3 p-5 font-heading text-xs font-medium tracking-[0.22em] text-bone uppercase">
+                    {p.titre}
+                    <ArrowUpRight className="size-4 shrink-0" aria-hidden />
+                  </span>
+                </Link>
+              </li>
             ))}
-          </div>
+          </ul>
         </div>
       </section>
     </main>

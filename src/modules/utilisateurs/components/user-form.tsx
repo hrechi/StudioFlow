@@ -208,7 +208,7 @@ export function UserForm({ mode, user, isSelf = false }: UserFormProps) {
                   <Select value={field.value} onValueChange={field.onChange} disabled={isSelf}>
                     <SelectTrigger
                       id="role"
-                      className="h-10 w-full bg-white"
+                      className="h-10 w-full bg-card"
                       aria-invalid={!!errors.role || undefined}
                     >
                       <SelectValue>{roleConfig[field.value]?.label}</SelectValue>
@@ -232,7 +232,7 @@ export function UserForm({ mode, user, isSelf = false }: UserFormProps) {
                   <Select value={field.value} onValueChange={field.onChange} disabled={isSelf}>
                     <SelectTrigger
                       id="statut"
-                      className="h-10 w-full bg-white"
+                      className="h-10 w-full bg-card"
                       aria-invalid={!!errors.statut || undefined}
                     >
                       <SelectValue>{statutCompteConfig[field.value]?.label}</SelectValue>

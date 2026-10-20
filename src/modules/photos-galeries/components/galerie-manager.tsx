@@ -155,7 +155,7 @@ export function GalerieManager({ galerie, photos }: { galerie: Galerie; photos: 
                         <li
                           key={photo.id}
                           className={cn(
-                            "group overflow-hidden rounded-xl bg-white ring-1 ring-border",
+                            "group overflow-hidden rounded-xl bg-card ring-1 ring-border",
                             status === "REJETEE" && "opacity-70",
                           )}
                         >
@@ -169,7 +169,7 @@ export function GalerieManager({ galerie, photos }: { galerie: Galerie; photos: 
                             />
                             <AILabels photo={photo} className="absolute bottom-2 left-2" />
                             {isCover && (
-                              <span className="absolute top-2 left-2 rounded-full bg-white/95 px-2 py-0.5 text-[0.65rem] font-semibold text-slate shadow-sm">
+                              <span className="absolute top-2 left-2 rounded-full bg-black/70 px-2 py-0.5 text-[0.65rem] font-semibold text-bone shadow-sm backdrop-blur-sm">
                                 Cover
                               </span>
                             )}
@@ -252,15 +252,15 @@ export function GalerieManager({ galerie, photos }: { galerie: Galerie; photos: 
           <CardContent className="space-y-4">
             <div className="grid grid-cols-3 gap-2 text-center">
               <div className="rounded-lg bg-surface p-2">
-                <p className="text-lg font-bold text-charcoal">{favoris.length}</p>
+                <p className="text-lg font-bold text-foreground">{favoris.length}</p>
                 <p className="text-[0.7rem] text-muted-foreground">Favorites</p>
               </div>
               <div className="rounded-lg bg-surface p-2">
-                <p className="text-lg font-bold text-charcoal">{galerie.nombreSelection}</p>
+                <p className="text-lg font-bold text-foreground">{galerie.nombreSelection}</p>
                 <p className="text-[0.7rem] text-muted-foreground">Selection</p>
               </div>
               <div className="rounded-lg bg-surface p-2">
-                <p className="text-lg font-bold text-charcoal">{commentaires.length}</p>
+                <p className="text-lg font-bold text-foreground">{commentaires.length}</p>
                 <p className="text-[0.7rem] text-muted-foreground">Comments</p>
               </div>
             </div>
@@ -420,7 +420,7 @@ function ShareCard({ galerie }: { galerie: Galerie }) {
             type="date"
             value={dateExpiration}
             onChange={(e) => setDateExpiration(e.target.value)}
-            className="h-9 bg-white"
+            className="h-9 bg-card"
           />
         </FormField>
         <label className="flex items-center justify-between gap-3 text-sm text-slate">

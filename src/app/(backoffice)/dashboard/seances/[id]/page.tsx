@@ -91,7 +91,9 @@ export default async function SeanceDetailPage({ params }: PageProps<"/dashboard
                   {typeSeanceLabels[seance.type]}
                 </span>
               </div>
-              <h1 className="text-2xl font-bold tracking-tight text-charcoal">{seance.titre}</h1>
+              <h1 className="text-2xl font-medium tracking-[0.08em] text-foreground uppercase">
+                {seance.titre}
+              </h1>
             </div>
             <div className="flex gap-2">
               <ComingSoonButton variant="outline" feature="Edit the session">

@@ -20,13 +20,21 @@ export default async function PublicLayout({ children }: LayoutProps<"/">) {
     : null;
 
   return (
-    <>
+    <div className="film-grain flex min-h-dvh flex-1 flex-col bg-ink text-bone">
+      <a
+        href="#main"
+        className="sr-only z-50 bg-bone px-4 py-2 text-ink focus:not-sr-only focus:fixed focus:top-3 focus:left-3"
+      >
+        Skip to content
+      </a>
       <FrontofficeHeader user={user} />
-      <div className="flex flex-1 flex-col">{children}</div>
+      <div id="main" className="flex flex-1 flex-col">
+        {children}
+      </div>
       <Footer />
       <Suspense>
         <FlashToast />
       </Suspense>
-    </>
+    </div>
   );
 }

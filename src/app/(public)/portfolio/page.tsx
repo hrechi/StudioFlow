@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Reveal } from "@/components/shared/reveal";
 import { SafeImage } from "@/components/shared/safe-image";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { PORTFOLIOS_PUBLICS } from "@/modules/portfolio/mock-data";
 import { categoriePortfolioLabels } from "@/modules/portfolio/portfolio.types";
 
@@ -16,75 +17,101 @@ export const metadata: Metadata = {
 export default function PortfolioPage() {
   const [first, ...others] = PORTFOLIOS_PUBLICS;
   return (
-    <main className="pt-18">
-      <section className="bg-charcoal text-white">
-        <div className="mx-auto max-w-7xl px-5 py-20 sm:px-8 lg:py-28">
-          <p className="text-xs font-semibold tracking-[0.3em] text-white/60 uppercase">
-            Portfolio
-          </p>
-          <h1 className="mt-4 max-w-3xl text-4xl font-bold tracking-tight text-balance sm:text-5xl lg:text-6xl">
-            Images that tell your most precious moments.
+    <main>
+      <section className="relative overflow-hidden pt-40 pb-20 lg:pt-52 lg:pb-28">
+        {first && (
+          <div className="absolute inset-0 opacity-30">
+            <SafeImage
+              src={first.photoCouverture}
+              alt=""
+              fill
+              priority
+              sizes="100vw"
+              className="ken-burns object-cover"
+            />
+          </div>
+        )}
+        <div className="absolute inset-0 bg-gradient-to-b from-ink/60 via-ink/80 to-ink" />
+        <div className="container-wide relative">
+          <p className="eyebrow page-enter">Portfolio</p>
+          <h1 className="display-xl page-enter mt-6 max-w-5xl text-bone [animation-delay:120ms]">
+            Images that tell your story.
           </h1>
-          <p className="mt-6 max-w-xl text-white/70">
+          <p className="page-enter mt-8 max-w-xl text-bone/65 [animation-delay:240ms]">
             A selection of our sessions, published with our clients&apos; consent.
           </p>
         </div>
       </section>
 
-      <section className="mx-auto max-w-7xl px-5 py-16 sm:px-8 lg:py-24">
-        <div className="grid gap-5 lg:grid-cols-2">
-          {first && <CategoryCard portfolio={first} large />}
-          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
-            {others.map((portfolio, index) => (
-              <Reveal key={portfolio.id} delay={index * 80}>
-                <CategoryCard portfolio={portfolio} />
-              </Reveal>
-            ))}
-          </div>
-        </div>
-        <div className="mt-16 flex flex-col items-center gap-4 text-center">
-          <p className="text-lg font-semibold text-charcoal">Your story deserves to be told.</p>
-          <Button asChild size="lg">
-            <Link href="/register">Book a session</Link>
+      <section className="container-wide pb-24 lg:pb-32">
+        <ul className="grid gap-4 lg:grid-cols-2">
+          {first && (
+            <li className="lg:row-span-2">
+              <CollectionCard portfolio={first} index={0} large />
+            </li>
+          )}
+          {others.map((portfolio, index) => (
+            <Reveal key={portfolio.id} as="li" delay={(index % 2) * 100}>
+              <CollectionCard portfolio={portfolio} index={index + 1} />
+            </Reveal>
+          ))}
+        </ul>
+        <Reveal className="mt-24 flex flex-col items-center gap-8 text-center">
+          <p className="display-md text-bone">Your story deserves to be told.</p>
+          <Button asChild variant="cinematic" size="cta">
+            <Link href="/register">
+              Book a session
+              <ArrowUpRight aria-hidden />
+            </Link>
           </Button>
-        </div>
+        </Reveal>
       </section>
     </main>
   );
 }
 
-function CategoryCard({
+function CollectionCard({
   portfolio,
+  index,
   large = false,
 }: {
   portfolio: (typeof PORTFOLIOS_PUBLICS)[number];
+  index: number;
   large?: boolean;
 }) {
   return (
     <Link
       href={`/portfolio/${portfolio.slug}`}
-      className={`group relative block overflow-hidden rounded-2xl bg-charcoal ${large ? "aspect-[4/5] lg:aspect-auto lg:h-full lg:min-h-[36rem]" : "aspect-[4/3]"}`}
+      className={cn(
+        "group relative block overflow-hidden bg-card",
+        large ? "aspect-[4/5] lg:aspect-auto lg:h-full lg:min-h-[40rem]" : "aspect-[16/10]",
+      )}
     >
       <SafeImage
         src={portfolio.photoCouverture}
         alt=""
         fill
-        sizes={large ? "(min-width: 1024px) 50vw, 100vw" : "(min-width: 1280px) 25vw, 50vw"}
-        className="object-cover opacity-90 transition-transform duration-[1.2s] group-hover:scale-105"
+        sizes={large ? "(min-width: 1024px) 50vw, 100vw" : "(min-width: 1024px) 50vw, 100vw"}
+        className="img-zoom object-cover"
       />
-      <div className="absolute inset-0 bg-gradient-to-t from-charcoal/85 via-charcoal/20 to-transparent" />
-      <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-4 p-6">
-        <div>
-          <p className="text-xs font-semibold tracking-[0.25em] text-white/70 uppercase">
-            {categoriePortfolioLabels[portfolio.categorie]} · {portfolio.elements.length} photos
-          </p>
-          <h2 className={`mt-1 font-bold text-white ${large ? "text-3xl" : "text-xl"}`}>
-            {portfolio.titre}
-          </h2>
-        </div>
-        <span className="grid size-10 shrink-0 place-items-center rounded-full bg-white/15 text-white backdrop-blur transition-colors group-hover:bg-white group-hover:text-charcoal">
-          <ArrowUpRight className="size-5" aria-hidden />
+      <div className="absolute inset-0 bg-gradient-to-t from-ink/90 via-ink/20 to-transparent transition-colors duration-700 group-hover:via-ink/40" />
+      <div className="absolute inset-0 flex flex-col justify-between p-6 sm:p-8">
+        <span className="font-heading text-xs tracking-[0.3em] text-bone/60">
+          {String(index + 1).padStart(2, "0")}
         </span>
+        <div className="flex items-end justify-between gap-6">
+          <div>
+            <p className="text-[0.65rem] tracking-[0.3em] text-bone/60 uppercase">
+              {categoriePortfolioLabels[portfolio.categorie]} · {portfolio.elements.length} photos
+            </p>
+            <h2 className={cn("mt-3 text-bone", large ? "display-lg" : "display-md")}>
+              {portfolio.titre}
+            </h2>
+          </div>
+          <span className="grid size-12 shrink-0 place-items-center border border-bone/30 text-bone transition-colors duration-500 group-hover:border-bone group-hover:bg-bone group-hover:text-ink">
+            <ArrowUpRight className="size-5" aria-hidden />
+          </span>
+        </div>
       </div>
     </Link>
   );

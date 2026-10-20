@@ -17,7 +17,7 @@ export function RatingStars({ value, className }: { value: number; className?: s
           aria-hidden
           className={cn(
             "size-4",
-            star <= value ? "fill-warning text-warning" : "fill-light-gray text-light-gray",
+            star <= value ? "fill-gold text-gold" : "fill-white/10 text-white/15",
           )}
         />
       ))}
@@ -63,7 +63,7 @@ export function RatingInput({
             onMouseEnter={() => setHover(star)}
             className={cn(
               "size-7 transition-colors",
-              star <= shown ? "fill-warning text-warning" : "fill-light-gray text-light-gray",
+              star <= shown ? "fill-gold text-gold" : "fill-white/10 text-white/25",
             )}
           />
         </label>

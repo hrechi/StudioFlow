@@ -47,7 +47,7 @@ export function PhotoDetailPanel({ photo, onClose }: { photo: Photo; onClose?: (
     <div className="space-y-4">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <p className="truncate font-semibold text-charcoal">{photo.nomFichier}</p>
+          <p className="truncate font-semibold text-foreground">{photo.nomFichier}</p>
           <p className="text-xs text-muted-foreground">
             {formatDateTime(photo.datePrise ?? photo.dateUpload)}
           </p>
@@ -94,7 +94,7 @@ export function PhotoDetailPanel({ photo, onClose }: { photo: Photo; onClose?: (
       <section className="space-y-3 rounded-lg bg-ai-soft/70 p-3 ring-1 ring-ai/15">
         <div className="flex items-center gap-2">
           <AIBadge />
-          <p className="text-sm font-semibold text-charcoal">AI analysis</p>
+          <p className="text-sm font-semibold text-foreground">AI analysis</p>
         </div>
         <ul className="space-y-1.5">
           <Check2 ok={!photo.estFloue} label="Sharpness" icon={EyeOff} />
@@ -105,7 +105,7 @@ export function PhotoDetailPanel({ photo, onClose }: { photo: Photo; onClose?: (
           {photo.tagsIA.map((tag) => (
             <span
               key={tag}
-              className="rounded-full bg-white px-2 py-0.5 text-xs font-medium text-ai-text ring-1 ring-ai/20"
+              className="rounded-full bg-card px-2 py-0.5 text-xs font-medium text-ai-text ring-1 ring-ai/20"
             >
               {tag}
             </span>

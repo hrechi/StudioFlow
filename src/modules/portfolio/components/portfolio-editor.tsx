@@ -86,7 +86,7 @@ export function PortfolioEditor({
               aria-describedby="publish-hint"
             />
             <label htmlFor="publish" className="text-sm">
-              <span className="block font-semibold text-charcoal">
+              <span className="block font-semibold text-foreground">
                 {published ? "Collection published" : "Collection not published"}
               </span>
               <span id="publish-hint" className="text-xs text-muted-foreground">
@@ -169,7 +169,7 @@ export function PortfolioEditor({
                         patch(item.id, { legende: e.target.value, legendeGenereeIA: false })
                       }
                       aria-label={`Caption of photo ${index + 1}`}
-                      className="h-9 bg-white"
+                      className="h-9 bg-card"
                     />
                     <Button
                       type="button"
@@ -240,7 +240,7 @@ export function PortfolioEditor({
             {candidats.map((candidat) => (
               <li
                 key={candidat.photo.id}
-                className="overflow-hidden rounded-lg bg-white ring-1 ring-ai/15"
+                className="overflow-hidden rounded-lg bg-card ring-1 ring-ai/15"
               >
                 <div className="relative aspect-[4/3] bg-muted">
                   <SafeImage
@@ -250,7 +250,7 @@ export function PortfolioEditor({
                     sizes="160px"
                     className="object-cover"
                   />
-                  <span className="absolute top-1.5 right-1.5 rounded-full bg-white/95 px-1.5 text-[0.65rem] font-bold text-ai-text">
+                  <span className="absolute top-1.5 right-1.5 rounded-full bg-black/70 px-1.5 text-[0.65rem] font-bold text-ai-text backdrop-blur-sm">
                     {candidat.photo.scoreQualite}
                   </span>
                 </div>

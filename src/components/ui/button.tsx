@@ -22,6 +22,11 @@ const buttonVariants = cva(
         ai: "bg-ai text-white shadow-sm hover:bg-ai-text focus-visible:ring-ai/30",
         "ai-soft": "bg-ai-soft text-ai-text ring-1 ring-ai/20 hover:bg-ai/15",
         link: "text-primary-text underline-offset-4 hover:underline",
+        /* Showcase site CTAs: square, uppercase, wide tracking, slow fill on hover */
+        cinematic:
+          "rounded-none bg-bone font-heading font-medium tracking-[0.24em] text-ink uppercase transition-[background-color,color,gap] duration-500 hover:gap-3 hover:bg-white",
+        "cinematic-outline":
+          "rounded-none border-bone/40 bg-transparent font-heading font-medium tracking-[0.24em] text-bone uppercase transition-[background-color,color,border-color,gap] duration-500 hover:gap-3 hover:border-bone hover:bg-bone hover:text-ink",
       },
       size: {
         default: "h-9 gap-2 px-4 has-data-[icon=inline-end]:pr-3 has-data-[icon=inline-start]:pl-3",
@@ -34,6 +39,8 @@ const buttonVariants = cva(
         "icon-sm":
           "size-8 rounded-[min(var(--radius-md),12px)] in-data-[slot=button-group]:rounded-lg",
         "icon-lg": "size-11",
+        cta: "h-12 gap-2.5 px-7 text-[0.72rem]",
+        "cta-sm": "h-10 gap-2 px-5 text-[0.68rem]",
       },
     },
     defaultVariants: {

@@ -151,7 +151,7 @@ export function GalerieFormDialog({
                 name="categorie"
                 render={({ field }) => (
                   <Select value={field.value} onValueChange={field.onChange}>
-                    <SelectTrigger id="categorie" className="h-10 w-full bg-white">
+                    <SelectTrigger id="categorie" className="h-10 w-full bg-card">
                       <SelectValue>{categorieGalerieLabels[field.value]}</SelectValue>
                     </SelectTrigger>
                     <SelectContent>
@@ -176,7 +176,7 @@ export function GalerieFormDialog({
                     <Select value={field.value} onValueChange={field.onChange}>
                       <SelectTrigger
                         id="clientId"
-                        className="h-10 w-full bg-white"
+                        className="h-10 w-full bg-card"
                         aria-invalid={!!errors.clientId || undefined}
                         aria-describedby={describedBy("clientId", errors.clientId?.message)}
                       >
@@ -214,7 +214,7 @@ export function GalerieFormDialog({
                 name="statut"
                 render={({ field }) => (
                   <Select value={field.value} onValueChange={field.onChange}>
-                    <SelectTrigger id="statut" className="h-10 w-full bg-white">
+                    <SelectTrigger id="statut" className="h-10 w-full bg-card">
                       <SelectValue>{statutGalerieConfig[field.value].label}</SelectValue>
                     </SelectTrigger>
                     <SelectContent>

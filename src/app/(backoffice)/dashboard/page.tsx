@@ -166,7 +166,7 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      <section className="relative overflow-hidden rounded-2xl bg-white shadow-soft ring-1 ring-border">
+      <section className="relative overflow-hidden rounded-2xl bg-card shadow-soft ring-1 ring-border">
         <div className="absolute inset-y-0 right-0 hidden w-1/2 md:block">
           <SafeImage
             src={FRONT_IMAGES.studio}
@@ -176,7 +176,7 @@ export default async function DashboardPage() {
             className="object-cover"
             priority
           />
-          <div className="absolute inset-0 bg-gradient-to-r from-white via-white/60 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-r from-card via-card/60 to-transparent" />
         </div>
         <div className="relative max-w-xl space-y-1.5 p-6 sm:p-8">
           <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
@@ -186,7 +186,7 @@ export default async function DashboardPage() {
               month: "long",
             }).format(now)}
           </p>
-          <h1 className="text-2xl font-bold tracking-tight text-charcoal sm:text-3xl">
+          <h1 className="text-2xl font-medium tracking-[0.08em] text-foreground uppercase sm:text-3xl">
             Hello, {user.prenom}
           </h1>
           <p className="text-sm text-muted-foreground">
@@ -239,7 +239,7 @@ export default async function DashboardPage() {
                           />
                         </span>
                         <span className="min-w-0 flex-1">
-                          <span className="block truncate text-sm font-semibold text-charcoal">
+                          <span className="block truncate text-sm font-semibold text-foreground">
                             {s.titre}
                           </span>
                           <span className="block text-xs text-muted-foreground">
@@ -284,7 +284,7 @@ export default async function DashboardPage() {
                         />
                       </span>
                       <span className="min-w-0 flex-1">
-                        <span className="block truncate text-sm font-semibold text-charcoal group-hover:text-primary-text">
+                        <span className="block truncate text-sm font-semibold text-foreground group-hover:text-primary-text">
                           {g.titre}
                         </span>
                         <span className="block text-xs text-muted-foreground">
@@ -326,7 +326,7 @@ export default async function DashboardPage() {
                         aria-hidden
                       />
                       <span className="min-w-0 flex-1">
-                        <span className="block truncate text-sm font-semibold text-charcoal">
+                        <span className="block truncate text-sm font-semibold text-foreground">
                           {r.objet}
                         </span>
                         <span className="block text-xs text-muted-foreground">
@@ -361,7 +361,7 @@ export default async function DashboardPage() {
                     >
                       <span
                         className={cn(
-                          "grid size-10 place-items-center rounded-xl bg-white shadow-sm",
+                          "grid size-10 place-items-center rounded-xl bg-card shadow-sm",
                           a.ai ? "text-ai" : "text-primary",
                         )}
                       >

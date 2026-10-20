@@ -42,17 +42,17 @@ export function BackofficeShell({ user, notifications, children }: BackofficeShe
       <Sheet open={drawerOpen} onOpenChange={setDrawerOpen}>
         <SheetContent
           side="left"
-          className="w-72 border-none p-0 sm:max-w-72"
+          className="w-72 border-none bg-sidebar p-0 sm:max-w-72"
           showCloseButton={false}
         >
           <SheetTitle className="sr-only">Navigation</SheetTitle>
-          <SheetDescription className="sr-only">StudioFlow backoffice modules</SheetDescription>
+          <SheetDescription className="sr-only">ReFrame backoffice modules</SheetDescription>
           <Sidebar key={pathname} user={user} onNavigate={() => setDrawerOpen(false)} />
         </SheetContent>
       </Sheet>
 
       <div className="md:pl-[4.5rem] lg:pl-64">
-        <header className="sticky top-0 z-20 flex h-16 items-center gap-3 border-b bg-white/85 px-4 backdrop-blur supports-[backdrop-filter]:bg-white/75 sm:px-6">
+        <header className="sticky top-0 z-20 flex h-16 items-center gap-3 border-b border-white/[0.06] bg-surface/85 px-4 backdrop-blur-xl supports-[backdrop-filter]:bg-surface/70 sm:px-6">
           <Button
             variant="ghost"
             size="icon"
@@ -72,7 +72,7 @@ export function BackofficeShell({ user, notifications, children }: BackofficeShe
               type="search"
               placeholder="Search sessions, clients, photos…"
               aria-label="Global search (coming soon)"
-              className="h-9 rounded-full border-transparent bg-surface pl-9"
+              className="h-9 rounded-md border-border bg-card pl-9 dark:bg-card"
             />
           </div>
           <NotificationBell
@@ -81,6 +81,7 @@ export function BackofficeShell({ user, notifications, children }: BackofficeShe
             listHref="/dashboard/notifications"
           />
           <UserMenu
+            tone="dark"
             user={user}
             links={[
               { label: "My profile", href: "/dashboard/profil", icon: UserRound },

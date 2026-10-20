@@ -66,7 +66,7 @@ export function UserMenu({
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-60">
         <DropdownMenuLabel className="font-normal">
-          <p className="truncate text-sm font-semibold text-charcoal">
+          <p className="truncate text-sm font-semibold text-foreground">
             {user.prenom} {user.nom}
           </p>
           {user.email && <p className="truncate text-xs text-muted-foreground">{user.email}</p>}

@@ -87,15 +87,11 @@ export function SeanceForm({
           </CardHeader>
           <CardContent className="grid gap-4 sm:grid-cols-2">
             <FormField id="titre" label="Title" required className="sm:col-span-2">
-              <Input
-                id="titre"
-                placeholder="e.g. Sarra & Amine Wedding"
-                className="h-10 bg-white"
-              />
+              <Input id="titre" placeholder="e.g. Sarra & Amine Wedding" className="h-10 bg-card" />
             </FormField>
             <FormField id="type" label="Session type" required>
               <Select value={type} onValueChange={(v) => setType(v as TypeSeance)}>
-                <SelectTrigger id="type" className="h-10 w-full bg-white">
+                <SelectTrigger id="type" className="h-10 w-full bg-card">
                   <SelectValue>{typeSeanceLabels[type]}</SelectValue>
                 </SelectTrigger>
                 <SelectContent>
@@ -109,7 +105,7 @@ export function SeanceForm({
             </FormField>
             <FormField id="client" label="Client" required>
               <Select defaultValue={clients[0]?.id}>
-                <SelectTrigger id="client" className="h-10 w-full bg-white">
+                <SelectTrigger id="client" className="h-10 w-full bg-card">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -126,7 +122,7 @@ export function SeanceForm({
                 id="notes"
                 rows={3}
                 placeholder="Schedule, special requests, location constraints…"
-                className="bg-white"
+                className="bg-card"
               />
             </FormField>
           </CardContent>
@@ -146,7 +142,7 @@ export function SeanceForm({
                 type="date"
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
-                className="h-10 bg-white"
+                className="h-10 bg-card"
               />
             </FormField>
             <FormField id="debut" label="Start" required>
@@ -155,7 +151,7 @@ export function SeanceForm({
                 type="time"
                 value={debut}
                 onChange={(e) => setDebut(e.target.value)}
-                className="h-10 bg-white"
+                className="h-10 bg-card"
               />
             </FormField>
             <FormField id="fin" label="End" required>
@@ -164,7 +160,7 @@ export function SeanceForm({
                 type="time"
                 value={fin}
                 onChange={(e) => setFin(e.target.value)}
-                className="h-10 bg-white"
+                className="h-10 bg-card"
               />
             </FormField>
             <FormField
@@ -174,7 +170,7 @@ export function SeanceForm({
               className="sm:col-span-3 md:col-span-1"
             >
               <Select value={photographe} onValueChange={setPhotographe}>
-                <SelectTrigger id="photographe" className="h-10 w-full bg-white">
+                <SelectTrigger id="photographe" className="h-10 w-full bg-card">
                   <SelectValue>
                     {fullName(photographes.find((p) => p.id === photographe) ?? photographes[0])}
                   </SelectValue>
@@ -190,7 +186,7 @@ export function SeanceForm({
             </FormField>
             <FormField id="lieu" label="Location" required className="sm:col-span-3 md:col-span-2">
               <Select value={lieu} onValueChange={setLieu}>
-                <SelectTrigger id="lieu" className="h-10 w-full bg-white">
+                <SelectTrigger id="lieu" className="h-10 w-full bg-card">
                   <SelectValue>{lieux.find((l) => l.id === lieu)?.nom}</SelectValue>
                 </SelectTrigger>
                 <SelectContent>
@@ -227,11 +223,11 @@ export function SeanceForm({
               <li
                 key={creneau.debut}
                 className={cn(
-                  "rounded-lg border bg-white p-3 transition-shadow",
+                  "rounded-lg border bg-card p-3 transition-shadow",
                   applied === index ? "border-ai ring-2 ring-ai/25" : "border-ai/15",
                 )}
               >
-                <p className="flex items-center gap-1.5 text-sm font-semibold text-charcoal">
+                <p className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
                   <Clock className="size-3.5 text-ai" aria-hidden />
                   {formatDate(creneau.debut)} · {formatTime(creneau.debut)}–
                   {formatTime(creneau.fin)}

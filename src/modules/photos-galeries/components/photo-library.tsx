@@ -144,8 +144,8 @@ export function PhotoLibrary({
             className={cn(
               "rounded-full px-4 py-1.5 text-sm font-medium transition-colors",
               categorie === c
-                ? "bg-primary text-white shadow-sm"
-                : "bg-white text-slate ring-1 ring-border hover:bg-muted",
+                ? "bg-primary text-primary-foreground shadow-sm"
+                : "bg-card text-slate ring-1 ring-border hover:bg-muted",
             )}
           >
             {c}
@@ -278,7 +278,7 @@ export function PhotoLibrary({
                 />
               </div>
               <Select value={sort} onValueChange={(v) => setSort(v as keyof typeof SORTS)}>
-                <SelectTrigger className="h-9 w-36 bg-white" aria-label="Sort">
+                <SelectTrigger className="h-9 w-36 bg-card" aria-label="Sort">
                   <SelectValue>{SORTS[sort]}</SelectValue>
                 </SelectTrigger>
                 <SelectContent>

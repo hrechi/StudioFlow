@@ -22,12 +22,12 @@ export function KitSuggestion({ kit }: { kit: KitSuggere }) {
     >
       <ul className="space-y-2.5">
         {kit.items.map(({ materiel, raison }) => (
-          <li key={materiel.id} className="flex gap-3 rounded-lg bg-white p-2.5 ring-1 ring-ai/10">
+          <li key={materiel.id} className="flex gap-3 rounded-lg bg-card p-2.5 ring-1 ring-ai/10">
             <span className="grid size-8 shrink-0 place-items-center rounded-md bg-ai-soft text-ai-text">
               <Camera className="size-4" aria-hidden />
             </span>
             <div className="min-w-0">
-              <p className="text-sm font-semibold text-charcoal">
+              <p className="text-sm font-semibold text-foreground">
                 {materiel.nom}{" "}
                 <span className="font-normal text-muted-foreground">
                   · {categorieMaterielLabels[materiel.categorie]}

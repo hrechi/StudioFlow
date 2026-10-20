@@ -107,7 +107,7 @@ export function ReclamationsBoard({ reclamations }: { reclamations: Reclamation[
                         setOpenId(r.id);
                         setReponse(r.reponse ?? "");
                       }}
-                      className="text-left font-semibold text-charcoal hover:text-primary-text hover:underline"
+                      className="text-left font-semibold text-foreground hover:text-primary-text hover:underline"
                     >
                       {r.objet}
                     </button>
@@ -164,7 +164,7 @@ export function ReclamationsBoard({ reclamations }: { reclamations: Reclamation[
                 <div className="flex items-center gap-3">
                   <UserAvatar {...current.client} />
                   <div>
-                    <p className="text-sm font-semibold text-charcoal">
+                    <p className="text-sm font-semibold text-foreground">
                       {fullName(current.client)}
                     </p>
                     <p className="text-xs text-muted-foreground">Client</p>
@@ -207,7 +207,7 @@ export function ReclamationsBoard({ reclamations }: { reclamations: Reclamation[
                     onChange={(e) => setReponse(e.target.value)}
                     disabled={!!closed}
                     placeholder="Explain the solution offered to the client…"
-                    className="bg-white"
+                    className="bg-card"
                   />
                 </div>
 

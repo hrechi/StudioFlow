@@ -19,14 +19,14 @@ export function GuestLinkBox({ path, protegee }: { path: string; protegee: boole
   const lien = `${origin}${path}`;
 
   return (
-    <div className="flex flex-col gap-3 rounded-xl bg-white p-4 shadow-soft ring-1 ring-border sm:flex-row sm:items-center">
+    <div className="flex flex-col gap-3 rounded-xl bg-card p-4 shadow-soft ring-1 ring-border sm:flex-row sm:items-center">
       <div className="flex items-start gap-3 sm:flex-1">
         <span className="grid size-9 shrink-0 place-items-center rounded-full bg-accent text-primary-text">
           <UsersRound className="size-4" aria-hidden />
         </span>
         <p className="text-sm text-slate">
-          <span className="font-semibold text-charcoal">Want a second opinion?</span> Send this link
-          to a guest
+          <span className="font-semibold text-foreground">Want a second opinion?</span> Send this
+          link to a guest
           {protegee ? " with the gallery password the studio gave you" : ""}. They can view the
           photos, but not download them or change your selection.
         </p>

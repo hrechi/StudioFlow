@@ -82,7 +82,7 @@ export function AvisBoard({ avis }: { avis: Avis[] }) {
                   <div className="flex items-start gap-3">
                     <UserAvatar {...a.client} />
                     <div className="min-w-0 flex-1">
-                      <p className="font-semibold text-charcoal">{fullName(a.client)}</p>
+                      <p className="font-semibold text-foreground">{fullName(a.client)}</p>
                       <p className="truncate text-xs text-muted-foreground">
                         {a.seance.titre} · {formatDate(a.dateAvis)}
                       </p>
@@ -119,7 +119,7 @@ export function AvisBoard({ avis }: { avis: Avis[] }) {
                         onChange={(e) => setDraft(e.target.value)}
                         rows={3}
                         aria-label={`Reply to ${fullName(a.client)}`}
-                        className="bg-white"
+                        className="bg-card"
                       />
                       <div className="flex justify-end gap-2">
                         <Button

@@ -31,7 +31,7 @@ const CLIENT_NAV = [
   { label: "Profile", href: "/espace-client/profil", icon: UserRound },
 ];
 
-/** Client area (front office): light top navigation, calm background, no dark sidebar. */
+/** Client area (front office): same identity as the showcase site, calmer and focused on content. */
 export function ClientShell({
   user,
   notifications,
@@ -49,9 +49,9 @@ export function ClientShell({
   );
 
   return (
-    <div className="flex min-h-dvh flex-col bg-[#f7f8fb]">
-      <header className="sticky top-0 z-30 border-b bg-white/90 backdrop-blur-md">
-        <div className="mx-auto flex h-16 max-w-6xl items-center gap-4 px-4 sm:px-6">
+    <div className="flex min-h-dvh flex-col bg-background">
+      <header className="sticky top-0 z-30 border-b border-white/[0.06] bg-ink/80 backdrop-blur-xl">
+        <div className="mx-auto flex h-18 max-w-6xl items-center gap-6 px-4 sm:px-6">
           <Button
             variant="ghost"
             size="icon"
@@ -61,8 +61,8 @@ export function ClientShell({
           >
             <Menu aria-hidden />
           </Button>
-          <Link href="/espace-client" aria-label="My StudioFlow account" className="rounded-md">
-            <Logo />
+          <Link href="/espace-client" aria-label="My ReFrame account" className="rounded-sm py-2">
+            <Logo iconClassName="h-[0.9rem]" />
           </Link>
           <nav aria-label="Client area" className="hidden flex-1 justify-center lg:flex">
             <ul className="flex items-center gap-1">
@@ -74,8 +74,11 @@ export function ClientShell({
                       href={item.href}
                       aria-current={active ? "page" : undefined}
                       className={cn(
-                        "rounded-full px-3.5 py-2 text-sm font-medium transition-colors",
-                        active ? "bg-accent text-primary-text" : "text-slate hover:bg-muted",
+                        "relative px-3 py-2 font-heading text-[0.66rem] font-medium tracking-[0.22em] uppercase transition-colors",
+                        "after:absolute after:inset-x-3 after:bottom-0 after:h-px after:origin-left after:bg-gold after:transition-transform after:duration-500",
+                        active
+                          ? "text-bone after:scale-x-100"
+                          : "text-bone/60 after:scale-x-0 hover:text-bone",
                       )}
                     >
                       {item.label}
@@ -92,6 +95,7 @@ export function ClientShell({
               listHref="/espace-client/notifications"
             />
             <UserMenu
+              tone="dark"
               user={user}
               links={[
                 { label: "My profile", href: "/espace-client/profil", icon: UserRound },
@@ -103,11 +107,11 @@ export function ClientShell({
       </header>
 
       <Sheet open={open} onOpenChange={setOpen}>
-        <SheetContent side="left" className="w-72 p-0 sm:max-w-72">
+        <SheetContent side="left" className="w-72 border-white/5 bg-ink p-0 sm:max-w-72">
           <SheetTitle className="sr-only">Client area menu</SheetTitle>
           <SheetDescription className="sr-only">Pages of your client area</SheetDescription>
-          <div className="flex h-16 items-center border-b px-5">
-            <Logo />
+          <div className="flex h-18 items-center border-b border-white/[0.06] px-5">
+            <Logo iconClassName="h-[0.9rem]" />
           </div>
           <nav aria-label="Client area (mobile)" className="px-3 py-4">
             <ul className="space-y-1">
@@ -138,16 +142,16 @@ export function ClientShell({
       <main id="contenu" className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:px-6 lg:py-10">
         {children}
       </main>
-      <footer className="border-t bg-white">
+      <footer className="border-t border-white/[0.06] bg-ink">
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-2 px-4 py-5 text-xs text-muted-foreground sm:flex-row sm:px-6">
-          <p>© {new Date().getFullYear()} StudioFlow · Photography studio</p>
+          <p>© {new Date().getFullYear()} ReFrame · Photography studio</p>
           <p>
             Any questions?{" "}
             <a
-              href="mailto:contact@studioflow.tn"
+              href="mailto:contact@reframe.tn"
               className="font-medium text-primary-text hover:underline"
             >
-              contact@studioflow.tn
+              contact@reframe.tn
             </a>
           </p>
         </div>

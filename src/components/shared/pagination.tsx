@@ -66,7 +66,7 @@ export function Pagination({
               aria-current={p === page ? "page" : undefined}
               className={cn(
                 "grid size-8 place-items-center rounded-lg font-medium transition-colors",
-                p === page ? "bg-primary text-white" : "text-slate hover:bg-muted",
+                p === page ? "bg-primary text-primary-foreground" : "text-slate hover:bg-muted",
               )}
             >
               {p}

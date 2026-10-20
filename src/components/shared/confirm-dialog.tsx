@@ -56,7 +56,7 @@ export function ConfirmDialog({
               </span>
             )}
             <div className="space-y-1.5">
-              <AlertDialogTitle className="text-lg font-semibold text-charcoal">
+              <AlertDialogTitle className="text-lg font-semibold text-foreground">
                 {title}
               </AlertDialogTitle>
               {description && (

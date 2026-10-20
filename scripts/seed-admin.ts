@@ -38,7 +38,7 @@ async function main() {
 
   const admin = await Utilisateur.create({
     prenom: "Admin",
-    nom: "StudioFlow",
+    nom: "ReFrame",
     email: email.data,
     motDePasse: await hashPassword(password.data),
     role: "ADMIN",
@@ -48,7 +48,7 @@ async function main() {
 
   await Notification.create({
     utilisateur: admin._id,
-    titre: "Welcome to StudioFlow",
+    titre: "Welcome to ReFrame",
     message: "Your administrator account is ready. Create the accounts of the studio staff.",
     type: "COMPTE",
     lienCible: "/dashboard/utilisateurs/nouveau",

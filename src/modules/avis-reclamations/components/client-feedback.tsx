@@ -63,7 +63,7 @@ export function ClientFeedback({
           >
             <FormField id="seance-avis" label="Completed session" required>
               <Select defaultValue={seancesANoter[0]?.id}>
-                <SelectTrigger id="seance-avis" className="h-10 w-full bg-white">
+                <SelectTrigger id="seance-avis" className="h-10 w-full bg-card">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -84,7 +84,7 @@ export function ClientFeedback({
                 id="commentaire-avis"
                 rows={4}
                 placeholder="Tell us about your experience…"
-                className="bg-white"
+                className="bg-card"
               />
             </FormField>
             <Button type="submit" disabled={note === 0}>
@@ -116,7 +116,7 @@ export function ClientFeedback({
             <div className="grid gap-4 sm:grid-cols-2">
               <FormField id="seance-rec" label="Related session" required>
                 <Select defaultValue={seancesANoter[0]?.id}>
-                  <SelectTrigger id="seance-rec" className="h-10 w-full bg-white">
+                  <SelectTrigger id="seance-rec" className="h-10 w-full bg-card">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -130,7 +130,7 @@ export function ClientFeedback({
               </FormField>
               <FormField id="categorie-rec" label="Category" required>
                 <Select defaultValue="QUALITE">
-                  <SelectTrigger id="categorie-rec" className="h-10 w-full bg-white">
+                  <SelectTrigger id="categorie-rec" className="h-10 w-full bg-card">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -147,11 +147,11 @@ export function ClientFeedback({
               <Input
                 id="objet-rec"
                 placeholder="e.g. Blurry photo in my selection"
-                className="h-10 bg-white"
+                className="h-10 bg-card"
               />
             </FormField>
             <FormField id="description-rec" label="Description" required>
-              <Textarea id="description-rec" rows={3} className="bg-white" />
+              <Textarea id="description-rec" rows={3} className="bg-card" />
             </FormField>
             <Button type="submit" variant="outline">
               <Send aria-hidden />
@@ -176,7 +176,7 @@ export function ClientFeedback({
                   <li key={r.id} className="flex flex-col gap-3 py-4 md:flex-row md:items-center">
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
-                        <p className="font-semibold text-charcoal">{r.objet}</p>
+                        <p className="font-semibold text-foreground">{r.objet}</p>
                         <StatusBadge value={r.statut} config={statutReclamationConfig} />
                       </div>
                       <p className="text-xs text-muted-foreground">
@@ -196,7 +196,7 @@ export function ClientFeedback({
                               className={cn(
                                 "flex items-center gap-1",
                                 index <= current
-                                  ? "font-semibold text-charcoal"
+                                  ? "font-semibold text-foreground"
                                   : "text-muted-foreground",
                               )}
                             >

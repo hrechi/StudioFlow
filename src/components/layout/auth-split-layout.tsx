@@ -18,9 +18,13 @@ type AuthSplitLayoutProps = {
  */
 export function AuthSplitLayout({ image, imageAlt, caption, children }: AuthSplitLayoutProps) {
   return (
-    <div className="grid min-h-dvh grid-rows-[auto_1fr] bg-white lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)] lg:grid-rows-none">
+    <div className="grid min-h-dvh grid-rows-[auto_1fr] bg-ink text-bone lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)] lg:grid-rows-none">
       {/* Photo side (desktop) / banner (mobile) */}
-      <aside className="relative h-44 overflow-hidden bg-charcoal sm:h-52 lg:sticky lg:top-0 lg:h-dvh">
+      <aside className="relative h-44 overflow-hidden bg-ink sm:h-52 lg:sticky lg:top-0 lg:h-dvh">
+        <div
+          aria-hidden
+          className="viewfinder pointer-events-none absolute inset-6 z-10 hidden opacity-70 lg:block"
+        />
         <div className="absolute inset-0">
           <SafeImage
             src={image}
@@ -28,22 +32,18 @@ export function AuthSplitLayout({ image, imageAlt, caption, children }: AuthSpli
             fill
             priority
             sizes="(min-width: 1024px) 52vw, 100vw"
-            className="object-cover"
+            className="ken-burns object-cover"
           />
         </div>
-        <div className="absolute inset-0 bg-gradient-to-t from-charcoal via-charcoal/55 to-charcoal/25 lg:bg-gradient-to-br lg:from-charcoal/80 lg:via-charcoal/40 lg:to-charcoal/90" />
+        <div className="absolute inset-0 bg-gradient-to-t from-ink via-ink/55 to-ink/30 lg:bg-gradient-to-br lg:from-ink/80 lg:via-ink/35 lg:to-ink/90" />
         <div className="relative flex h-full flex-col justify-between p-6 sm:p-8 lg:p-12">
-          <Link href="/" aria-label="StudioFlow — home" className="w-fit rounded-md">
-            <Logo tone="onDark" showTagline iconClassName="size-9" />
+          <Link href="/" aria-label="ReFrame — home" className="w-fit rounded-sm py-1">
+            <Logo showTagline iconClassName="h-5" />
           </Link>
           <div className="hidden max-w-lg space-y-4 lg:block">
-            <p className="text-xs font-semibold tracking-[0.3em] text-white/70 uppercase">
-              AI-Powered Operating System for Photography Studios
-            </p>
-            <p className="text-3xl leading-tight font-bold text-balance text-white xl:text-4xl">
-              {caption}
-            </p>
-            <p className="max-w-md text-sm leading-relaxed text-white/75">
+            <p className="eyebrow">Photography studio · Tunis</p>
+            <p className="display-lg text-bone">{caption}</p>
+            <p className="max-w-md text-sm leading-relaxed text-bone/70">
               Weddings, portraits, products and events: one studio to book your sessions, discover
               your private galleries and keep track of your invoices.
             </p>
@@ -55,7 +55,7 @@ export function AuthSplitLayout({ image, imageAlt, caption, children }: AuthSpli
       <main className="flex flex-col px-5 py-8 sm:px-10 lg:px-16 lg:py-10">
         <Link
           href="/"
-          className="inline-flex w-fit items-center gap-1.5 rounded-md text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+          className="inline-flex w-fit items-center gap-2 rounded-sm text-[0.65rem] font-medium tracking-[0.3em] text-muted-foreground uppercase transition-colors hover:text-foreground"
         >
           <ArrowLeft className="size-4" aria-hidden />
           Back to website
@@ -63,8 +63,8 @@ export function AuthSplitLayout({ image, imageAlt, caption, children }: AuthSpli
         <div className="flex flex-1 items-center justify-center py-8">
           <div className="w-full max-w-md">{children}</div>
         </div>
-        <p className="text-center text-xs text-muted-foreground">
-          © {new Date().getFullYear()} StudioFlow · Photography studio
+        <p className="text-center text-[0.65rem] tracking-[0.24em] text-muted-foreground uppercase">
+          © {new Date().getFullYear()} ReFrame · Photography studio
         </p>
       </main>
     </div>

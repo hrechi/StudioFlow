@@ -36,27 +36,27 @@ export function Sidebar({ user, variant = "full", onNavigate }: SidebarProps) {
 
   return (
     <div className="flex h-full flex-col bg-sidebar text-sidebar-foreground">
-      <div className={cn("flex h-16 shrink-0 items-center", rail ? "justify-center" : "px-5")}>
+      <div className={cn("flex h-20 shrink-0 items-center", rail ? "justify-center" : "px-6")}>
         <Link
           href="/dashboard"
           onClick={onNavigate}
-          aria-label="StudioFlow — dashboard"
-          className="rounded-md"
+          aria-label="ReFrame — dashboard"
+          className="rounded-sm py-2"
         >
-          <Logo tone="onDark" showWordmark={!rail} iconClassName="size-8" />
+          <Logo showWordmark={!rail} iconClassName={rail ? "h-[0.95rem]" : "h-[0.9rem]"} />
         </Link>
       </div>
 
       <nav
         aria-label="Backoffice navigation"
-        className="flex-1 [scrollbar-width:thin] [scrollbar-color:#1f2937_transparent] overflow-y-auto px-3 pb-4"
+        className="flex-1 [scrollbar-width:thin] [scrollbar-color:#262626_transparent] overflow-y-auto px-3 pb-4"
       >
         {groups.map((group) => (
           <div key={group.label} className="mt-3 first:mt-1">
             {rail ? (
               <div className="mx-auto my-2 h-px w-8 bg-sidebar-border" aria-hidden />
             ) : (
-              <p className="px-3 pb-1 text-[0.68rem] font-semibold tracking-[0.12em] text-sidebar-muted/80 uppercase">
+              <p className="px-3 pt-3 pb-2 font-heading text-[0.6rem] font-medium tracking-[0.3em] text-sidebar-muted uppercase">
                 {group.label}
               </p>
             )}
@@ -71,15 +71,18 @@ export function Sidebar({ user, variant = "full", onNavigate }: SidebarProps) {
                     aria-current={active ? "page" : undefined}
                     aria-label={rail ? item.label : undefined}
                     className={cn(
-                      "group flex items-center gap-3 rounded-lg text-sm font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring",
+                      "group relative flex items-center gap-3 rounded-md text-sm font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring",
                       rail ? "size-10 justify-center" : "h-9 px-3",
                       active
-                        ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-sm shadow-primary/30"
+                        ? "bg-sidebar-accent text-sidebar-accent-foreground before:absolute before:inset-y-2 before:left-0 before:w-0.5 before:rounded-full before:bg-gold"
                         : "text-sidebar-muted hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
                     )}
                   >
                     <Icon
-                      className={cn("size-[1.15rem] shrink-0", !active && item.ai && "text-ai")}
+                      className={cn(
+                        "size-[1.1rem] shrink-0",
+                        active ? "text-gold" : item.ai && "text-ai-text",
+                      )}
                       aria-hidden
                     />
                     {!rail && <span className="flex-1 truncate">{item.label}</span>}
@@ -87,7 +90,7 @@ export function Sidebar({ user, variant = "full", onNavigate }: SidebarProps) {
                       <span
                         className={cn(
                           "rounded-full px-1.5 py-0.5 text-[0.6rem] font-bold",
-                          active ? "bg-white/20 text-white" : "bg-ai/20 text-[#c4b5fd]",
+                          "bg-ai/20 text-ai-text",
                         )}
                       >
                         AI
@@ -118,7 +121,7 @@ export function Sidebar({ user, variant = "full", onNavigate }: SidebarProps) {
           href="/dashboard/profil"
           onClick={onNavigate}
           className={cn(
-            "flex items-center gap-3 rounded-lg p-2 transition-colors hover:bg-sidebar-accent",
+            "flex items-center gap-3 rounded-md p-2 transition-colors hover:bg-sidebar-accent",
             rail && "justify-center",
           )}
           aria-label={rail ? "My profile" : undefined}

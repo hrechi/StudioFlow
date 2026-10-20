@@ -125,7 +125,7 @@ export const RECLAMATIONS: Reclamation[] = [
     dateCreation: inDays(-1, 16, 40),
     client: medina,
     seance: { id: "seance-2", titre: "Corporate portraits — Atelier Médina" },
-    traitePar: { id: "u-admin", prenom: "Admin", nom: "StudioFlow" },
+    traitePar: { id: "u-admin", prenom: "Admin", nom: "ReFrame" },
   },
   {
     id: "rec-3",

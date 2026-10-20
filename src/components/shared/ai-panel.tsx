@@ -16,7 +16,7 @@ export function AIPanel({ title, description, children, footer, className }: AIP
   return (
     <section
       className={cn(
-        "relative overflow-hidden rounded-xl bg-gradient-to-br from-ai-soft via-white to-white p-5 shadow-soft ring-1 ring-ai/20",
+        "relative overflow-hidden rounded-xl bg-gradient-to-br from-ai-soft via-card to-card p-5 shadow-soft ring-1 ring-ai/20",
         className,
       )}
     >
@@ -27,7 +27,7 @@ export function AIPanel({ title, description, children, footer, className }: AIP
       <header className="relative mb-4 space-y-1.5">
         <div className="flex items-center gap-2">
           <AIBadge />
-          <h2 className="text-sm font-semibold text-charcoal">{title}</h2>
+          <h2 className="text-sm font-semibold text-foreground">{title}</h2>
         </div>
         {description && <p className="text-xs text-muted-foreground">{description}</p>}
       </header>

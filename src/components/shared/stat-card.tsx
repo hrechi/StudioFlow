@@ -47,8 +47,12 @@ export function StatCard({
         <Icon className="size-5" aria-hidden />
       </span>
       <div className="min-w-0">
-        <p className="truncate text-xs font-medium text-muted-foreground">{label}</p>
-        <p className="text-2xl leading-tight font-bold tracking-tight text-charcoal">{value}</p>
+        <p className="truncate text-[0.7rem] font-medium tracking-[0.12em] text-muted-foreground uppercase">
+          {label}
+        </p>
+        <p className="font-heading text-2xl leading-tight font-medium tracking-wide text-foreground tabular-nums">
+          {value}
+        </p>
         {hint && <div className="mt-0.5 text-xs text-muted-foreground">{hint}</div>}
       </div>
     </Card>

@@ -18,7 +18,7 @@ export function PageHeader({ title, description, actions, eyebrow, className }: 
     >
       <div className="min-w-0 space-y-1.5">
         {eyebrow}
-        <h1 className="text-2xl font-bold tracking-tight text-charcoal sm:text-[1.75rem]">
+        <h1 className="font-heading text-xl font-medium tracking-[0.12em] text-foreground uppercase sm:text-2xl">
           {title}
         </h1>
         {description && <p className="max-w-2xl text-sm text-muted-foreground">{description}</p>}

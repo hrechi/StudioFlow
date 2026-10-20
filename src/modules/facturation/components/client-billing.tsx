@@ -31,7 +31,7 @@ export function ClientBilling({
   return (
     <div className="space-y-8">
       <section className="space-y-4">
-        <h2 className="flex items-center gap-2 text-lg font-semibold text-charcoal">
+        <h2 className="flex items-center gap-2 text-lg font-semibold text-foreground">
           <FileText className="size-5 text-primary" aria-hidden />
           My quotes
         </h2>
@@ -72,7 +72,7 @@ export function ClientBilling({
                   </ul>
                   <div className="flex items-center justify-between border-t pt-3">
                     <span className="text-sm text-muted-foreground">Total incl. VAT</span>
-                    <span className="text-xl font-bold text-charcoal">
+                    <span className="text-xl font-bold text-foreground">
                       {formatCurrency(d.montantTTC)}
                     </span>
                   </div>
@@ -108,7 +108,7 @@ export function ClientBilling({
       </section>
 
       <section className="space-y-4">
-        <h2 className="flex items-center gap-2 text-lg font-semibold text-charcoal">
+        <h2 className="flex items-center gap-2 text-lg font-semibold text-foreground">
           <Receipt className="size-5 text-primary" aria-hidden />
           My invoices
         </h2>
@@ -123,7 +123,7 @@ export function ClientBilling({
                   <li key={f.id} className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center">
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="font-semibold text-charcoal">{f.numero}</span>
+                        <span className="font-semibold text-foreground">{f.numero}</span>
                         <StatusBadge
                           value={f.type}
                           config={typeFactureConfig}
@@ -143,7 +143,7 @@ export function ClientBilling({
                         </span>
                         <span
                           className={
-                            reste > 0 ? "font-semibold text-charcoal" : "text-muted-foreground"
+                            reste > 0 ? "font-semibold text-foreground" : "text-muted-foreground"
                           }
                         >
                           Remaining {formatCurrency(reste)}

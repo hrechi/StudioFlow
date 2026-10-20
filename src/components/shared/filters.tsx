@@ -39,7 +39,7 @@ export function SearchInput({
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
         aria-label={label}
-        className="h-9 bg-white pl-9"
+        className="h-9 bg-card pl-9"
       />
     </div>
   );
@@ -64,7 +64,7 @@ export function FilterSelect<T extends string>({
   const entries = Object.entries(options) as [T, string][];
   return (
     <Select value={value} onValueChange={(next) => onChange(next as T | typeof ALL)}>
-      <SelectTrigger className={cn("h-9 w-44 bg-white", className)} aria-label={label}>
+      <SelectTrigger className={cn("h-9 w-44 bg-card", className)} aria-label={label}>
         <SelectValue>{value === ALL ? allLabel : options[value as T]}</SelectValue>
       </SelectTrigger>
       <SelectContent>

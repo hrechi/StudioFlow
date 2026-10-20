@@ -413,7 +413,7 @@ export async function adminCreateUser(input: AdminCreateUserInput): Promise<Util
     });
     await createNotification({
       utilisateurId: doc._id.toString(),
-      titre: "Welcome to StudioFlow",
+      titre: "Welcome to ReFrame",
       message: `Your ${roleConfig[input.role].label.toLowerCase()} account has been created by the studio.`,
       type: "COMPTE",
     });

@@ -32,7 +32,7 @@ export function ErrorState({
         <AlertTriangle className="size-7" aria-hidden />
       </span>
       <div className="space-y-1.5">
-        <h2 className="text-xl font-bold text-charcoal">{title}</h2>
+        <h2 className="text-xl font-medium tracking-[0.08em] text-foreground uppercase">{title}</h2>
         <p className="text-sm text-muted-foreground">
           The page could not be loaded. Check that MongoDB is running, then try again.
         </p>

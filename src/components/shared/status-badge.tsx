@@ -13,8 +13,8 @@ const toneClasses: Record<StatusTone, string> = {
   warning: "bg-warning/10 text-warning-text ring-warning/25",
   danger: "bg-destructive/10 text-destructive-text ring-destructive/20",
   ai: "bg-ai-soft text-ai-text ring-ai/25",
-  dark: "bg-charcoal text-white ring-charcoal",
-  outline: "bg-white text-slate ring-light-gray",
+  dark: "bg-bone text-ink ring-bone",
+  outline: "bg-card text-slate ring-light-gray",
 };
 
 const dotClasses: Record<StatusTone, string> = {
@@ -24,7 +24,7 @@ const dotClasses: Record<StatusTone, string> = {
   warning: "bg-warning",
   danger: "bg-destructive",
   ai: "bg-ai",
-  dark: "bg-white",
+  dark: "bg-ink",
   outline: "bg-gray",
 };
 

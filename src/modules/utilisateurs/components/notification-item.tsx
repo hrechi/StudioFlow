@@ -36,7 +36,7 @@ export function NotificationItemContent({
       <div className="min-w-0 flex-1">
         <p
           className={cn(
-            "text-sm text-charcoal",
+            "text-sm text-foreground",
             notification.estLue ? "font-medium" : "font-semibold",
             compact && "truncate",
           )}

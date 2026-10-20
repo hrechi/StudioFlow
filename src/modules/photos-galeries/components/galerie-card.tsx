@@ -20,7 +20,7 @@ export function GalerieCard({
   return (
     <Link
       href={href}
-      className="group block overflow-hidden rounded-2xl bg-white shadow-soft ring-1 ring-border transition-shadow hover:shadow-lift focus-visible:ring-3 focus-visible:ring-ring/50"
+      className="group block overflow-hidden rounded-2xl bg-card shadow-soft ring-1 ring-border transition-shadow hover:shadow-lift focus-visible:ring-3 focus-visible:ring-ring/50"
     >
       <div className="relative aspect-[16/10] overflow-hidden bg-muted">
         <SafeImage
@@ -35,12 +35,12 @@ export function GalerieCard({
           <StatusBadge
             value={galerie.statut}
             config={statutGalerieConfig}
-            className="bg-white ring-white"
+            className="bg-card ring-card"
           />
         </div>
         {galerie.protegeeParMotDePasse && (
           <span
-            className="absolute top-3 right-3 grid size-7 place-items-center rounded-full bg-white/90 text-slate"
+            className="absolute top-3 right-3 grid size-7 place-items-center rounded-full bg-black/70 text-bone backdrop-blur-sm"
             title="Password protected"
           >
             <Lock className="size-3.5" aria-label="Password protected" />
@@ -51,7 +51,7 @@ export function GalerieCard({
         </p>
       </div>
       <div className="space-y-2 p-4">
-        <h3 className="truncate font-semibold text-charcoal group-hover:text-primary-text">
+        <h3 className="truncate font-semibold text-foreground group-hover:text-primary-text">
           {galerie.titre}
         </h3>
         {showClient && <p className="text-sm text-muted-foreground">{fullName(galerie.client)}</p>}

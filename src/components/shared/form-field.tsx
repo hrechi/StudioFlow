@@ -69,7 +69,7 @@ export function IconInput({ icon: Icon, invalid, className, ...props }: IconInpu
       )}
       <Input
         aria-invalid={invalid || undefined}
-        className={cn("h-10 bg-white", Icon && "pl-9", className)}
+        className={cn("h-10 bg-card", Icon && "pl-9", className)}
         {...props}
       />
     </div>

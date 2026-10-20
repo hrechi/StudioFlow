@@ -38,7 +38,7 @@ export function GaleriesBrowser({ galeries }: { galeries: Galerie[] }) {
                 onClick={() => setStatut(active ? null : step)}
                 aria-pressed={active}
                 className={cn(
-                  "flex w-full items-center gap-3 rounded-xl bg-white p-4 text-left shadow-soft ring-1 transition-colors",
+                  "flex w-full items-center gap-3 rounded-xl bg-card p-4 text-left shadow-soft ring-1 transition-colors",
                   active ? "ring-2 ring-primary" : "ring-border hover:ring-primary/40",
                 )}
               >
@@ -49,7 +49,7 @@ export function GaleriesBrowser({ galeries }: { galeries: Galerie[] }) {
                   <span className="block text-xs text-muted-foreground">
                     {statutGalerieConfig[step].label}
                   </span>
-                  <span className="block text-xl font-bold text-charcoal">{count}</span>
+                  <span className="block text-xl font-bold text-foreground">{count}</span>
                 </span>
               </button>
               {index < GALERIE_PIPELINE.length - 1 && (

@@ -164,7 +164,7 @@ function SeanceTable({ seances }: { seances: Seance[] }) {
                     />
                   </span>
                   <span className="min-w-0">
-                    <span className="block truncate font-semibold text-charcoal group-hover:text-primary-text">
+                    <span className="block truncate font-semibold text-foreground group-hover:text-primary-text">
                       {seance.titre}
                     </span>
                     <span className="block text-xs text-muted-foreground">

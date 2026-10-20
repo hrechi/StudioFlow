@@ -51,7 +51,9 @@ export function LoginForm({ callbackUrl, raison }: { callbackUrl?: string; raiso
   return (
     <div className="space-y-7">
       <header className="space-y-2">
-        <h1 className="text-3xl font-bold tracking-tight text-charcoal">Welcome back</h1>
+        <h1 className="text-3xl font-medium tracking-[0.08em] text-foreground uppercase">
+          Welcome back
+        </h1>
         <p className="text-sm text-muted-foreground">
           Sign in to find your sessions, galleries and invoices.
         </p>
@@ -89,7 +91,7 @@ export function LoginForm({ callbackUrl, raison }: { callbackUrl?: string; raiso
           />
         </FormField>
 
-        <Button type="submit" size="lg" className="w-full" disabled={pending}>
+        <Button type="submit" variant="cinematic" size="cta" className="w-full" disabled={pending}>
           {pending && <Loader2 className="animate-spin" aria-hidden />}
           {pending ? "Signing in…" : "Sign in"}
         </Button>

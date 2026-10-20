@@ -56,7 +56,7 @@ export function SeanceCalendar({ seances, baseHref }: { seances: Seance[]; baseH
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <h3 className="text-base font-semibold text-charcoal capitalize">
+        <h3 className="text-base font-semibold text-foreground capitalize">
           {monthFormatter.format(cursor)}
         </h3>
         <div className="flex items-center gap-1">
@@ -98,12 +98,12 @@ export function SeanceCalendar({ seances, baseHref }: { seances: Seance[]; baseH
             const inMonth = day.getMonth() === cursor.getMonth();
             const items = byDay.get(key) ?? [];
             return (
-              <div key={key} className={cn("min-h-28 bg-white p-1.5", !inMonth && "bg-surface/70")}>
+              <div key={key} className={cn("min-h-28 bg-card p-1.5", !inMonth && "bg-surface/70")}>
                 <span
                   className={cn(
                     "mb-1 grid size-6 place-items-center rounded-full text-xs font-medium",
                     key === todayKey
-                      ? "bg-primary text-white"
+                      ? "bg-primary text-primary-foreground"
                       : inMonth
                         ? "text-slate"
                         : "text-muted-foreground/60",

@@ -1,100 +1,55 @@
-import { useId } from "react";
 import { cn } from "@/lib/utils";
+import { MONOGRAM_PATH, MONOGRAM_VIEWBOX, WORDMARK_PATH, WORDMARK_VIEWBOX } from "./logo-paths";
 
 type LogoProps = {
-  /** "onLight" = dark wordmark (light backgrounds), "onDark" = white wordmark. */
+  /** "onDark" = off-white wordmark (default, the UI is dark), "onLight" = black wordmark. */
   tone?: "onLight" | "onDark";
+  /** false = "RF" monogram only (collapsed sidebar, tiny spaces). */
   showWordmark?: boolean;
   showTagline?: boolean;
   className?: string;
+  /** Sizes the mark itself (height; width follows the logo's proportions). */
   iconClassName?: string;
 };
 
-/** StudioFlow "S" ribbon mark (from the cahier, p.19) + wordmark. */
+/**
+ * ReFrame logo, traced from docs/screens/logo reframe 2.jpg (see logo-paths.ts).
+ * Drawn with currentColor, so one shape serves both versions: off-white on dark
+ * backgrounds, black on light ones. Never stretch it: only set a height.
+ */
 export function Logo({
-  tone = "onLight",
+  tone = "onDark",
   showWordmark = true,
   showTagline = false,
   className,
   iconClassName,
 }: LogoProps) {
   return (
-    <span className={cn("inline-flex items-center gap-2.5", className)}>
-      <LogoMark className={cn("size-8 shrink-0", iconClassName)} />
-      {showWordmark && (
-        <span className="flex flex-col leading-none">
-          <span
-            className={cn(
-              "text-xl font-extrabold tracking-tight",
-              tone === "onDark" ? "text-white" : "text-charcoal",
-            )}
-          >
-            Studio
-            <span className="bg-gradient-to-r from-[#146bff] to-[#7546e8] bg-clip-text text-transparent">
-              Flow
-            </span>
-          </span>
-          {showTagline && (
-            <span
-              className={cn(
-                "mt-1 text-[0.6rem] font-semibold tracking-[0.28em] uppercase",
-                tone === "onDark" ? "text-sidebar-muted" : "text-muted-foreground",
-              )}
-            >
-              Photography Studio OS
-            </span>
+    <span
+      className={cn(
+        "inline-flex flex-col items-start gap-2 leading-none",
+        tone === "onDark" ? "text-bone" : "text-ink",
+        className,
+      )}
+    >
+      <svg
+        role="img"
+        aria-label="ReFrame"
+        viewBox={showWordmark ? WORDMARK_VIEWBOX : MONOGRAM_VIEWBOX}
+        className={cn("h-[1.05rem] w-auto shrink-0", iconClassName)}
+      >
+        <path fill="currentColor" d={showWordmark ? WORDMARK_PATH : MONOGRAM_PATH} />
+      </svg>
+      {showTagline && showWordmark && (
+        <span
+          className={cn(
+            "text-[0.6rem] font-medium tracking-[0.42em] uppercase",
+            tone === "onDark" ? "text-bone/55" : "text-ink/60",
           )}
+        >
+          Photography studio
         </span>
       )}
     </span>
-  );
-}
-
-export function LogoMark({ className }: { className?: string }) {
-  const id = useId().replace(/:/g, "");
-  return (
-    <svg viewBox="4 2 96 100" aria-hidden="true" className={className}>
-      <defs>
-        <linearGradient
-          id={`${id}a`}
-          x1="76"
-          y1="17"
-          x2="36"
-          y2="46"
-          gradientUnits="userSpaceOnUse"
-        >
-          <stop offset="0" stopColor="#36B8F4" />
-          <stop offset="1" stopColor="#146BFF" />
-        </linearGradient>
-        <linearGradient
-          id={`${id}b`}
-          x1="42"
-          y1="48"
-          x2="62"
-          y2="58"
-          gradientUnits="userSpaceOnUse"
-        >
-          <stop offset="0" stopColor="#146BFF" />
-          <stop offset="1" stopColor="#7546E8" />
-        </linearGradient>
-        <linearGradient
-          id={`${id}c`}
-          x1="66"
-          y1="60"
-          x2="24"
-          y2="87"
-          gradientUnits="userSpaceOnUse"
-        >
-          <stop offset="0" stopColor="#7546E8" />
-          <stop offset="0.45" stopColor="#146BFF" />
-          <stop offset="1" stopColor="#36B8F4" />
-        </linearGradient>
-      </defs>
-      <g fill="none" strokeLinecap="round" strokeLinejoin="round" strokeWidth="22">
-        <path stroke={`url(#${id}a)`} d="M76 17.2 L43.7 30.5 C32.6 35.1 32.3 43.4 43.1 48.8" />
-        <path stroke={`url(#${id}c)`} d="M56.7 55.7 C67.5 61.1 67.2 69.4 56.1 74 L23.8 87.3" />
-        <path stroke={`url(#${id}b)`} d="M43.1 48.8 L56.7 55.7" />
-      </g>
-    </svg>
   );
 }

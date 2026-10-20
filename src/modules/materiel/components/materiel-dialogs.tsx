@@ -52,7 +52,7 @@ export function ReturnDialog({
         >
           <FormField id="etat-retour" label="Condition on return" required>
             <Select defaultValue="BON">
-              <SelectTrigger id="etat-retour" className="h-10 w-full bg-white">
+              <SelectTrigger id="etat-retour" className="h-10 w-full bg-card">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -69,7 +69,7 @@ export function ReturnDialog({
               id="remarque"
               rows={3}
               placeholder="Battery, missing accessories, scratches…"
-              className="bg-white"
+              className="bg-card"
             />
           </FormField>
           <DialogFooter>
@@ -114,7 +114,7 @@ export function BreakdownDialog({
               id="panne"
               rows={4}
               placeholder="What is happening? Since when?"
-              className="bg-white"
+              className="bg-card"
             />
           </FormField>
           <DialogFooter>

@@ -85,7 +85,7 @@ export function ReservationsBoard({ reservations }: { reservations: Reservation[
                   <td className="px-4 py-3">
                     <Link
                       href={`/dashboard/materiel/${r.materiel.id}`}
-                      className="font-semibold text-charcoal hover:text-primary-text"
+                      className="font-semibold text-foreground hover:text-primary-text"
                     >
                       {r.materiel.nom}
                     </Link>
@@ -162,11 +162,11 @@ export function ReservationsBoard({ reservations }: { reservations: Reservation[
                       <li
                         key={r.id}
                         className={cn(
-                          "rounded-lg border bg-white p-2 text-xs",
+                          "rounded-lg border bg-card p-2 text-xs",
                           r.statut === "EN_ATTENTE" ? "border-warning/40" : "border-primary/25",
                         )}
                       >
-                        <p className="font-semibold text-charcoal">{r.materiel.nom}</p>
+                        <p className="font-semibold text-foreground">{r.materiel.nom}</p>
                         <p className="truncate text-muted-foreground">{r.seance.titre}</p>
                       </li>
                     ))}

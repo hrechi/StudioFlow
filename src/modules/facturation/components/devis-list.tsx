@@ -81,7 +81,7 @@ export function DevisList({ devis }: { devis: Devis[] }) {
               {list.map((d) => (
                 <tr key={d.id} className="border-b last:border-0 hover:bg-surface/60">
                   <td className="px-4 py-3">
-                    <span className="flex items-center gap-2 font-semibold text-charcoal">
+                    <span className="flex items-center gap-2 font-semibold text-foreground">
                       {d.numero}
                       {d.genereParIA && <AIBadge />}
                     </span>
@@ -101,7 +101,7 @@ export function DevisList({ devis }: { devis: Devis[] }) {
                   <td className="px-4 py-3 whitespace-nowrap text-slate">
                     {formatDate(d.dateValidite)}
                   </td>
-                  <td className="px-4 py-3 text-right font-semibold whitespace-nowrap text-charcoal">
+                  <td className="px-4 py-3 text-right font-semibold whitespace-nowrap text-foreground">
                     {formatCurrency(d.montantTTC)}
                   </td>
                   <td className="px-4 py-3">

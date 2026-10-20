@@ -60,7 +60,9 @@ export default async function EspaceClientPage() {
           <p className="text-xs font-semibold tracking-[0.3em] text-white/60 uppercase">
             My account
           </p>
-          <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">Hello, {user.prenom}</h1>
+          <h1 className="text-3xl font-medium tracking-[0.08em] uppercase sm:text-4xl">
+            Hello, {user.prenom}
+          </h1>
           <p className="text-white/75">
             Your sessions, private galleries and invoices, all in one place.
           </p>
@@ -74,9 +76,9 @@ export default async function EspaceClientPage() {
       </section>
 
       <div className="grid gap-6 lg:grid-cols-3">
-        <article className="overflow-hidden rounded-2xl bg-white shadow-soft ring-1 ring-border">
+        <article className="overflow-hidden rounded-2xl bg-card shadow-soft ring-1 ring-border">
           <header className="flex items-center justify-between px-5 pt-5">
-            <h2 className="font-semibold text-charcoal">Next session</h2>
+            <h2 className="font-semibold text-foreground">Next session</h2>
             <CalendarDays className="size-5 text-primary" aria-hidden />
           </header>
           {prochaine ? (
@@ -94,7 +96,7 @@ export default async function EspaceClientPage() {
                 <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
                   {typeSeanceLabels[prochaine.type]}
                 </p>
-                <p className="font-semibold text-charcoal">{prochaine.titre}</p>
+                <p className="font-semibold text-foreground">{prochaine.titre}</p>
               </div>
               <ul className="space-y-1 text-sm text-slate">
                 <li className="flex items-center gap-2">
@@ -120,7 +122,7 @@ export default async function EspaceClientPage() {
           )}
         </article>
 
-        <article className="overflow-hidden rounded-2xl bg-white shadow-soft ring-1 ring-border">
+        <article className="overflow-hidden rounded-2xl bg-card shadow-soft ring-1 ring-border">
           {galerie ? (
             <Link href={`/espace-client/galeries/${galerie.id}`} className="group block h-full">
               <div className="relative aspect-[4/3] overflow-hidden bg-muted">
@@ -136,7 +138,7 @@ export default async function EspaceClientPage() {
                   <StatusBadge
                     value={galerie.statut}
                     config={statutGalerieConfig}
-                    className="bg-white"
+                    className="bg-card"
                   />
                 </div>
                 <div className="absolute inset-x-0 bottom-0 p-5 text-white">
@@ -161,9 +163,9 @@ export default async function EspaceClientPage() {
           )}
         </article>
 
-        <article className="flex flex-col rounded-2xl bg-white p-5 shadow-soft ring-1 ring-border">
+        <article className="flex flex-col rounded-2xl bg-card p-5 shadow-soft ring-1 ring-border">
           <header className="flex items-center justify-between">
-            <h2 className="font-semibold text-charcoal">Invoice to pay</h2>
+            <h2 className="font-semibold text-foreground">Invoice to pay</h2>
             <Receipt className="size-5 text-primary" aria-hidden />
           </header>
           {facture ? (
@@ -173,7 +175,7 @@ export default async function EspaceClientPage() {
                 config={statutFactureConfig}
                 className="self-start"
               />
-              <p className="text-3xl font-bold text-charcoal">
+              <p className="text-3xl font-bold text-foreground">
                 {formatCurrency(facture.montantTTC - facture.montantPaye)}
               </p>
               <p className="text-sm text-muted-foreground">
@@ -192,13 +194,13 @@ export default async function EspaceClientPage() {
       </div>
 
       <section>
-        <h2 className="mb-3 text-lg font-semibold text-charcoal">Quick links</h2>
+        <h2 className="mb-3 text-lg font-semibold text-foreground">Quick links</h2>
         <ul className="grid grid-cols-2 gap-3 md:grid-cols-4">
           {LINKS.map(({ label, href, icon: Icon }) => (
             <li key={href}>
               <Link
                 href={href}
-                className="flex items-center gap-3 rounded-2xl bg-white p-4 text-sm font-semibold text-charcoal shadow-soft ring-1 ring-border transition-colors hover:text-primary-text"
+                className="flex items-center gap-3 rounded-2xl bg-card p-4 text-sm font-semibold text-foreground shadow-soft ring-1 ring-border transition-colors hover:text-primary-text"
               >
                 <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-accent text-primary-text">
                   <Icon className="size-5" aria-hidden />

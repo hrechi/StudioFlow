@@ -30,7 +30,7 @@ export function PageSkeleton({ variant = "table" }: { variant?: "table" | "grid"
           <Skeleton className="h-80 rounded-xl" />
         </div>
       ) : (
-        <div className="space-y-3 rounded-xl bg-white p-4 ring-1 ring-border">
+        <div className="space-y-3 rounded-xl bg-card p-4 ring-1 ring-border">
           <Skeleton className="h-9 w-full" />
           {Array.from({ length: 6 }, (_, i) => (
             <Skeleton key={i} className="h-12 w-full" />

@@ -9,11 +9,11 @@ import {
   Loader2Icon,
 } from "lucide-react";
 
-// StudioFlow is light-only for now, so the theme is fixed instead of using next-themes.
+// ReFrame uses one dark theme everywhere, so the theme is fixed instead of using next-themes.
 const Toaster = ({ ...props }: ToasterProps) => {
   return (
     <Sonner
-      theme="light"
+      theme="dark"
       className="toaster group"
       icons={{
         success: <CircleCheckIcon className="size-4 text-success" />,

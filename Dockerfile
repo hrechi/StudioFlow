@@ -1,4 +1,4 @@
-# StudioFlow — production image (Next.js standalone server).
+# ReFrame — production image (Next.js standalone server).
 # Used by docker-compose.yml: `docker compose up --build`.
 
 FROM node:22-alpine AS base

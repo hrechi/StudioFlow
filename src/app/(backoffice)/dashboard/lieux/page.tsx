@@ -57,13 +57,13 @@ export default async function LieuxPage() {
                   tone={lieu.disponible ? "success" : "danger"}
                   label={lieu.disponible ? "Available" : "Unavailable"}
                   dot
-                  className="bg-white"
+                  className="bg-card"
                 />
               </div>
             </div>
             <div className="space-y-3 p-4">
               <div>
-                <p className="font-semibold text-charcoal">{lieu.nom}</p>
+                <p className="font-semibold text-foreground">{lieu.nom}</p>
                 <p className="flex items-center gap-1 text-xs text-muted-foreground">
                   <MapPin className="size-3.5" aria-hidden />
                   {lieu.adresse}

@@ -11,7 +11,7 @@ export function SeanceCard({ seance, className }: { seance: Seance; className?: 
   return (
     <article
       className={cn(
-        "overflow-hidden rounded-2xl bg-white shadow-soft ring-1 ring-border",
+        "overflow-hidden rounded-2xl bg-card shadow-soft ring-1 ring-border",
         className,
       )}
     >
@@ -25,14 +25,14 @@ export function SeanceCard({ seance, className }: { seance: Seance; className?: 
         />
         <div className="absolute inset-0 bg-gradient-to-t from-charcoal/70 to-transparent" />
         <div className="absolute top-3 left-3">
-          <StatusBadge value={seance.statut} config={statutSeanceConfig} className="bg-white" />
+          <StatusBadge value={seance.statut} config={statutSeanceConfig} className="bg-card" />
         </div>
         <p className="absolute bottom-3 left-4 text-xs font-semibold tracking-wide text-white/90 uppercase">
           {typeSeanceLabels[seance.type]}
         </p>
       </div>
       <div className="space-y-3 p-4">
-        <h3 className="font-semibold text-charcoal">{seance.titre}</h3>
+        <h3 className="font-semibold text-foreground">{seance.titre}</h3>
         <ul className="space-y-1.5 text-sm text-slate">
           <li className="flex items-center gap-2">
             <CalendarDays className="size-4 text-muted-foreground" aria-hidden />

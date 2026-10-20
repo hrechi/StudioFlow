@@ -24,7 +24,9 @@ export default async function SharedGaleriePage({ params }: PageProps<"/g/[token
   if (access.status === "unavailable") {
     return (
       <main className="mx-auto flex w-full max-w-md flex-1 flex-col items-center justify-center gap-4 px-5 pt-32 pb-20 text-center">
-        <h1 className="text-2xl font-bold text-charcoal">Gallery not available</h1>
+        <h1 className="text-2xl font-medium tracking-[0.08em] text-foreground uppercase">
+          Gallery not available
+        </h1>
         <p className="text-sm text-muted-foreground">
           This link is invalid, the gallery has expired, or the studio hasn&apos;t shared it yet.
         </p>
@@ -40,12 +42,14 @@ export default async function SharedGaleriePage({ params }: PageProps<"/g/[token
   if (access.status === "locked") {
     return (
       <main className="mx-auto w-full max-w-md px-5 pt-32 pb-20">
-        <div className="space-y-6 rounded-2xl bg-white p-6 shadow-soft ring-1 ring-border sm:p-8">
+        <div className="space-y-6 rounded-2xl bg-card p-6 shadow-soft ring-1 ring-border sm:p-8">
           <div className="space-y-2 text-center">
             <span className="mx-auto grid size-11 place-items-center rounded-full bg-accent text-primary-text">
               <Lock className="size-5" aria-hidden />
             </span>
-            <h1 className="text-xl font-bold text-charcoal">{galerie.titre}</h1>
+            <h1 className="text-xl font-medium tracking-[0.08em] text-foreground uppercase">
+              {galerie.titre}
+            </h1>
             <p className="text-sm text-muted-foreground">
               This gallery is private: enter the password you received.
             </p>
@@ -67,7 +71,7 @@ export default async function SharedGaleriePage({ params }: PageProps<"/g/[token
         <p className="text-xs font-semibold tracking-[0.2em] text-muted-foreground uppercase">
           {categorieGalerieLabels[galerie.categorie]} · Shared gallery
         </p>
-        <h1 className="text-3xl font-bold tracking-tight text-charcoal sm:text-4xl">
+        <h1 className="text-3xl font-medium tracking-[0.08em] text-foreground uppercase sm:text-4xl">
           {galerie.titre}
         </h1>
         <p className="flex flex-wrap items-center gap-x-5 gap-y-1 text-sm text-muted-foreground">

@@ -65,7 +65,9 @@ export function RegisterForm() {
   return (
     <div className="space-y-7">
       <header className="space-y-2">
-        <h1 className="text-3xl font-bold tracking-tight text-charcoal">Create your account</h1>
+        <h1 className="text-3xl font-medium tracking-[0.08em] text-foreground uppercase">
+          Create your account
+        </h1>
         <p className="text-sm text-muted-foreground">
           Book a session, approve your photos and follow your invoices online.
         </p>
@@ -216,7 +218,7 @@ export function RegisterForm() {
           )}
         </div>
 
-        <Button type="submit" size="lg" className="w-full" disabled={pending}>
+        <Button type="submit" variant="cinematic" size="cta" className="w-full" disabled={pending}>
           {pending && <Loader2 className="animate-spin" aria-hidden />}
           {pending ? "Creating your account…" : "Create my account"}
         </Button>

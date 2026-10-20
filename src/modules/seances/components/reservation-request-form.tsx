@@ -45,7 +45,7 @@ export function ReservationRequestForm({ creneaux }: { creneaux: CreneauSuggere[
                   <label
                     key={value}
                     className={cn(
-                      "flex cursor-pointer items-center gap-3 rounded-xl border bg-white p-4 transition-colors has-[:focus-visible]:ring-3 has-[:focus-visible]:ring-ring/50",
+                      "flex cursor-pointer items-center gap-3 rounded-xl border bg-card p-4 transition-colors has-[:focus-visible]:ring-3 has-[:focus-visible]:ring-ring/50",
                       type === value ? "border-primary bg-accent/60" : "hover:border-gray/40",
                     )}
                   >
@@ -60,13 +60,15 @@ export function ReservationRequestForm({ creneaux }: { creneaux: CreneauSuggere[
                     <span
                       className={cn(
                         "grid size-10 place-items-center rounded-lg",
-                        type === value ? "bg-primary text-white" : "bg-muted text-slate",
+                        type === value
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-muted text-slate",
                       )}
                     >
                       <Icon className="size-5" aria-hidden />
                     </span>
                     <span>
-                      <span className="block font-semibold text-charcoal">
+                      <span className="block font-semibold text-foreground">
                         {typeSeanceLabels[value]}
                       </span>
                       <span className="block text-xs text-muted-foreground">{hint}</span>
@@ -85,7 +87,7 @@ export function ReservationRequestForm({ creneaux }: { creneaux: CreneauSuggere[
           </CardHeader>
           <CardContent className="grid gap-4 sm:grid-cols-2">
             <FormField id="date-souhaitee" label="Preferred date" required>
-              <Input id="date-souhaitee" type="date" className="h-10 bg-white" />
+              <Input id="date-souhaitee" type="date" className="h-10 bg-card" />
             </FormField>
             <FormField id="personnes" label="Number of people">
               <Input
@@ -93,14 +95,14 @@ export function ReservationRequestForm({ creneaux }: { creneaux: CreneauSuggere[
                 type="number"
                 min={1}
                 defaultValue={2}
-                className="h-10 bg-white"
+                className="h-10 bg-card"
               />
             </FormField>
             <FormField id="lieu-souhaite" label="Preferred location" className="sm:col-span-2">
               <Input
                 id="lieu-souhaite"
                 placeholder="At the studio, outdoors, at your place…"
-                className="h-10 bg-white"
+                className="h-10 bg-card"
               />
             </FormField>
             <FormField id="message" label="Your ideas" className="sm:col-span-2">
@@ -108,7 +110,7 @@ export function ReservationRequestForm({ creneaux }: { creneaux: CreneauSuggere[
                 id="message"
                 rows={4}
                 placeholder="Tell us about the mood, the style, the key moments…"
-                className="bg-white"
+                className="bg-card"
               />
             </FormField>
           </CardContent>
@@ -138,7 +140,7 @@ export function ReservationRequestForm({ creneaux }: { creneaux: CreneauSuggere[
               >
                 <Sparkles className="size-4 shrink-0 text-ai" aria-hidden />
                 <span>
-                  <span className="block font-semibold text-charcoal">
+                  <span className="block font-semibold text-foreground">
                     {formatDate(creneau.debut)}
                   </span>
                   <span className="text-xs text-muted-foreground">

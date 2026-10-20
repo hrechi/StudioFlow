@@ -25,7 +25,7 @@ export function UsersTable({
         <div className="flex min-w-0 items-center gap-3">
           <UserAvatar prenom={user.prenom} nom={user.nom} photoProfil={user.photoProfil} />
           <div className="min-w-0">
-            <p className="truncate font-semibold text-charcoal">
+            <p className="truncate font-semibold text-foreground">
               <Link
                 href={`/dashboard/utilisateurs/${user.id}`}
                 className="hover:text-primary-text hover:underline"

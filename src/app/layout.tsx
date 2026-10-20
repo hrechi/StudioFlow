@@ -1,27 +1,56 @@
-import type { Metadata } from "next";
-import { Plus_Jakarta_Sans } from "next/font/google";
+import type { Metadata, Viewport } from "next";
+import { Inter, Outfit } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import "./globals.css";
 
-const jakarta = Plus_Jakarta_Sans({
+/** Body text: clean neo-grotesque. */
+const inter = Inter({
   variable: "--font-sans",
   subsets: ["latin", "latin-ext"],
   display: "swap",
 });
 
+/** Headings: geometric sans that matches the RE FRAME wordmark (set in uppercase, wide tracking). */
+const outfit = Outfit({
+  variable: "--font-display",
+  subsets: ["latin", "latin-ext"],
+  display: "swap",
+});
+
+const DESCRIPTION =
+  "ReFrame, photography studio in Tunis: weddings, portraits, products and events. Book your session, discover your private gallery and approve your selection online.";
+
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.SITE_URL ?? "http://localhost:3000"),
+  applicationName: "ReFrame",
   title: {
-    default: "StudioFlow — Photography studio",
-    template: "%s · StudioFlow",
+    default: "ReFrame — Photography studio",
+    template: "%s · ReFrame",
   },
-  description:
-    "StudioFlow, the AI-powered photography studio platform: sessions, private galleries, quotes, invoices and portfolio.",
+  description: DESCRIPTION,
+  openGraph: {
+    type: "website",
+    siteName: "ReFrame",
+    title: "ReFrame — Photography studio",
+    description: DESCRIPTION,
+    locale: "en_GB",
+  },
+  twitter: { card: "summary_large_image", title: "ReFrame — Photography studio" },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#0a0a0a",
+  colorScheme: "dark",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en" className={`${jakarta.variable} h-full`}>
+    <html
+      lang="en"
+      className={`dark ${inter.variable} ${outfit.variable} h-full`}
+      data-scroll-behavior="smooth"
+    >
       <body className="flex min-h-full flex-col">
         <TooltipProvider delayDuration={200}>{children}</TooltipProvider>
         <Toaster position="top-right" richColors={false} closeButton />

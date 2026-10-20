@@ -63,7 +63,7 @@ export function UsersToolbar() {
           onChange={(event) => onSearchChange(event.target.value)}
           placeholder="Search by name or email…"
           aria-label="Search users"
-          className="h-9 bg-white pl-9"
+          className="h-9 bg-card pl-9"
         />
         {pending && (
           <Loader2
@@ -74,7 +74,7 @@ export function UsersToolbar() {
       </div>
       <div className="flex flex-wrap gap-2">
         <Select value={role} onValueChange={(value) => update({ role: value })}>
-          <SelectTrigger className="h-9 w-44 bg-white" aria-label="Filter by role">
+          <SelectTrigger className="h-9 w-44 bg-card" aria-label="Filter by role">
             <SelectValue>
               {role === ALL ? "All roles" : roleConfig[role as keyof typeof roleConfig]?.label}
             </SelectValue>
@@ -89,7 +89,7 @@ export function UsersToolbar() {
           </SelectContent>
         </Select>
         <Select value={statut} onValueChange={(value) => update({ statut: value })}>
-          <SelectTrigger className="h-9 w-40 bg-white" aria-label="Filter by status">
+          <SelectTrigger className="h-9 w-40 bg-card" aria-label="Filter by status">
             <SelectValue>
               {statut === ALL
                 ? "All statuses"

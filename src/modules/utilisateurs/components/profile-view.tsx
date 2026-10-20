@@ -29,7 +29,7 @@ export function ProfileView({ user, isLastAdmin }: { user: UtilisateurDTO; isLas
               size="xl"
             />
             <div>
-              <p className="text-lg font-semibold text-charcoal">
+              <p className="text-lg font-semibold text-foreground">
                 {user.prenom} {user.nom}
               </p>
               <p className="text-sm text-muted-foreground">{subtitle}</p>

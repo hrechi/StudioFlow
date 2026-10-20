@@ -124,7 +124,7 @@ export function FacturesBoard({ factures }: { factures: FactureAvecContexte[] })
                   <tr key={f.id} className="border-b last:border-0 hover:bg-surface/60">
                     <td className="px-4 py-3">
                       <span className="flex items-center gap-2">
-                        <span className="font-semibold text-charcoal">{f.numero}</span>
+                        <span className="font-semibold text-foreground">{f.numero}</span>
                         <StatusBadge
                           value={f.type}
                           config={typeFactureConfig}
@@ -154,7 +154,7 @@ export function FacturesBoard({ factures }: { factures: FactureAvecContexte[] })
                     </td>
                     <td className="w-52 px-4 py-3">
                       <div className="flex justify-between text-xs">
-                        <span className="font-semibold text-charcoal">
+                        <span className="font-semibold text-foreground">
                           {formatCurrency(f.montantPaye)}
                         </span>
                         <span className="text-muted-foreground">
@@ -225,7 +225,7 @@ export function FacturesBoard({ factures }: { factures: FactureAvecContexte[] })
                   type="number"
                   min={1}
                   defaultValue={paying ? paying.montantTTC - paying.montantPaye : 0}
-                  className="h-10 bg-white"
+                  className="h-10 bg-card"
                 />
               </FormField>
               <FormField id="date-paiement" label="Date" required>
@@ -233,13 +233,13 @@ export function FacturesBoard({ factures }: { factures: FactureAvecContexte[] })
                   id="date-paiement"
                   type="date"
                   defaultValue={new Date().toISOString().slice(0, 10)}
-                  className="h-10 bg-white"
+                  className="h-10 bg-card"
                 />
               </FormField>
             </div>
             <FormField id="mode" label="Payment method" required>
               <Select defaultValue="VIREMENT">
-                <SelectTrigger id="mode" className="h-10 w-full bg-white">
+                <SelectTrigger id="mode" className="h-10 w-full bg-card">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
