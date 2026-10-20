@@ -3,6 +3,7 @@
 import { Loader2, Plus, Save, Send, Sparkles, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { AIBadge } from "@/components/shared/ai-badge";
 import { comingSoon } from "@/components/shared/coming-soon-button";
@@ -20,6 +21,7 @@ import {
 import { fullName } from "@/lib/mock-data-helpers";
 import { cn, formatCurrency } from "@/lib/utils";
 import type { UtilisateurRef } from "@/modules/utilisateurs/utilisateur.types";
+import { createDevisAction } from "../facturation.actions";
 import { calculerTotaux, TVA_PAR_DEFAUT, type LignePrestation } from "../facturation.types";
 
 type Ligne = LignePrestation & { key: number; ia?: boolean };
@@ -39,6 +41,10 @@ export function DevisEditor({
   ]);
   const [remise, setRemise] = useState(0);
   const [tva, setTva] = useState(TVA_PAR_DEFAUT);
+  const [clientId, setClientId] = useState(clients[0]?.id ?? "");
+  const [seanceId, setSeanceId] = useState(seances[0]?.id ?? "");
+  const [saving, startSaving] = useTransition();
+  const router = useRouter();
   const [generating, startGenerating] = useTransition();
   const totaux = calculerTotaux(lignes, remise, tva);
 
@@ -76,7 +82,7 @@ export function DevisEditor({
           </CardHeader>
           <CardContent className="grid gap-4 sm:grid-cols-2">
             <FormField id="client" label="Client" required>
-              <Select defaultValue={clients[0]?.id}>
+              <Select value={clientId} onValueChange={setClientId}>
                 <SelectTrigger id="client" className="h-10 w-full bg-card">
                   <SelectValue />
                 </SelectTrigger>
@@ -90,7 +96,7 @@ export function DevisEditor({
               </Select>
             </FormField>
             <FormField id="seance" label="Session" required>
-              <Select defaultValue={seances[0]?.id}>
+              <Select value={seanceId} onValueChange={setSeanceId}>
                 <SelectTrigger id="seance" className="h-10 w-full bg-card">
                   <SelectValue />
                 </SelectTrigger>
@@ -252,9 +258,38 @@ export function DevisEditor({
             <Send aria-hidden />
             Send to client
           </Button>
-          <Button type="button" variant="outline" onClick={() => comingSoon("Save the draft")}>
-            <Save aria-hidden />
-            Save draft
+          <Button
+            type="button"
+            variant="outline"
+            disabled={saving || !clientId || !seanceId}
+            onClick={() =>
+              startSaving(async () => {
+                const result = await createDevisAction({
+                  client: clientId,
+                  seance: seanceId,
+                  lignes: lignes.map(({ designation, quantite, prixUnitaire }) => ({
+                    designation,
+                    quantite,
+                    prixUnitaireHT: Math.round(prixUnitaire * 1000),
+                  })),
+                  remise,
+                  tva,
+                  devise: "TND",
+                  tauxAcompte: 30,
+                  dateEmission: new Date().toISOString(),
+                  dateValidite: new Date(Date.now() + 30 * 86400000).toISOString(),
+                });
+                if (result.ok) {
+                  toast.success("Draft saved");
+                  router.push("/dashboard/facturation/devis");
+                } else {
+                  toast.error(result.error);
+                }
+              })
+            }
+          >
+            {saving ? <Loader2 className="animate-spin" aria-hidden /> : <Save aria-hidden />}
+            {saving ? "Saving…" : "Save draft"}
           </Button>
           <Button type="button" variant="ghost" asChild>
             <Link href="/dashboard/facturation/devis">Cancel</Link>

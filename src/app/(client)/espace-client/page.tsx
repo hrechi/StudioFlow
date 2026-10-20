@@ -20,7 +20,7 @@ import { fullName } from "@/lib/mock-data-helpers";
 import { FRONT_IMAGES } from "@/lib/mock-images";
 import { formatCurrency, formatDate, formatTime } from "@/lib/utils";
 import { statutFactureConfig } from "@/modules/facturation/facturation.types";
-import { MES_FACTURES } from "@/modules/facturation/mock-data";
+import { listFactures } from "@/modules/facturation/devis.service";
 import { statutGalerieConfig } from "@/modules/photos-galeries/galerie.types";
 import { listGaleriesOfClient } from "@/modules/photos-galeries/galerie.service";
 import { MES_SEANCES } from "@/modules/seances/mock-data";
@@ -41,8 +41,11 @@ export default async function EspaceClientPage() {
   const prochaine = MES_SEANCES.filter((s) => s.dateDebut >= now && s.statut !== "ANNULEE").sort(
     (a, b) => a.dateDebut.localeCompare(b.dateDebut),
   )[0];
-  const [galerie] = await listGaleriesOfClient(user.id); // newest first
-  const facture = MES_FACTURES.find((f) => f.statut !== "PAYEE");
+  const [galerie, factures] = await Promise.all([
+    listGaleriesOfClient(user.id).then(([first]) => first),
+    listFactures(user),
+  ]);
+  const facture = factures.find((f) => f.statut !== "PAYEE");
 
   return (
     <div className="space-y-8">

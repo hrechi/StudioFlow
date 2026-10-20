@@ -41,6 +41,10 @@ export type Facture = {
   risqueRetardIA?: number; // proposé: 0–1, AI late-payment risk
 };
 
+export type FactureAvecContexte = Facture & {
+  devis: Pick<Devis, "id" | "numero" | "client" | "seance">;
+};
+
 /** Collection `devis`. */
 export type Devis = {
   id: string;

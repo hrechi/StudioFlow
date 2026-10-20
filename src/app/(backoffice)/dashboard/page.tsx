@@ -28,7 +28,7 @@ import { FRONT_IMAGES } from "@/lib/mock-images";
 import { can, type Area } from "@/lib/rbac";
 import { cn, formatCurrency, formatDate, formatTime } from "@/lib/utils";
 import { RECLAMATIONS } from "@/modules/avis-reclamations/mock-data";
-import { FACTURES } from "@/modules/facturation/mock-data";
+import { listFactures } from "@/modules/facturation/devis.service";
 import { RESERVATIONS } from "@/modules/materiel/mock-data";
 import { statutGalerieConfig } from "@/modules/photos-galeries/galerie.types";
 import { countGaleriesByStatut, listGaleries } from "@/modules/photos-galeries/galerie.service";
@@ -88,13 +88,14 @@ export default async function DashboardPage() {
   const thisWeek = SEANCES.filter(
     (s) => s.dateDebut >= nowIso && s.dateDebut <= weekEnd.toISOString() && s.statut !== "ANNULEE",
   );
-  const [galeriesParStatut, photosParCulling, galeries] = await Promise.all([
+  const [galeriesParStatut, photosParCulling, galeries, factures] = await Promise.all([
     countGaleriesByStatut(),
     countPhotosByCulling(),
     listGaleries(),
+    listFactures(user),
   ]);
   const toCull = photosParCulling.EN_ATTENTE;
-  const unpaid = FACTURES.filter((f) => f.statut !== "PAYEE");
+  const unpaid = factures.filter((f) => f.statut !== "PAYEE");
   const openComplaints = RECLAMATIONS.filter(
     (r) => r.statut === "OUVERTE" || r.statut === "EN_COURS",
   );
@@ -160,7 +161,7 @@ export default async function DashboardPage() {
     `${toCull} photos are waiting to be culled: the AI has already pre-sorted ${photosParCulling.RETENUE + photosParCulling.REJETEE}.`,
     "Saturday afternoon slots are 90% booked: offer Fridays to new clients.",
     can(user.role, "facturation")
-      ? `${FACTURES.filter((f) => (f.risqueRetardIA ?? 0) >= 0.6).length} invoice(s) have a high risk of late payment.`
+      ? `${factures.filter((f) => (f.risqueRetardIA ?? 0) >= 0.6).length} invoice(s) have a high risk of late payment.`
       : "Natural-light portraits get the best quality score this month.",
   ];
 

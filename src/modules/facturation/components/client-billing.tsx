@@ -16,7 +16,7 @@ import {
   typeFactureConfig,
   type Devis,
 } from "../facturation.types";
-import type { FactureAvecContexte } from "../mock-data";
+import type { FactureAvecContexte } from "../facturation.types";
 
 /** /espace-client/factures — quotes to accept/refuse, invoices with paid/remaining. */
 export function ClientBilling({

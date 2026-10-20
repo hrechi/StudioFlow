@@ -36,7 +36,7 @@ import {
   typeFactureConfig,
   type StatutFacture,
 } from "../facturation.types";
-import type { FactureAvecContexte } from "../mock-data";
+import type { FactureAvecContexte } from "../facturation.types";
 
 /** AI late-payment risk (cahier: "flag invoices likely to be paid late"). */
 function RiskBadge({ value }: { value: number }) {

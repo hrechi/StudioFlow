@@ -4,15 +4,15 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { PageHeader } from "@/components/shared/page-header";
 import { requireArea } from "@/lib/guards";
-import { MOCK_CLIENTS } from "@/lib/mock-data-helpers";
+import { listFacturationClients, listFacturationSessions } from "@/modules/facturation/facturation.integrations";
 import { DevisEditor } from "@/modules/facturation/components/devis-editor";
-import { DEVIS, LIGNES_IA } from "@/modules/facturation/mock-data";
+import { LIGNES_IA } from "@/modules/facturation/facturation.integrations";
 
 export const metadata: Metadata = { title: "New quote" };
 
 export default async function NouveauDevisPage() {
   await requireArea("facturation");
-  const seances = Array.from(new Map(DEVIS.map((d) => [d.seance.id, d.seance])).values());
+  const [clients, seances] = await Promise.all([listFacturationClients(), listFacturationSessions()]);
   return (
     <div className="space-y-6">
       <PageHeader
@@ -28,7 +28,7 @@ export default async function NouveauDevisPage() {
         title="New quote"
         description="Add the services or let the AI suggest a quote from the session type and past pricing."
       />
-      <DevisEditor clients={MOCK_CLIENTS} seances={seances} lignesIA={LIGNES_IA} />
+      <DevisEditor clients={clients} seances={seances} lignesIA={LIGNES_IA} />
     </div>
   );
 }
