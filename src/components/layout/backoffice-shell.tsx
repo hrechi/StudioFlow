@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { ThemeToggle } from "@/components/theme/theme";
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from "@/components/ui/sheet";
 import { NotificationBell } from "@/modules/utilisateurs/components/notification-bell";
 import type { NotificationDTO } from "@/modules/utilisateurs/utilisateur.types";
@@ -52,7 +53,7 @@ export function BackofficeShell({ user, notifications, children }: BackofficeShe
       </Sheet>
 
       <div className="md:pl-[4.5rem] lg:pl-64">
-        <header className="sticky top-0 z-20 flex h-16 items-center gap-3 border-b border-white/[0.06] bg-surface/85 px-4 backdrop-blur-xl supports-[backdrop-filter]:bg-surface/70 sm:px-6">
+        <header className="sticky top-0 z-20 flex h-16 items-center gap-3 border-b border-foreground/[0.06] bg-surface/85 px-4 backdrop-blur-xl supports-[backdrop-filter]:bg-surface/70 sm:px-6">
           <Button
             variant="ghost"
             size="icon"
@@ -75,6 +76,7 @@ export function BackofficeShell({ user, notifications, children }: BackofficeShe
               className="h-9 rounded-md border-border bg-card pl-9 dark:bg-card"
             />
           </div>
+          <ThemeToggle />
           <NotificationBell
             latest={notifications.latest}
             unread={notifications.unread}

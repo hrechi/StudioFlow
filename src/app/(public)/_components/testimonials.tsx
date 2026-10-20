@@ -53,14 +53,14 @@ export function Testimonials({ items }: { items: Testimonial[] }) {
         className="page-enter mx-auto max-w-4xl text-center"
       >
         <RatingStars value={current.note} className="justify-center [&_svg]:size-3.5" />
-        <blockquote className="mt-8 font-heading text-2xl leading-snug font-light text-balance text-bone sm:text-3xl lg:text-[2.6rem] lg:leading-[1.2]">
+        <blockquote className="mt-8 font-heading text-2xl leading-snug font-light text-balance text-foreground sm:text-3xl lg:text-[2.6rem] lg:leading-[1.2]">
           “{current.quote}”
         </blockquote>
         <figcaption className="mt-10">
-          <span className="block font-heading text-xs font-medium tracking-[0.32em] text-bone uppercase">
+          <span className="block font-heading text-xs font-medium tracking-[0.32em] text-foreground uppercase">
             {current.author}
           </span>
-          <span className="mt-2 block text-xs tracking-[0.2em] text-bone/50 uppercase">
+          <span className="mt-2 block text-xs tracking-[0.2em] text-foreground/50 uppercase">
             {current.context}
           </span>
         </figcaption>
@@ -71,7 +71,7 @@ export function Testimonials({ items }: { items: Testimonial[] }) {
           type="button"
           onClick={() => go(-1)}
           aria-label="Previous review"
-          className="grid size-12 place-items-center border border-white/15 text-bone transition-colors duration-500 hover:border-gold hover:text-gold"
+          className="grid size-12 place-items-center border border-foreground/15 text-foreground transition-colors duration-500 hover:border-gold hover:text-gold"
         >
           <ArrowLeft className="size-4" aria-hidden />
         </button>
@@ -89,7 +89,7 @@ export function Testimonials({ items }: { items: Testimonial[] }) {
               <span
                 className={cn(
                   "block h-px transition-all duration-700",
-                  i === index ? "w-10 bg-gold" : "w-5 bg-white/25",
+                  i === index ? "w-10 bg-gold" : "w-5 bg-foreground/25",
                 )}
               />
             </button>
@@ -99,7 +99,7 @@ export function Testimonials({ items }: { items: Testimonial[] }) {
           type="button"
           onClick={() => go(1)}
           aria-label="Next review"
-          className="grid size-12 place-items-center border border-white/15 text-bone transition-colors duration-500 hover:border-gold hover:text-gold"
+          className="grid size-12 place-items-center border border-foreground/15 text-foreground transition-colors duration-500 hover:border-gold hover:text-gold"
         >
           <ArrowRight className="size-4" aria-hidden />
         </button>

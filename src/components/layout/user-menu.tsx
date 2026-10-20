@@ -44,7 +44,7 @@ export function UserMenu({
       <DropdownMenuTrigger
         className={cn(
           "flex items-center gap-2 rounded-full p-0.5 pr-1.5 transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
-          tone === "dark" ? "text-white hover:bg-white/10" : "hover:bg-muted",
+          tone === "dark" ? "text-foreground hover:bg-foreground/10" : "hover:bg-muted",
         )}
         aria-label="Account menu"
       >
@@ -52,12 +52,7 @@ export function UserMenu({
         {showName && (
           <span className="hidden text-left leading-tight md:block">
             <span className="block text-sm font-semibold">{user.prenom}</span>
-            <span
-              className={cn(
-                "block text-[0.7rem]",
-                tone === "dark" ? "text-white/70" : "text-muted-foreground",
-              )}
-            >
+            <span className={cn("block text-[0.7rem]", "text-muted-foreground")}>
               {user.roleLabel}
             </span>
           </span>

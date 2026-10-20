@@ -1,5 +1,7 @@
 "use client";
 
+import { useTheme } from "@/components/theme/theme";
+
 import { Toaster as Sonner, type ToasterProps } from "sonner";
 import {
   CircleCheckIcon,
@@ -9,11 +11,12 @@ import {
   Loader2Icon,
 } from "lucide-react";
 
-// ReFrame uses one dark theme everywhere, so the theme is fixed instead of using next-themes.
+// Follows the ReFrame light / dark mode (components/theme/theme.tsx).
 const Toaster = ({ ...props }: ToasterProps) => {
+  const [theme] = useTheme();
   return (
     <Sonner
-      theme="dark"
+      theme={theme}
       className="toaster group"
       icons={{
         success: <CircleCheckIcon className="size-4 text-success" />,

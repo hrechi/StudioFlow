@@ -14,6 +14,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, type ReactNode } from "react";
 import { Logo } from "@/components/shared/logo";
+import { ThemeToggle } from "@/components/theme/theme";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
@@ -50,7 +51,7 @@ export function ClientShell({
 
   return (
     <div className="flex min-h-dvh flex-col bg-background">
-      <header className="sticky top-0 z-30 border-b border-white/[0.06] bg-ink/80 backdrop-blur-xl">
+      <header className="sticky top-0 z-30 border-b border-foreground/[0.06] bg-background/80 backdrop-blur-xl">
         <div className="mx-auto flex h-18 max-w-6xl items-center gap-6 px-4 sm:px-6">
           <Button
             variant="ghost"
@@ -77,8 +78,8 @@ export function ClientShell({
                         "relative px-3 py-2 font-heading text-[0.66rem] font-medium tracking-[0.22em] uppercase transition-colors",
                         "after:absolute after:inset-x-3 after:bottom-0 after:h-px after:origin-left after:bg-gold after:transition-transform after:duration-500",
                         active
-                          ? "text-bone after:scale-x-100"
-                          : "text-bone/60 after:scale-x-0 hover:text-bone",
+                          ? "text-foreground after:scale-x-100"
+                          : "text-foreground/60 after:scale-x-0 hover:text-foreground",
                       )}
                     >
                       {item.label}
@@ -89,6 +90,7 @@ export function ClientShell({
             </ul>
           </nav>
           <div className="ml-auto flex items-center gap-1.5">
+            <ThemeToggle />
             <NotificationBell
               latest={notifications.latest}
               unread={notifications.unread}
@@ -107,10 +109,13 @@ export function ClientShell({
       </header>
 
       <Sheet open={open} onOpenChange={setOpen}>
-        <SheetContent side="left" className="w-72 border-white/5 bg-ink p-0 sm:max-w-72">
+        <SheetContent
+          side="left"
+          className="w-72 border-foreground/5 bg-background p-0 sm:max-w-72"
+        >
           <SheetTitle className="sr-only">Client area menu</SheetTitle>
           <SheetDescription className="sr-only">Pages of your client area</SheetDescription>
-          <div className="flex h-18 items-center border-b border-white/[0.06] px-5">
+          <div className="flex h-18 items-center border-b border-foreground/[0.06] px-5">
             <Logo iconClassName="h-[0.9rem]" />
           </div>
           <nav aria-label="Client area (mobile)" className="px-3 py-4">
@@ -142,7 +147,7 @@ export function ClientShell({
       <main id="contenu" className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:px-6 lg:py-10">
         {children}
       </main>
-      <footer className="border-t border-white/[0.06] bg-ink">
+      <footer className="border-t border-foreground/[0.06] bg-background">
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-2 px-4 py-5 text-xs text-muted-foreground sm:flex-row sm:px-6">
           <p>© {new Date().getFullYear()} ReFrame · Photography studio</p>
           <p>

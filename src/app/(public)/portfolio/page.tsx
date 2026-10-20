@@ -31,13 +31,13 @@ export default function PortfolioPage() {
             />
           </div>
         )}
-        <div className="absolute inset-0 bg-gradient-to-b from-ink/60 via-ink/80 to-ink" />
+        <div className="absolute inset-0 bg-gradient-to-b from-background/60 via-background/80 to-background" />
         <div className="container-wide relative">
           <p className="eyebrow page-enter">Portfolio</p>
-          <h1 className="display-xl page-enter mt-6 max-w-5xl text-bone [animation-delay:120ms]">
+          <h1 className="display-xl page-enter mt-6 max-w-5xl text-foreground [animation-delay:120ms]">
             Images that tell your story.
           </h1>
-          <p className="page-enter mt-8 max-w-xl text-bone/65 [animation-delay:240ms]">
+          <p className="page-enter mt-8 max-w-xl text-foreground/65 [animation-delay:240ms]">
             A selection of our sessions, published with our clients&apos; consent.
           </p>
         </div>
@@ -57,7 +57,7 @@ export default function PortfolioPage() {
           ))}
         </ul>
         <Reveal className="mt-24 flex flex-col items-center gap-8 text-center">
-          <p className="display-md text-bone">Your story deserves to be told.</p>
+          <p className="display-md text-foreground">Your story deserves to be told.</p>
           <Button asChild variant="cinematic" size="cta">
             <Link href="/register">
               Book a session
@@ -83,7 +83,7 @@ function CollectionCard({
     <Link
       href={`/portfolio/${portfolio.slug}`}
       className={cn(
-        "group relative block overflow-hidden bg-card",
+        "dark group relative block overflow-hidden bg-card",
         large ? "aspect-[4/5] lg:aspect-auto lg:h-full lg:min-h-[40rem]" : "aspect-[16/10]",
       )}
     >
@@ -94,21 +94,21 @@ function CollectionCard({
         sizes={large ? "(min-width: 1024px) 50vw, 100vw" : "(min-width: 1024px) 50vw, 100vw"}
         className="img-zoom object-cover"
       />
-      <div className="absolute inset-0 bg-gradient-to-t from-ink/90 via-ink/20 to-transparent transition-colors duration-700 group-hover:via-ink/40" />
+      <div className="absolute inset-0 bg-gradient-to-t from-background/90 via-background/20 to-transparent transition-colors duration-700 group-hover:via-background/40" />
       <div className="absolute inset-0 flex flex-col justify-between p-6 sm:p-8">
-        <span className="font-heading text-xs tracking-[0.3em] text-bone/60">
+        <span className="font-heading text-xs tracking-[0.3em] text-foreground/60">
           {String(index + 1).padStart(2, "0")}
         </span>
         <div className="flex items-end justify-between gap-6">
           <div>
-            <p className="text-[0.65rem] tracking-[0.3em] text-bone/60 uppercase">
+            <p className="text-[0.65rem] tracking-[0.3em] text-foreground/60 uppercase">
               {categoriePortfolioLabels[portfolio.categorie]} · {portfolio.elements.length} photos
             </p>
-            <h2 className={cn("mt-3 text-bone", large ? "display-lg" : "display-md")}>
+            <h2 className={cn("mt-3 text-foreground", large ? "display-lg" : "display-md")}>
               {portfolio.titre}
             </h2>
           </div>
-          <span className="grid size-12 shrink-0 place-items-center border border-bone/30 text-bone transition-colors duration-500 group-hover:border-bone group-hover:bg-bone group-hover:text-ink">
+          <span className="grid size-12 shrink-0 place-items-center border border-foreground/30 text-foreground transition-colors duration-500 group-hover:border-foreground group-hover:bg-foreground group-hover:text-background">
             <ArrowUpRight className="size-5" aria-hidden />
           </span>
         </div>

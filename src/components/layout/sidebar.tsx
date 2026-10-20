@@ -129,7 +129,7 @@ export function Sidebar({ user, variant = "full", onNavigate }: SidebarProps) {
           <UserAvatar prenom={user.prenom} nom={user.nom} photoProfil={user.photoProfil} />
           {!rail && (
             <span className="min-w-0 leading-tight">
-              <span className="block truncate text-sm font-semibold text-white">
+              <span className="block truncate text-sm font-semibold text-sidebar-foreground">
                 {user.prenom} {user.nom}
               </span>
               <span className="block truncate text-xs text-sidebar-muted">{user.roleLabel}</span>

@@ -62,7 +62,7 @@ export function NotificationBell({
           size="icon"
           className={cn(
             "relative",
-            tone === "dark" && "text-white hover:bg-white/10 hover:text-white",
+            tone === "dark" && "text-foreground hover:bg-foreground/10 hover:text-foreground",
           )}
           aria-label={unread ? `Notifications (${unread} unread)` : "Notifications"}
         >

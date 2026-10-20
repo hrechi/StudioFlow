@@ -19,7 +19,7 @@ export function BrandLoader({
       )}
     >
       <Logo iconClassName="h-5 opacity-90" />
-      <span className="relative block h-px w-40 overflow-hidden bg-white/10" aria-hidden>
+      <span className="relative block h-px w-40 overflow-hidden bg-foreground/10" aria-hidden>
         <span className="absolute inset-y-0 left-0 w-1/2 animate-[loader-sweep_1.4s_ease-in-out_infinite] bg-gold" />
       </span>
       <span className="sr-only">{label}…</span>

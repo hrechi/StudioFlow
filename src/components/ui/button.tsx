@@ -24,9 +24,9 @@ const buttonVariants = cva(
         link: "text-primary-text underline-offset-4 hover:underline",
         /* Showcase site CTAs: square, uppercase, wide tracking, slow fill on hover */
         cinematic:
-          "rounded-none bg-bone font-heading font-medium tracking-[0.24em] text-ink uppercase transition-[background-color,color,gap] duration-500 hover:gap-3 hover:bg-white",
+          "rounded-none bg-foreground font-heading font-medium tracking-[0.24em] text-background uppercase transition-[background-color,color,gap] duration-500 hover:gap-3 hover:bg-foreground/85",
         "cinematic-outline":
-          "rounded-none border-bone/40 bg-transparent font-heading font-medium tracking-[0.24em] text-bone uppercase transition-[background-color,color,border-color,gap] duration-500 hover:gap-3 hover:border-bone hover:bg-bone hover:text-ink",
+          "rounded-none border-foreground/40 bg-transparent font-heading font-medium tracking-[0.24em] text-foreground uppercase transition-[background-color,color,border-color,gap] duration-500 hover:gap-3 hover:border-foreground hover:bg-foreground hover:text-background",
       },
       size: {
         default: "h-9 gap-2 px-4 has-data-[icon=inline-end]:pr-3 has-data-[icon=inline-start]:pl-3",

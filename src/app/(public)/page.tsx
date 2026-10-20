@@ -131,7 +131,7 @@ export default async function HomePage() {
   return (
     <main>
       {/* ── Hero ─────────────────────────────────────────────────────────── */}
-      <section className="relative flex h-dvh min-h-[38rem] items-end overflow-hidden bg-ink">
+      <section className="dark relative flex h-dvh min-h-[38rem] items-end overflow-hidden bg-background text-foreground">
         <Parallax speed={0.25} className="absolute inset-0">
           <div className="ken-burns absolute inset-[-4%]">
             <SafeImage
@@ -144,7 +144,7 @@ export default async function HomePage() {
             />
           </div>
         </Parallax>
-        <div className="absolute inset-0 bg-gradient-to-t from-ink via-ink/40 to-ink/60" />
+        <div className="absolute inset-0 bg-gradient-to-t from-background via-background/40 to-background/60" />
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_40%,rgb(10_10_10/0.65))]" />
         <div
           aria-hidden
@@ -153,13 +153,13 @@ export default async function HomePage() {
 
         <div className="container-wide relative pb-20 sm:pb-24">
           <p className="eyebrow page-enter">Photography studio · Tunis</p>
-          <h1 className="display-xl page-enter mt-6 max-w-6xl text-bone [animation-delay:120ms]">
+          <h1 className="display-xl page-enter mt-6 max-w-6xl text-foreground [animation-delay:120ms]">
             Your moments,
             <br />
             reframed.
           </h1>
           <div className="page-enter mt-10 flex flex-col gap-10 [animation-delay:240ms] md:flex-row md:items-end md:justify-between">
-            <p className="max-w-md text-base leading-relaxed text-bone/75 sm:text-lg">
+            <p className="max-w-md text-base leading-relaxed text-foreground/75 sm:text-lg">
               Weddings, portraits, products and events. Book your session, discover your photos in a
               private gallery and approve your selection online.
             </p>
@@ -178,7 +178,7 @@ export default async function HomePage() {
         </div>
         <a
           href="#manifesto"
-          className="absolute bottom-6 left-1/2 hidden -translate-x-1/2 flex-col items-center gap-2 text-[0.6rem] tracking-[0.4em] text-bone/50 uppercase transition-colors hover:text-bone md:flex"
+          className="absolute bottom-6 left-1/2 hidden -translate-x-1/2 flex-col items-center gap-2 text-[0.6rem] tracking-[0.4em] text-foreground/50 uppercase transition-colors hover:text-foreground md:flex"
         >
           Scroll
           <ArrowDown className="size-3.5 animate-bounce" aria-hidden />
@@ -190,20 +190,20 @@ export default async function HomePage() {
         <div className="container-wide grid gap-16 lg:grid-cols-[1.25fr_1fr] lg:items-center">
           <Reveal>
             <p className="eyebrow">The studio</p>
-            <p className="display-lg mt-6 text-bone">
+            <p className="display-lg mt-6 text-foreground">
               We don&apos;t just take pictures. We frame what you&apos;ll want to remember.
             </p>
-            <dl className="mt-14 grid grid-cols-3 gap-6 border-t border-white/10 pt-8">
+            <dl className="mt-14 grid grid-cols-3 gap-6 border-t border-foreground/10 pt-8">
               {[
                 ["1,200+", "Sessions"],
                 ["4.9/5", "Average rating"],
                 ["72 h", "To your gallery"],
               ].map(([value, label]) => (
                 <div key={label} className="flex flex-col-reverse gap-2">
-                  <dt className="text-[0.65rem] tracking-[0.28em] text-bone/55 uppercase">
+                  <dt className="text-[0.65rem] tracking-[0.28em] text-foreground/55 uppercase">
                     {label}
                   </dt>
-                  <dd className="font-heading text-3xl font-light text-bone sm:text-4xl">
+                  <dd className="font-heading text-3xl font-light text-foreground sm:text-4xl">
                     {value}
                   </dd>
                 </div>
@@ -231,14 +231,16 @@ export default async function HomePage() {
       </section>
 
       {/* ── Categories: cinematic cards ─────────────────────────────────── */}
-      <section id="services" className="section scroll-mt-20 border-t border-white/[0.06]">
+      <section id="services" className="section scroll-mt-20 border-t border-foreground/[0.06]">
         <div className="container-wide">
           <Reveal className="flex flex-col justify-between gap-6 md:flex-row md:items-end">
             <div>
               <p className="eyebrow">Services</p>
-              <h2 className="display-lg mt-6 max-w-3xl text-bone">A session for every story</h2>
+              <h2 className="display-lg mt-6 max-w-3xl text-foreground">
+                A session for every story
+              </h2>
             </div>
-            <p className="max-w-sm text-sm leading-relaxed text-bone/60">
+            <p className="max-w-sm text-sm leading-relaxed text-foreground/60">
               From weddings to packshots, the same standards: careful light, natural images and a
               simple follow-up.
             </p>
@@ -250,7 +252,7 @@ export default async function HomePage() {
                   href={
                     publicSlugs.has(category.slug) ? `/portfolio/${category.slug}` : "/portfolio"
                   }
-                  className="group relative block aspect-[16/10] overflow-hidden bg-card lg:aspect-[21/11]"
+                  className="dark group relative block aspect-[16/10] overflow-hidden bg-card lg:aspect-[21/11]"
                 >
                   <SafeImage
                     src={category.image}
@@ -259,19 +261,19 @@ export default async function HomePage() {
                     sizes="(min-width: 768px) 50vw, 100vw"
                     className="img-zoom object-cover"
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-ink/90 via-ink/25 to-ink/10 transition-colors duration-700 group-hover:via-ink/45" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-background/90 via-background/25 to-background/10 transition-colors duration-700 group-hover:via-background/45" />
                   <div className="absolute inset-0 flex flex-col justify-between p-6 sm:p-8">
-                    <span className="font-heading text-xs tracking-[0.3em] text-bone/60">
+                    <span className="font-heading text-xs tracking-[0.3em] text-foreground/60">
                       0{index + 1}
                     </span>
                     <div className="flex items-end justify-between gap-6">
                       <div>
-                        <h3 className="display-md text-bone">{category.titre}</h3>
-                        <p className="mt-3 max-w-sm text-sm text-bone/70 transition-all duration-700 md:translate-y-2 md:opacity-0 md:group-hover:translate-y-0 md:group-hover:opacity-100 md:group-focus-visible:translate-y-0 md:group-focus-visible:opacity-100">
+                        <h3 className="display-md text-foreground">{category.titre}</h3>
+                        <p className="mt-3 max-w-sm text-sm text-foreground/70 transition-all duration-700 md:translate-y-2 md:opacity-0 md:group-hover:translate-y-0 md:group-hover:opacity-100 md:group-focus-visible:translate-y-0 md:group-focus-visible:opacity-100">
                           {category.texte}
                         </p>
                       </div>
-                      <span className="grid size-12 shrink-0 place-items-center border border-bone/30 text-bone transition-colors duration-500 group-hover:border-bone group-hover:bg-bone group-hover:text-ink">
+                      <span className="grid size-12 shrink-0 place-items-center border border-foreground/30 text-foreground transition-colors duration-500 group-hover:border-foreground group-hover:bg-foreground group-hover:text-background">
                         <ArrowUpRight className="size-5" aria-hidden />
                       </span>
                     </div>
@@ -289,13 +291,13 @@ export default async function HomePage() {
         <div className="container-wide">
           <Reveal className="mx-auto max-w-2xl text-center">
             <p className="eyebrow">Packages</p>
-            <h2 className="display-lg mt-6 text-bone">Choose your frame</h2>
-            <p className="mt-6 text-sm leading-relaxed text-bone/60">
+            <h2 className="display-lg mt-6 text-foreground">Choose your frame</h2>
+            <p className="mt-6 text-sm leading-relaxed text-foreground/60">
               Every package includes a private online gallery and the studio&apos;s retouching.
               Prices from, VAT included; a detailed quote follows your request.
             </p>
           </Reveal>
-          <ul className="mt-16 grid gap-px bg-white/[0.07] lg:grid-cols-3">
+          <ul className="mt-16 grid gap-px bg-foreground/[0.07] lg:grid-cols-3">
             {PACKAGES.map((pack, index) => (
               <Reveal
                 key={pack.nom}
@@ -309,21 +311,23 @@ export default async function HomePage() {
                 {pack.featured && (
                   <>
                     <span aria-hidden className="viewfinder pointer-events-none absolute inset-3" />
-                    <span className="absolute top-8 right-8 font-heading text-[0.6rem] tracking-[0.3em] text-gold uppercase sm:right-10">
+                    <span className="absolute top-3 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-card px-3 font-heading text-[0.6rem] tracking-[0.3em] whitespace-nowrap text-gold uppercase">
                       Most booked
                     </span>
                   </>
                 )}
-                <p className="text-[0.65rem] tracking-[0.3em] text-bone/50 uppercase">
+                <p className="text-[0.65rem] tracking-[0.3em] text-foreground/50 uppercase">
                   {pack.pour}
                 </p>
-                <h3 className="display-md mt-3 text-bone">{pack.nom}</h3>
-                <p className="mt-8 flex items-baseline gap-2 text-bone">
-                  <span className="text-xs tracking-[0.2em] text-bone/50 uppercase">From</span>
+                <h3 className="display-md mt-3 text-foreground">{pack.nom}</h3>
+                <p className="mt-8 flex items-baseline gap-2 text-foreground">
+                  <span className="text-xs tracking-[0.2em] text-foreground/50 uppercase">
+                    From
+                  </span>
                   <span className="font-heading text-5xl font-light">{pack.prix}</span>
-                  <span className="text-sm text-bone/60">TND</span>
+                  <span className="text-sm text-foreground/60">TND</span>
                 </p>
-                <ul className="mt-8 flex-1 space-y-3 border-t border-white/10 pt-8 text-sm text-bone/75">
+                <ul className="mt-8 flex-1 space-y-3 border-t border-foreground/10 pt-8 text-sm text-foreground/75">
                   {pack.points.map((point) => (
                     <li key={point} className="flex gap-3">
                       <Check className="mt-0.5 size-4 shrink-0 text-gold" aria-hidden />
@@ -353,7 +357,9 @@ export default async function HomePage() {
         <div className="container-wide">
           <Reveal>
             <p className="eyebrow">How it works</p>
-            <h2 className="display-lg mt-6 max-w-3xl text-bone">From booking to your photos</h2>
+            <h2 className="display-lg mt-6 max-w-3xl text-foreground">
+              From booking to your photos
+            </h2>
           </Reveal>
           <ol className="mt-16 grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
             {STEPS.map(([titre, texte], index) => (
@@ -361,15 +367,15 @@ export default async function HomePage() {
                 key={titre}
                 as="li"
                 delay={index * 110}
-                className="border-t border-white/15 pt-6"
+                className="border-t border-foreground/15 pt-6"
               >
                 <span className="font-heading text-xs tracking-[0.3em] text-gold">
                   0{index + 1}
                 </span>
-                <h3 className="mt-6 font-heading text-sm font-medium tracking-[0.2em] text-bone uppercase">
+                <h3 className="mt-6 font-heading text-sm font-medium tracking-[0.2em] text-foreground uppercase">
                   {titre}
                 </h3>
-                <p className="mt-3 text-sm leading-relaxed text-bone/60">{texte}</p>
+                <p className="mt-3 text-sm leading-relaxed text-foreground/60">{texte}</p>
               </Reveal>
             ))}
           </ol>
@@ -377,12 +383,12 @@ export default async function HomePage() {
       </section>
 
       {/* ── Portfolio gallery (masonry) ─────────────────────────────────── */}
-      <section className="section border-t border-white/[0.06]">
+      <section className="section border-t border-foreground/[0.06]">
         <div className="container-wide">
           <Reveal className="flex flex-col justify-between gap-6 md:flex-row md:items-end">
             <div>
               <p className="eyebrow">Portfolio</p>
-              <h2 className="display-lg mt-6 max-w-3xl text-bone">Stories we have told</h2>
+              <h2 className="display-lg mt-6 max-w-3xl text-foreground">Stories we have told</h2>
             </div>
             <Button
               asChild
@@ -407,7 +413,7 @@ export default async function HomePage() {
                 <Link
                   href={`/portfolio/${element.slug}`}
                   className={cn(
-                    "group relative block overflow-hidden bg-card",
+                    "dark group relative block overflow-hidden bg-card",
                     GALLERY_RATIOS[index % GALLERY_RATIOS.length],
                   )}
                 >
@@ -418,8 +424,8 @@ export default async function HomePage() {
                     sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
                     className="img-zoom object-cover"
                   />
-                  <div className="absolute inset-0 flex items-end bg-gradient-to-t from-ink/80 via-transparent to-transparent p-5 opacity-0 transition-opacity duration-700 group-hover:opacity-100 group-focus-visible:opacity-100">
-                    <p className="text-xs tracking-[0.2em] text-bone uppercase">
+                  <div className="absolute inset-0 flex items-end bg-gradient-to-t from-background/80 via-transparent to-transparent p-5 opacity-0 transition-opacity duration-700 group-hover:opacity-100 group-focus-visible:opacity-100">
+                    <p className="text-xs tracking-[0.2em] text-foreground uppercase">
                       {element.legende}
                     </p>
                   </div>
@@ -443,7 +449,7 @@ export default async function HomePage() {
       </section>
 
       {/* ── Call to action, cinematic band ──────────────────────────────── */}
-      <section className="relative overflow-hidden">
+      <section className="dark relative overflow-hidden">
         <div className="relative aspect-[4/5] sm:aspect-[16/9] lg:aspect-[21/9]">
           <Parallax speed={0.15} className="absolute inset-[-10%]">
             <SafeImage
@@ -454,13 +460,13 @@ export default async function HomePage() {
               className="object-cover"
             />
           </Parallax>
-          <div className="absolute inset-0 bg-ink/65" />
+          <div className="absolute inset-0 bg-background/65" />
           <div className="container-wide absolute inset-0 flex flex-col items-center justify-center text-center">
             <Reveal>
-              <h2 className="display-lg mx-auto max-w-4xl text-bone">
+              <h2 className="display-lg mx-auto max-w-4xl text-foreground">
                 Ready to create images that last?
               </h2>
-              <p className="mx-auto mt-6 max-w-lg text-sm leading-relaxed text-bone/70 sm:text-base">
+              <p className="mx-auto mt-6 max-w-lg text-sm leading-relaxed text-foreground/70 sm:text-base">
                 Create your client account in a minute: booking, quotes, private gallery and
                 invoices in one place.
               </p>
@@ -481,35 +487,41 @@ export default async function HomePage() {
           <Reveal className="space-y-10">
             <div>
               <p className="eyebrow">Contact</p>
-              <h2 className="display-lg mt-6 text-bone">Let&apos;s talk about your shoot</h2>
-              <p className="mt-6 max-w-md text-bone/60">
+              <h2 className="display-lg mt-6 text-foreground">Let&apos;s talk about your shoot</h2>
+              <p className="mt-6 max-w-md text-foreground/60">
                 A question, a date, an idea? We reply within 24 hours.
               </p>
             </div>
-            <dl className="grid gap-6 border-t border-white/10 pt-8 text-sm sm:grid-cols-3 lg:grid-cols-1">
+            <dl className="grid gap-6 border-t border-foreground/10 pt-8 text-sm sm:grid-cols-3 lg:grid-cols-1">
               <div>
-                <dt className="text-[0.65rem] tracking-[0.3em] text-bone/50 uppercase">Studio</dt>
-                <dd className="mt-2 text-bone/85">
+                <dt className="text-[0.65rem] tracking-[0.3em] text-foreground/50 uppercase">
+                  Studio
+                </dt>
+                <dd className="mt-2 text-foreground/85">
                   Rue du Lac Léman, Les Berges du Lac, 1053 Tunis
                 </dd>
               </div>
               <div>
-                <dt className="text-[0.65rem] tracking-[0.3em] text-bone/50 uppercase">Phone</dt>
+                <dt className="text-[0.65rem] tracking-[0.3em] text-foreground/50 uppercase">
+                  Phone
+                </dt>
                 <dd className="mt-2">
                   <a
                     href="tel:+21670000000"
-                    className="text-bone/85 transition-colors hover:text-gold"
+                    className="text-foreground/85 transition-colors hover:text-gold"
                   >
                     +216 70 000 000
                   </a>
                 </dd>
               </div>
               <div>
-                <dt className="text-[0.65rem] tracking-[0.3em] text-bone/50 uppercase">Email</dt>
+                <dt className="text-[0.65rem] tracking-[0.3em] text-foreground/50 uppercase">
+                  Email
+                </dt>
                 <dd className="mt-2">
                   <a
                     href="mailto:contact@reframe.tn"
-                    className="text-bone/85 transition-colors hover:text-gold"
+                    className="text-foreground/85 transition-colors hover:text-gold"
                   >
                     contact@reframe.tn
                   </a>
@@ -517,7 +529,7 @@ export default async function HomePage() {
               </div>
             </dl>
           </Reveal>
-          <Reveal delay={120} className="border border-white/10 bg-card p-6 sm:p-10">
+          <Reveal delay={120} className="border border-foreground/10 bg-card p-6 sm:p-10">
             <ContactForm />
           </Reveal>
         </div>
