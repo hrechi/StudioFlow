@@ -1,23 +1,11 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, Outfit } from "next/font/google";
 import { ThemeScript } from "@/components/theme/theme";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import "./globals.css";
 
-/** Body text: clean neo-grotesque. */
-const inter = Inter({
-  variable: "--font-sans",
-  subsets: ["latin", "latin-ext"],
-  display: "swap",
-});
-
-/** Headings: geometric sans that matches the RE FRAME wordmark (set in uppercase, wide tracking). */
-const outfit = Outfit({
-  variable: "--font-display",
-  subsets: ["latin", "latin-ext"],
-  display: "swap",
-});
+// next/font/google removed: requires internet access at build time (fonts.gstatic.com).
+// --font-sans and --font-display are defined as CSS variables in globals.css instead.
 
 const DESCRIPTION =
   "ReFrame, photography studio in Tunis: weddings, portraits, products and events. Book your session, discover your private gallery and approve your selection online.";
@@ -49,7 +37,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
-      className={`dark ${inter.variable} ${outfit.variable} h-full`}
+      className={`dark h-full`}
       data-scroll-behavior="smooth"
       // ThemeScript may switch the class to light before hydration.
       suppressHydrationWarning

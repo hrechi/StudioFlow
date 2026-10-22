@@ -6,6 +6,9 @@ import {
   FileText,
   GalleryHorizontalEnd,
   Images,
+  Layers,
+  ListChecks,
+  Tags,
   LayoutDashboard,
   MapPin,
   MessageSquareWarning,
@@ -39,6 +42,19 @@ export const BACKOFFICE_NAV: NavGroup[] = [
     items: [
       { label: "Sessions", href: "/dashboard/seances", icon: CalendarDays, area: "seances" },
       { label: "Locations", href: "/dashboard/lieux", icon: MapPin, area: "seances" },
+    ],
+  },
+  {
+    label: "Catalogue",
+    items: [
+      { label: "Event types", href: "/dashboard/catalogue/types", icon: Tags, area: "catalogue" },
+      { label: "Packs", href: "/dashboard/catalogue/packs", icon: Layers, area: "catalogue" },
+      {
+        label: "Services",
+        href: "/dashboard/catalogue/prestations",
+        icon: ListChecks,
+        area: "catalogue",
+      },
     ],
   },
   {
@@ -139,6 +155,10 @@ export const SEGMENT_LABELS: Record<string, string> = {
   dashboard: "Dashboard",
   "espace-client": "My account",
   seances: "Sessions",
+  catalogue: "Catalogue",
+  types: "Event types",
+  packs: "Packs",
+  prestations: "Services",
   nouvelle: "New",
   nouveau: "New",
   reserver: "Book",
@@ -164,7 +184,7 @@ export const SEGMENT_LABELS: Record<string, string> = {
 export const PUBLIC_LINKS = [
   { label: "Portfolio", href: "/portfolio" },
   { label: "Services", href: "/#services" },
-  { label: "Packages", href: "/#packages" },
+  { label: "Packages", href: "/packs" },
   { label: "Reviews", href: "/#avis" },
   { label: "Contact", href: "/#contact" },
   { label: "Shared gallery", href: "/galerie" },
