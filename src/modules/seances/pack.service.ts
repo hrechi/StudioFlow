@@ -64,6 +64,7 @@ async function hydrate(docs: PackLean[]): Promise<PackDTO[]> {
       prix: doc.prix,
       afficherPrix: doc.afficherPrix,
       dureeEstimeeMinutes: doc.dureeEstimeeMinutes,
+      miseEnAvant: doc.miseEnAvant ?? false,
       statut: doc.statut,
       typeEvenement: typeRef,
       prestations: doc.prestations.map((line) => {
@@ -116,7 +117,7 @@ export async function listPublicCatalogue(): Promise<CataloguePublicDTO> {
     statut: "PUBLIE",
     typeEvenement: { $in: types.map((t) => t._id) },
   })
-    .sort({ prix: 1 })
+    .sort({ miseEnAvant: -1, prix: 1 }) // packs mis en avant en premier
     .lean<PackLean[]>();
   const packs = await hydrate(docs);
 
@@ -136,6 +137,7 @@ export async function listPublicCatalogue(): Promise<CataloguePublicDTO> {
           description: p.description,
           prix: p.afficherPrix ? p.prix : null,
           dureeEstimeeMinutes: p.dureeEstimeeMinutes,
+          miseEnAvant: p.miseEnAvant,
           prestations: p.prestations.map(({ nom, unite, quantite, conditions }) => ({
             nom,
             unite,
@@ -147,6 +149,9 @@ export async function listPublicCatalogue(): Promise<CataloguePublicDTO> {
     }))
     .filter((entry) => entry.packs.length > 0);
 }
+
+/** Alias used by the chatbot service. */
+export const getPublicCatalogue = listPublicCatalogue;
 
 // ── Validation ──────────────────────────────────────────────────────────────
 

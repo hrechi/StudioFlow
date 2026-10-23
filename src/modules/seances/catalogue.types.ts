@@ -75,6 +75,8 @@ export type PackDTO = {
   afficherPrix: boolean;
   /** Minutes; 0 = not specified. */
   dureeEstimeeMinutes: number;
+  /** Highlighted pack (shown first on the site, used by chatbot recommendations). */
+  miseEnAvant: boolean;
   statut: StatutPack;
   typeEvenement: TypeEvenementRef;
   prestations: PackLigneDTO[];
@@ -91,6 +93,8 @@ export type PackPublicDTO = {
   /** null when the studio chose not to display the price. */
   prix: number | null;
   dureeEstimeeMinutes: number;
+  /** Highlighted pack (shown first on the site, used by chatbot recommendations). */
+  miseEnAvant: boolean;
   prestations: Pick<PackLigneDTO, "nom" | "unite" | "quantite" | "conditions">[];
   options: PackOptionDTO[];
 };

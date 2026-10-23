@@ -24,6 +24,8 @@ export interface IPack {
   prestations: IPackLigne[];
   options: IPackOption[];
   statut: StatutPack;
+  /** Mis en avant sur le site vitrine (homepage, recommandations chatbot). */
+  miseEnAvant: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -56,6 +58,7 @@ const packSchema = new Schema<IPack>(
     prix: { type: Number, required: true, min: 0 },
     afficherPrix: { type: Boolean, default: true },
     dureeEstimeeMinutes: { type: Number, default: 0, min: 0, max: 1440 },
+    miseEnAvant: { type: Boolean, default: false },
     prestations: { type: [ligneSchema], default: [] },
     options: { type: [optionSchema], default: [] },
     statut: { type: String, enum: STATUTS_PACK, default: "BROUILLON", required: true },
