@@ -44,6 +44,8 @@ const ROUTE_AREAS: ReadonlyArray<readonly [prefix: string, area: Area]> = [
   ["/dashboard/utilisateurs", "utilisateurs"],
   ["/dashboard/catalogue", "catalogue"],
   ["/dashboard/seances", "seances"],
+  ["/dashboard/planning", "seances"],
+  ["/dashboard/taches", "seances"],
   ["/dashboard/lieux", "seances"],
   ["/dashboard/photos", "photos-galeries"],
   ["/dashboard/galeries", "photos-galeries"],

@@ -163,6 +163,16 @@ export async function listClientRefs(): Promise<UtilisateurRef[]> {
   return docs.map(toUtilisateurRef);
 }
 
+/** Active photographers (PHOTOGRAPHE role), by name — for the team pickers of the séances module. */
+export async function listPhotographeRefs(): Promise<UtilisateurRef[]> {
+  await connectDB();
+  const docs = await Utilisateur.find({ role: "PHOTOGRAPHE", statut: "ACTIF" })
+    .select(REF_FIELDS)
+    .sort({ prenom: 1, nom: 1 })
+    .lean<UtilisateurRefLean[]>();
+  return docs.map(toUtilisateurRef);
+}
+
 export type UserListResult = {
   items: UtilisateurDTO[];
   total: number;

@@ -4,6 +4,7 @@ import {
   ArrowRight,
   BookImage,
   CalendarDays,
+  ClipboardList,
   CalendarPlus,
   CloudUpload,
   FilePlus2,
@@ -33,45 +34,20 @@ import { RESERVATIONS } from "@/modules/materiel/mock-data";
 import { statutGalerieConfig } from "@/modules/photos-galeries/galerie.types";
 import { countGaleriesByStatut, listGaleries } from "@/modules/photos-galeries/galerie.service";
 import { countPhotosByCulling } from "@/modules/photos-galeries/photo.service";
-import { SEANCES } from "@/modules/seances/mock-data";
-import { statutSeanceConfig } from "@/modules/seances/seance.types";
+import { statutSeanceReelConfig } from "@/modules/seances/seance.dto";
+import { listSeances } from "@/modules/seances/seance.service";
+import { listTaches } from "@/modules/seances/tache.service";
 import { roleConfig } from "@/modules/utilisateurs/utilisateur.types";
 
 export const metadata: Metadata = { title: "Dashboard" };
 
 type QuickAction = { label: string; href: string; icon: LucideIcon; area: Area; ai?: boolean };
 const QUICK_ACTIONS: QuickAction[] = [
-  {
-    label: "New session",
-    href: "/dashboard/seances/nouvelle",
-    icon: CalendarPlus,
-    area: "seances",
-  },
-  {
-    label: "Import photos",
-    href: "/dashboard/photos",
-    icon: CloudUpload,
-    area: "photos-galeries",
-  },
-  {
-    label: "New quote",
-    href: "/dashboard/facturation/devis/nouveau",
-    icon: FilePlus2,
-    area: "facturation",
-  },
-  {
-    label: "AI Search",
-    href: "/dashboard/photos/recherche",
-    icon: ScanSearch,
-    area: "photos-galeries",
-    ai: true,
-  },
-  {
-    label: "Reserve equipment",
-    href: "/dashboard/materiel/reservations",
-    icon: Package,
-    area: "materiel",
-  },
+  { label: "New session", href: "/dashboard/seances/nouveau", icon: CalendarPlus, area: "seances" },
+  { label: "Import photos", href: "/dashboard/photos", icon: CloudUpload, area: "photos-galeries" },
+  { label: "New quote", href: "/dashboard/facturation/devis/nouveau", icon: FilePlus2, area: "facturation" },
+  { label: "AI Search", href: "/dashboard/photos/recherche", icon: ScanSearch, area: "photos-galeries", ai: true },
+  { label: "Reserve equipment", href: "/dashboard/materiel/reservations", icon: Package, area: "materiel" },
   { label: "Portfolio", href: "/dashboard/portfolio", icon: BookImage, area: "portfolio" },
 ];
 
@@ -82,23 +58,26 @@ export default async function DashboardPage() {
   weekEnd.setDate(now.getDate() + 7);
   const nowIso = now.toISOString();
 
-  const upcoming = SEANCES.filter((s) => s.dateDebut >= nowIso && s.statut !== "ANNULEE")
-    .sort((a, b) => a.dateDebut.localeCompare(b.dateDebut))
-    .slice(0, 4);
-  const thisWeek = SEANCES.filter(
-    (s) => s.dateDebut >= nowIso && s.dateDebut <= weekEnd.toISOString() && s.statut !== "ANNULEE",
-  );
-  const [galeriesParStatut, photosParCulling, galeries] = await Promise.all([
+  const scope = user.role === "ADMIN" ? {} : { employeId: user.id };
+  const [seances, taches, galeriesParStatut, photosParCulling, galeries] = await Promise.all([
+    listSeances(scope),
+    listTaches(scope),
     countGaleriesByStatut(),
     countPhotosByCulling(),
     listGaleries(),
   ]);
+  const active = seances.filter((s) => s.statut !== "ANNULEE" && s.statut !== "TERMINEE" && s.statut !== "REPORTEE");
+  const upcoming = active
+    .filter((s) => s.dateDebut >= nowIso)
+    .sort((a, b) => a.dateDebut.localeCompare(b.dateDebut))
+    .slice(0, 4);
+  const thisWeek = active.filter((s) => s.dateDebut >= nowIso && s.dateDebut <= weekEnd.toISOString());
+  const toConfirm = seances.filter((s) => s.statut === "DEMANDE_RECUE" || s.statut === "EN_ATTENTE_CONFIRMATION").length;
+  const lateTasks = taches.filter((t) => t.enRetard);
   const toCull = photosParCulling.EN_ATTENTE;
   const unpaid = FACTURES.filter((f) => f.statut !== "PAYEE");
-  const openComplaints = RECLAMATIONS.filter(
-    (r) => r.statut === "OUVERTE" || r.statut === "EN_COURS",
-  );
-  const recentGalleries = galeries.slice(0, 4); // already newest first
+  const openComplaints = RECLAMATIONS.filter((r) => r.statut === "OUVERTE" || r.statut === "EN_COURS");
+  const recentGalleries = galeries.slice(0, 4);
 
   const stats: {
     label: string;
@@ -107,53 +86,15 @@ export default async function DashboardPage() {
     tone: "blue" | "green" | "amber" | "red" | "ai";
     hint?: string;
   }[] = [
-    {
-      label: "Sessions this week",
-      value: thisWeek.length,
-      icon: CalendarDays,
-      tone: "blue",
-      hint: `${SEANCES.filter((s) => s.statut === "PLANIFIEE").length} to confirm`,
-    },
+    { label: "Sessions this week", value: thisWeek.length, icon: CalendarDays, tone: "blue", hint: `${toConfirm} to confirm` },
+    { label: "Overdue tasks", value: lateTasks.length, icon: ClipboardList, tone: lateTasks.length > 0 ? "red" : "green" },
     { label: "Photos awaiting culling", value: toCull, icon: Images, tone: "amber" },
     ...(can(user.role, "facturation")
-      ? [
-          {
-            label: "Unpaid invoices",
-            value: unpaid.length,
-            icon: Receipt,
-            tone: "red" as const,
-            hint:
-              formatCurrency(unpaid.reduce((s, f) => s + f.montantTTC - f.montantPaye, 0)) +
-              " to collect",
-          },
-        ]
-      : [
-          {
-            label: "Reserved equipment",
-            value: RESERVATIONS.filter((r) => r.statut === "CONFIRMEE" || r.statut === "EN_COURS")
-              .length,
-            icon: Package,
-            tone: "green" as const,
-          },
-        ]),
+      ? [{ label: "Unpaid invoices", value: unpaid.length, icon: Receipt, tone: "red" as const, hint: formatCurrency(unpaid.reduce((s, f) => s + f.montantTTC - f.montantPaye, 0)) + " to collect" }]
+      : [{ label: "Reserved equipment", value: RESERVATIONS.filter((r) => r.statut === "CONFIRMEE" || r.statut === "EN_COURS").length, icon: Package, tone: "green" as const }]),
     ...(can(user.role, "avis-reclamations")
-      ? [
-          {
-            label: "Open complaints",
-            value: openComplaints.length,
-            icon: MessageSquareWarning,
-            tone: "red" as const,
-            hint: `${openComplaints.filter((r) => r.priorite === "URGENTE").length} urgent`,
-          },
-        ]
-      : [
-          {
-            label: "Shared galleries",
-            value: galeriesParStatut.PARTAGEE,
-            icon: GalleryHorizontalEnd,
-            tone: "blue" as const,
-          },
-        ]),
+      ? [{ label: "Open complaints", value: openComplaints.length, icon: MessageSquareWarning, tone: "red" as const, hint: `${openComplaints.filter((r) => r.priorite === "URGENTE").length} urgent` }]
+      : [{ label: "Shared galleries", value: galeriesParStatut.PARTAGEE, icon: GalleryHorizontalEnd, tone: "blue" as const }]),
   ];
 
   const insights = [
@@ -168,23 +109,12 @@ export default async function DashboardPage() {
     <div className="space-y-6">
       <section className="relative overflow-hidden rounded-2xl bg-card shadow-soft ring-1 ring-border">
         <div className="absolute inset-y-0 right-0 hidden w-1/2 md:block">
-          <SafeImage
-            src={FRONT_IMAGES.studio}
-            alt=""
-            fill
-            sizes="50vw"
-            className="object-cover"
-            priority
-          />
+          <SafeImage src={FRONT_IMAGES.studio} alt="" fill sizes="50vw" className="object-cover" priority />
           <div className="absolute inset-0 bg-gradient-to-r from-card via-card/60 to-transparent" />
         </div>
         <div className="relative max-w-xl space-y-1.5 p-6 sm:p-8">
           <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-            {new Intl.DateTimeFormat("en-GB", {
-              weekday: "long",
-              day: "numeric",
-              month: "long",
-            }).format(now)}
+            {new Intl.DateTimeFormat("en-GB", { weekday: "long", day: "numeric", month: "long" }).format(now)}
           </p>
           <h1 className="text-2xl font-medium tracking-[0.08em] text-foreground uppercase sm:text-3xl">
             Hello, {user.prenom}
@@ -196,16 +126,7 @@ export default async function DashboardPage() {
       </section>
 
       <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
-        {stats.map((s) => (
-          <StatCard
-            key={s.label}
-            label={s.label}
-            value={s.value}
-            icon={s.icon}
-            tone={s.tone}
-            hint={s.hint}
-          />
-        ))}
+        {stats.map((s) => <StatCard key={s.label} label={s.label} value={s.value} icon={s.icon} tone={s.tone} hint={s.hint} />)}
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]">
@@ -214,43 +135,33 @@ export default async function DashboardPage() {
             <Card>
               <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle>Upcoming sessions</CardTitle>
-                <Link
-                  href="/dashboard/seances"
-                  className="text-sm font-medium text-primary-text hover:underline"
-                >
-                  View all
-                </Link>
+                <Link href="/dashboard/seances" className="text-sm font-medium text-primary-text hover:underline">View all</Link>
               </CardHeader>
               <CardContent className="px-0">
                 <ul className="divide-y">
                   {upcoming.map((s) => (
                     <li key={s.id}>
                       <Link
-                        href={`/dashboard/seances/${s.id}`}
+                        href={user.role === "ADMIN" ? `/dashboard/seances/${s.id}` : "/dashboard/planning"}
                         className="flex items-center gap-3 px-4 py-3 hover:bg-surface/60"
                       >
-                        <span className="relative size-11 shrink-0 overflow-hidden rounded-lg bg-muted">
-                          <SafeImage
-                            src={s.couverture}
-                            alt=""
-                            fill
-                            sizes="44px"
-                            className="object-cover"
-                          />
+                        <span className="flex size-11 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+                          <CalendarDays className="size-5" aria-hidden />
                         </span>
                         <span className="min-w-0 flex-1">
-                          <span className="block truncate text-sm font-semibold text-foreground">
-                            {s.titre}
-                          </span>
+                          <span className="block truncate text-sm font-semibold text-foreground">{s.titre}</span>
                           <span className="block text-xs text-muted-foreground">
                             {formatDate(s.dateDebut)} · {formatTime(s.dateDebut)} ·{" "}
-                            {fullName(s.photographe)}
+                            {s.equipe.length ? s.equipe.map((m) => fullName(m.employe)).join(", ") : "No team yet"}
                           </span>
                         </span>
-                        <StatusBadge value={s.statut} config={statutSeanceConfig} />
+                        <StatusBadge value={s.statut} config={statutSeanceReelConfig} />
                       </Link>
                     </li>
                   ))}
+                  {upcoming.length === 0 && (
+                    <li className="px-4 py-6 text-center text-sm text-muted-foreground">No upcoming sessions.</li>
+                  )}
                 </ul>
               </CardContent>
             </Card>
@@ -259,42 +170,20 @@ export default async function DashboardPage() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle>Recent galleries</CardTitle>
-              <Link
-                href="/dashboard/galeries"
-                className="text-sm font-medium text-primary-text hover:underline"
-              >
-                View all
-              </Link>
+              <Link href="/dashboard/galeries" className="text-sm font-medium text-primary-text hover:underline">View all</Link>
             </CardHeader>
             <CardContent>
               <ul className="grid gap-3 sm:grid-cols-2">
                 {recentGalleries.map((g) => (
                   <li key={g.id}>
-                    <Link
-                      href={`/dashboard/galeries/${g.id}`}
-                      className="group flex items-center gap-3 rounded-xl p-2 ring-1 ring-border hover:bg-surface/60"
-                    >
+                    <Link href={`/dashboard/galeries/${g.id}`} className="group flex items-center gap-3 rounded-xl p-2 ring-1 ring-border hover:bg-surface/60">
                       <span className="relative h-14 w-20 shrink-0 overflow-hidden rounded-lg bg-muted">
-                        <SafeImage
-                          src={g.photoCouverture}
-                          alt=""
-                          fill
-                          sizes="80px"
-                          className="object-cover"
-                        />
+                        <SafeImage src={g.photoCouverture} alt="" fill sizes="80px" className="object-cover" />
                       </span>
                       <span className="min-w-0 flex-1">
-                        <span className="block truncate text-sm font-semibold text-foreground group-hover:text-primary-text">
-                          {g.titre}
-                        </span>
-                        <span className="block text-xs text-muted-foreground">
-                          {g.nombrePhotos} photos
-                        </span>
-                        <StatusBadge
-                          value={g.statut}
-                          config={statutGalerieConfig}
-                          className="mt-1 h-5 px-2 text-[0.65rem]"
-                        />
+                        <span className="block truncate text-sm font-semibold text-foreground group-hover:text-primary-text">{g.titre}</span>
+                        <span className="block text-xs text-muted-foreground">{g.nombrePhotos} photos</span>
+                        <StatusBadge value={g.statut} config={statutGalerieConfig} className="mt-1 h-5 px-2 text-[0.65rem]" />
                       </span>
                     </Link>
                   </li>
@@ -307,31 +196,16 @@ export default async function DashboardPage() {
             <Card>
               <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle>Complaints to handle</CardTitle>
-                <Link
-                  href="/dashboard/reclamations"
-                  className="text-sm font-medium text-primary-text hover:underline"
-                >
-                  View all
-                </Link>
+                <Link href="/dashboard/reclamations" className="text-sm font-medium text-primary-text hover:underline">View all</Link>
               </CardHeader>
               <CardContent className="px-0">
                 <ul className="divide-y">
                   {openComplaints.slice(0, 3).map((r) => (
                     <li key={r.id} className="flex items-center gap-3 px-4 py-3">
-                      <MessageSquareWarning
-                        className={cn(
-                          "size-4 shrink-0",
-                          r.priorite === "URGENTE" ? "text-destructive" : "text-warning",
-                        )}
-                        aria-hidden
-                      />
+                      <MessageSquareWarning className={cn("size-4 shrink-0", r.priorite === "URGENTE" ? "text-destructive" : "text-warning")} aria-hidden />
                       <span className="min-w-0 flex-1">
-                        <span className="block truncate text-sm font-semibold text-foreground">
-                          {r.objet}
-                        </span>
-                        <span className="block text-xs text-muted-foreground">
-                          {fullName(r.client)}
-                        </span>
+                        <span className="block truncate text-sm font-semibold text-foreground">{r.objet}</span>
+                        <span className="block text-xs text-muted-foreground">{fullName(r.client)}</span>
                       </span>
                     </li>
                   ))}
@@ -343,9 +217,7 @@ export default async function DashboardPage() {
 
         <div className="space-y-6">
           <Card>
-            <CardHeader>
-              <CardTitle>Quick actions</CardTitle>
-            </CardHeader>
+            <CardHeader><CardTitle>Quick actions</CardTitle></CardHeader>
             <CardContent>
               <ul className="grid grid-cols-2 gap-2">
                 {QUICK_ACTIONS.filter((a) => can(user.role, a.area)).map((a) => (
@@ -354,17 +226,10 @@ export default async function DashboardPage() {
                       href={a.href}
                       className={cn(
                         "flex h-full flex-col items-center gap-2 rounded-xl p-3 text-center text-xs font-semibold transition-colors",
-                        a.ai
-                          ? "bg-ai-soft text-ai-text hover:bg-ai/15"
-                          : "bg-surface text-slate hover:bg-accent hover:text-primary-text",
+                        a.ai ? "bg-ai-soft text-ai-text hover:bg-ai/15" : "bg-surface text-slate hover:bg-accent hover:text-primary-text",
                       )}
                     >
-                      <span
-                        className={cn(
-                          "grid size-10 place-items-center rounded-xl bg-card shadow-sm",
-                          a.ai ? "text-ai" : "text-primary",
-                        )}
-                      >
+                      <span className={cn("grid size-10 place-items-center rounded-xl bg-card shadow-sm", a.ai ? "text-ai" : "text-primary")}>
                         <a.icon className="size-5" aria-hidden />
                       </span>
                       {a.label}
@@ -375,10 +240,7 @@ export default async function DashboardPage() {
             </CardContent>
           </Card>
 
-          <AIPanel
-            title="AI insights"
-            description="Computed every night from the studio's sessions, photos and payments."
-          >
+          <AIPanel title="AI insights" description="Computed every night from the studio's sessions, photos and payments.">
             <ul className="space-y-3">
               {insights.map((text) => (
                 <li key={text} className="flex gap-2 text-sm text-slate">

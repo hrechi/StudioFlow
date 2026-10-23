@@ -41,6 +41,8 @@ export const BACKOFFICE_NAV: NavGroup[] = [
     label: "Sessions",
     items: [
       { label: "Sessions", href: "/dashboard/seances", icon: CalendarDays, area: "seances" },
+      { label: "Planning", href: "/dashboard/planning", icon: CalendarClock, area: "seances" },
+      { label: "Tasks", href: "/dashboard/taches", icon: ListChecks, area: "seances" },
       { label: "Locations", href: "/dashboard/lieux", icon: MapPin, area: "seances" },
     ],
   },
@@ -155,6 +157,8 @@ export const SEGMENT_LABELS: Record<string, string> = {
   dashboard: "Dashboard",
   "espace-client": "My account",
   seances: "Sessions",
+  planning: "Planning",
+  taches: "Tasks",
   catalogue: "Catalogue",
   types: "Event types",
   packs: "Packs",
