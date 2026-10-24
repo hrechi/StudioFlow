@@ -45,6 +45,13 @@ services:
     environment:
       MONGODB_URI: *mongo-uri
       AUTH_SECRET: ${AUTH_SECRET:?Set AUTH_SECRET in .env (e.g. openssl rand -base64 32)}
+      # Optional AI features (avis-reclamations); empty = disabled
+      AI_API_KEY: ${AI_API_KEY:-}
+      AI_MODEL: ${AI_MODEL:-}
+      AI_BASE_URL: ${AI_BASE_URL:-}
+      RAPIDAPI_KEY: ${RAPIDAPI_KEY:-}
+      RAPIDAPI_PROFANITY_HOST: ${RAPIDAPI_PROFANITY_HOST:-}
+      RAPIDAPI_PROFANITY_URL: ${RAPIDAPI_PROFANITY_URL:-}
     depends_on:
       mongo:
         condition: service_healthy

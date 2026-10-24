@@ -163,6 +163,16 @@ export async function listClientRefs(): Promise<UtilisateurRef[]> {
   return docs.map(toUtilisateurRef);
 }
 
+/** Minimal references for administrators receiving cross-module alerts. */
+export async function listAdminRefs(): Promise<UtilisateurRef[]> {
+  await connectDB();
+  const docs = await Utilisateur.find({ role: "ADMIN", statut: "ACTIF" })
+    .select(REF_FIELDS)
+    .sort({ prenom: 1, nom: 1 })
+    .lean<UtilisateurRefLean[]>();
+  return docs.map(toUtilisateurRef);
+}
+
 export type UserListResult = {
   items: UtilisateurDTO[];
   total: number;

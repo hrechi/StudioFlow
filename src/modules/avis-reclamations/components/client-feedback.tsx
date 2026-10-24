@@ -1,8 +1,8 @@
 "use client";
 
 import { CheckCircle2, Circle, CircleDot, MessageSquareWarning, Send, Star } from "lucide-react";
-import { useState } from "react";
-import { comingSoon } from "@/components/shared/coming-soon-button";
+import { useState, useTransition } from "react";
+import { toast } from "sonner";
 import { FormField } from "@/components/shared/form-field";
 import { RatingInput, RatingStars } from "@/components/shared/rating-stars";
 import { StatusBadge } from "@/components/shared/status-badge";
@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { cn, formatDate } from "@/lib/utils";
+import { createAvisAction, createReclamationAction } from "../avis.actions";
 import {
   CATEGORIES_RECLAMATION,
   categorieReclamationLabels,
@@ -40,6 +41,14 @@ export function ClientFeedback({
   mesReclamations: Reclamation[];
 }) {
   const [note, setNote] = useState(0);
+  const [seanceAvis, setSeanceAvis] = useState(seancesANoter[0]?.id ?? "");
+  const [commentaire, setCommentaire] = useState("");
+  const [seanceRec, setSeanceRec] = useState(seancesANoter[0]?.id ?? "");
+  const [categorie, setCategorie] = useState("QUALITE");
+  const [objet, setObjet] = useState("");
+  const [description, setDescription] = useState("");
+  const [feedback, setFeedback] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
 
   return (
     <div className="grid gap-6 lg:grid-cols-2">
@@ -58,11 +67,33 @@ export function ClientFeedback({
             className="space-y-4"
             onSubmit={(e) => {
               e.preventDefault();
-              comingSoon("Send my review (avis.service)");
+              startTransition(async () => {
+                const result = await createAvisAction({
+                  note,
+                  commentaire,
+                  seanceId: seanceAvis,
+                  seanceTitre: seancesANoter.find((s) => s.id === seanceAvis)?.titre,
+                });
+                if (!result.ok) {
+                  toast.warning("Review not sent", {
+                    description: result.error,
+                  });
+                  setFeedback(result.error);
+                  return;
+                }
+                toast.success("Review submitted", {
+                  description: "Your review is awaiting moderation.",
+                });
+                setFeedback("Review submitted for moderation.");
+                if (result.ok) {
+                  setCommentaire("");
+                  setNote(0);
+                }
+              });
             }}
           >
             <FormField id="seance-avis" label="Completed session" required>
-              <Select defaultValue={seancesANoter[0]?.id}>
+              <Select value={seanceAvis} onValueChange={setSeanceAvis}>
                 <SelectTrigger id="seance-avis" className="h-10 w-full bg-card">
                   <SelectValue />
                 </SelectTrigger>
@@ -85,12 +116,15 @@ export function ClientFeedback({
                 rows={4}
                 placeholder="Tell us about your experience…"
                 className="bg-card"
+                value={commentaire}
+                onChange={(e) => setCommentaire(e.target.value)}
               />
             </FormField>
-            <Button type="submit" disabled={note === 0}>
+            <Button type="submit" disabled={note === 0 || !commentaire.trim() || isPending}>
               <Send aria-hidden />
               Send my review
             </Button>
+            {feedback && <p className="text-sm text-muted-foreground">{feedback}</p>}
           </form>
         </CardContent>
       </Card>
@@ -110,12 +144,25 @@ export function ClientFeedback({
             className="space-y-4"
             onSubmit={(e) => {
               e.preventDefault();
-              comingSoon("Send the complaint (reclamation.service)");
+              startTransition(async () => {
+                const result = await createReclamationAction({
+                  objet,
+                  description,
+                  categorie,
+                  seanceId: seanceRec,
+                  seanceTitre: seancesANoter.find((s) => s.id === seanceRec)?.titre,
+                });
+                setFeedback(result.ok ? "Complaint sent to the studio." : result.error);
+                if (result.ok) {
+                  setObjet("");
+                  setDescription("");
+                }
+              });
             }}
           >
             <div className="grid gap-4 sm:grid-cols-2">
               <FormField id="seance-rec" label="Related session" required>
-                <Select defaultValue={seancesANoter[0]?.id}>
+                <Select value={seanceRec} onValueChange={setSeanceRec}>
                   <SelectTrigger id="seance-rec" className="h-10 w-full bg-card">
                     <SelectValue />
                   </SelectTrigger>
@@ -129,7 +176,7 @@ export function ClientFeedback({
                 </Select>
               </FormField>
               <FormField id="categorie-rec" label="Category" required>
-                <Select defaultValue="QUALITE">
+                <Select value={categorie} onValueChange={setCategorie}>
                   <SelectTrigger id="categorie-rec" className="h-10 w-full bg-card">
                     <SelectValue />
                   </SelectTrigger>
@@ -148,15 +195,28 @@ export function ClientFeedback({
                 id="objet-rec"
                 placeholder="e.g. Blurry photo in my selection"
                 className="h-10 bg-card"
+                value={objet}
+                onChange={(e) => setObjet(e.target.value)}
               />
             </FormField>
             <FormField id="description-rec" label="Description" required>
-              <Textarea id="description-rec" rows={3} className="bg-card" />
+              <Textarea
+                id="description-rec"
+                rows={3}
+                className="bg-card"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+              />
             </FormField>
-            <Button type="submit" variant="outline">
+            <Button
+              type="submit"
+              variant="outline"
+              disabled={!objet.trim() || !description.trim() || isPending}
+            >
               <Send aria-hidden />
               Send complaint
             </Button>
+            {feedback && <p className="text-sm text-muted-foreground">{feedback}</p>}
           </form>
         </CardContent>
       </Card>
