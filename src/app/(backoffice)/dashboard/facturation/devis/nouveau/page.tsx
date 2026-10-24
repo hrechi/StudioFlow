@@ -4,15 +4,18 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { PageHeader } from "@/components/shared/page-header";
 import { requireArea } from "@/lib/guards";
-import { listFacturationClients, listFacturationSessions } from "@/modules/facturation/facturation.integrations";
+import { listFacturationSessions } from "@/modules/facturation/facturation.integrations";
 import { DevisEditor } from "@/modules/facturation/components/devis-editor";
-import { LIGNES_IA } from "@/modules/facturation/facturation.integrations";
 
 export const metadata: Metadata = { title: "New quote" };
 
-export default async function NouveauDevisPage() {
+export default async function NouveauDevisPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ seance?: string }>;
+}) {
   await requireArea("facturation");
-  const [clients, seances] = await Promise.all([listFacturationClients(), listFacturationSessions()]);
+  const [{ seance }, seances] = await Promise.all([searchParams, listFacturationSessions()]);
   return (
     <div className="space-y-6">
       <PageHeader
@@ -28,7 +31,7 @@ export default async function NouveauDevisPage() {
         title="New quote"
         description="Add the services or let the AI suggest a quote from the session type and past pricing."
       />
-      <DevisEditor clients={clients} seances={seances} lignesIA={LIGNES_IA} />
+      <DevisEditor seances={seances} defaultSeanceId={seance} />
     </div>
   );
 }

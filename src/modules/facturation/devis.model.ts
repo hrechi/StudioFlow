@@ -1,6 +1,7 @@
 import { Schema, Types, model, models, type Model } from "mongoose";
 import {
   MODES_PAIEMENT,
+  PLANS_PAIEMENT,
   STATUTS_DEVIS,
   STATUTS_FACTURE,
   TYPES_FACTURE,
@@ -35,6 +36,30 @@ const factureSchema = new Schema({
   paiements: { type: [paiementSchema], default: [] },
 }, { _id: true });
 
+export interface IPaiement {
+  montant: number;
+  date: Date;
+  modePaiement: (typeof MODES_PAIEMENT)[number];
+  reference?: string;
+  commentaire?: string;
+  enregistrePar: Types.ObjectId;
+  createdAt: Date;
+}
+
+export interface IFacture {
+  _id: Types.ObjectId;
+  numero: string;
+  type: (typeof TYPES_FACTURE)[number];
+  montantTTC: number;
+  montantPaye: number;
+  montantRestant: number;
+  dateEmission: Date;
+  dateEcheance: Date;
+  statut: (typeof STATUTS_FACTURE)[number];
+  dateCompletePaiement?: Date;
+  paiements: IPaiement[];
+}
+
 export interface IDevis {
   numero: string;
   client: Types.ObjectId;
@@ -57,11 +82,13 @@ export interface IDevis {
   dateReponse?: Date;
   commentaire?: string;
   genereParIA: boolean;
+  planPaiement?: (typeof PLANS_PAIEMENT)[number];
+  modePaiementPrefere?: (typeof MODES_PAIEMENT)[number];
   aiMeta?: Record<string, unknown>;
   historique: Array<{ action: string; statutAvant?: string; statutApres: string; par: Types.ObjectId; date: Date }>;
   archivedAt?: Date;
   createdBy: Types.ObjectId;
-  factures: unknown[];
+  factures: IFacture[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -71,7 +98,8 @@ const devisSchema = new Schema<IDevis>({
   client: { type: Schema.Types.ObjectId, ref: "utilisateurs", required: true, index: true },
   seance: { type: Schema.Types.ObjectId, ref: "seances", required: true },
   clientSnapshot: { nom: { type: String, required: true }, email: { type: String, required: true } },
-  seanceSnapshot: { titre: { type: String, required: true }, type: String, date: Date },
+  // `type` must be wrapped: a bare `type: String` key would make Mongoose treat the whole snapshot as a String.
+  seanceSnapshot: { titre: { type: String, required: true }, type: { type: String }, date: Date },
   lignes: { type: [ligneSchema], required: true, validate: (v: unknown[]) => v.length > 0 },
   remise: { type: Number, required: true, min: 0, max: 100 },
   tva: { type: Number, required: true, min: 0, max: 100, default: 19 },
@@ -88,6 +116,8 @@ const devisSchema = new Schema<IDevis>({
   dateReponse: Date,
   commentaire: { type: String, maxlength: 2000 },
   genereParIA: { type: Boolean, default: false },
+  planPaiement: { type: String, enum: PLANS_PAIEMENT },
+  modePaiementPrefere: { type: String, enum: MODES_PAIEMENT },
   aiMeta: Schema.Types.Mixed,
   historique: { type: [{ action: String, statutAvant: String, statutApres: String, par: Schema.Types.ObjectId, date: { type: Date, default: Date.now } }], default: [] },
   archivedAt: Date,

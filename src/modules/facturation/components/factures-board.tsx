@@ -1,42 +1,25 @@
 "use client";
 
-import { Banknote, ReceiptText, Sparkles } from "lucide-react";
+import { Banknote, Download, ReceiptText, Sparkles } from "lucide-react";
 import { useMemo, useState } from "react";
-import { comingSoon } from "@/components/shared/coming-soon-button";
+import Link from "next/link";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ALL, FilterSelect, SearchInput, labelsOf } from "@/components/shared/filters";
-import { FormField } from "@/components/shared/form-field";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { fullName } from "@/lib/mock-data-helpers";
 import { cn, formatCurrency, formatDate } from "@/lib/utils";
 import {
-  MODES_PAIEMENT,
-  modePaiementLabels,
+  factureTypeLabel,
+  pdfHref,
   statutFactureConfig,
-  typeFactureConfig,
   type StatutFacture,
 } from "../facturation.types";
 import type { FactureAvecContexte } from "../facturation.types";
+import { PaiementDialog } from "./paiement-dialog";
 
 /** AI late-payment risk (cahier: "flag invoices likely to be paid late"). */
 function RiskBadge({ value }: { value: number }) {
@@ -125,14 +108,16 @@ export function FacturesBoard({ factures }: { factures: FactureAvecContexte[] })
                     <td className="px-4 py-3">
                       <span className="flex items-center gap-2">
                         <span className="font-semibold text-foreground">{f.numero}</span>
-                        <StatusBadge
-                          value={f.type}
-                          config={typeFactureConfig}
-                          dot={false}
-                          className="h-5 px-2 text-[0.65rem]"
-                        />
+                        <span className="rounded-full px-2 py-0.5 text-[0.65rem] font-semibold ring-1 ring-border">
+                          {factureTypeLabel(f)}
+                        </span>
                       </span>
-                      <span className="text-xs text-muted-foreground">Quote {f.devis.numero}</span>
+                      <Link
+                        href={`/dashboard/facturation/devis/${f.devis.id}`}
+                        className="text-xs text-muted-foreground hover:underline"
+                      >
+                        Quote {f.devis.numero}
+                      </Link>
                     </td>
                     <td className="px-4 py-3">
                       <span className="block font-medium text-slate">
@@ -183,15 +168,22 @@ export function FacturesBoard({ factures }: { factures: FactureAvecContexte[] })
                       )}
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        disabled={reste <= 0}
-                        onClick={() => setPaying(f)}
-                      >
-                        <Banknote aria-hidden />
-                        Payment
-                      </Button>
+                      <div className="flex justify-end gap-1">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={reste <= 0}
+                          onClick={() => setPaying(f)}
+                        >
+                          <Banknote aria-hidden />
+                          Payment received
+                        </Button>
+                        <Button size="icon-sm" variant="ghost" asChild>
+                          <a href={pdfHref(f.devis.id, f.id)} download aria-label={`Download ${f.numero} (PDF)`}>
+                            <Download aria-hidden />
+                          </a>
+                        </Button>
+                      </div>
                     </td>
                   </tr>
                 );
@@ -201,62 +193,11 @@ export function FacturesBoard({ factures }: { factures: FactureAvecContexte[] })
         </div>
       )}
 
-      <Dialog open={!!paying} onOpenChange={(open) => !open && setPaying(null)}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Record a payment</DialogTitle>
-            <DialogDescription>
-              {paying &&
-                `${paying.numero} · remaining ${formatCurrency(paying.montantTTC - paying.montantPaye)}`}
-            </DialogDescription>
-          </DialogHeader>
-          <form
-            className="space-y-4"
-            onSubmit={(e) => {
-              e.preventDefault();
-              setPaying(null);
-              comingSoon("Record the payment (facture.enregistrerPaiement)");
-            }}
-          >
-            <div className="grid grid-cols-2 gap-3">
-              <FormField id="montant" label="Amount (TND)" required>
-                <Input
-                  id="montant"
-                  type="number"
-                  min={1}
-                  defaultValue={paying ? paying.montantTTC - paying.montantPaye : 0}
-                  className="h-10 bg-card"
-                />
-              </FormField>
-              <FormField id="date-paiement" label="Date" required>
-                <Input
-                  id="date-paiement"
-                  type="date"
-                  defaultValue={new Date().toISOString().slice(0, 10)}
-                  className="h-10 bg-card"
-                />
-              </FormField>
-            </div>
-            <FormField id="mode" label="Payment method" required>
-              <Select defaultValue="VIREMENT">
-                <SelectTrigger id="mode" className="h-10 w-full bg-card">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {MODES_PAIEMENT.map((mode) => (
-                    <SelectItem key={mode} value={mode}>
-                      {modePaiementLabels[mode]}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </FormField>
-            <DialogFooter>
-              <Button type="submit">Save</Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+      <PaiementDialog
+        devisId={paying?.devis.id ?? ""}
+        facture={paying}
+        onOpenChange={(open) => !open && setPaying(null)}
+      />
     </Card>
   );
 }

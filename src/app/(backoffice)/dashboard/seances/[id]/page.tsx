@@ -1,11 +1,13 @@
 /* Module : Gestion des Séances · Responsable : Yosser Rafrafi */
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, FilePlus2 } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatusBadge } from "@/components/shared/status-badge";
+import { Button } from "@/components/ui/button";
 import { requireRole } from "@/lib/guards";
+import { STATUTS_SEANCE_FACTURABLES } from "@/modules/facturation/facturation.integrations";
 import { PrixFinalCard } from "@/modules/seances/components/prix-final-card";
 import { SeanceForm } from "@/modules/seances/components/seance-form";
 import { listPacks } from "@/modules/seances/pack.service";
@@ -43,6 +45,16 @@ export default async function ModifierSeancePage({ params }: { params: Promise<{
           </Link>
         }
         title={seance.titre}
+        actions={
+          seance.client && STATUTS_SEANCE_FACTURABLES.includes(seance.statut) ? (
+            <Button asChild variant="outline">
+              <Link href={`/dashboard/facturation/devis/nouveau?seance=${seance.id}`}>
+                <FilePlus2 aria-hidden />
+                Create quote
+              </Link>
+            </Button>
+          ) : undefined
+        }
         description={
           <span className="flex items-center gap-2">
             <StatusBadge value={seance.statut} config={statutSeanceReelConfig} />

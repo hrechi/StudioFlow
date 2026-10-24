@@ -29,6 +29,20 @@ export function fromMillimes(millimes: number): number {
   return millimes / 1000;
 }
 
+/**
+ * Unit price excl. VAT (TND) whose total incl. VAT lands exactly on `ttc` with the same
+ * millime rounding as calculerTotaux (closest value when no exact match exists).
+ */
+export function prixHTDepuisTTC(ttc: number, tva: number): number {
+  const cible = toMillimes(ttc);
+  const estimate = Math.round(cible / (1 + tva / 100));
+  const total = (ht: number) => ht + Math.round((ht * tva) / 100);
+  const best = [estimate - 1, estimate, estimate + 1]
+    .filter((ht) => ht >= 0)
+    .reduce((a, b) => (Math.abs(total(b) - cible) < Math.abs(total(a) - cible) ? b : a));
+  return fromMillimes(best);
+}
+
 export function formatTND(millimes: number): string {
   return `${new Intl.NumberFormat("fr-TN", {
     minimumFractionDigits: 3,
