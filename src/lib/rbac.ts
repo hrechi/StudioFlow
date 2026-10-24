@@ -18,6 +18,7 @@ const STAFF = STAFF_ROLES;
 export const PERMISSIONS = {
   dashboard: STAFF,
   seances: ["ADMIN", "PHOTOGRAPHE"],
+  catalogue: ["ADMIN"],
   "photos-galeries": STAFF,
   materiel: ["ADMIN", "PHOTOGRAPHE"],
   facturation: ["ADMIN"],
@@ -41,7 +42,10 @@ export function isStaff(role: Role | null | undefined): role is StaffRole {
 /** Longest prefix first. Paths not listed here are public. */
 const ROUTE_AREAS: ReadonlyArray<readonly [prefix: string, area: Area]> = [
   ["/dashboard/utilisateurs", "utilisateurs"],
+  ["/dashboard/catalogue", "catalogue"],
   ["/dashboard/seances", "seances"],
+  ["/dashboard/planning", "seances"],
+  ["/dashboard/taches", "seances"],
   ["/dashboard/lieux", "seances"],
   ["/dashboard/photos", "photos-galeries"],
   ["/dashboard/galeries", "photos-galeries"],

@@ -1,45 +1,44 @@
 /* Module : Gestion des Séances · Responsable : Yosser Rafrafi */
-import { CalendarCheck, CalendarClock, CalendarDays, CalendarPlus, CalendarX2 } from "lucide-react";
+import { Plus } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { PageHeader } from "@/components/shared/page-header";
-import { StatCard } from "@/components/shared/stat-card";
 import { Button } from "@/components/ui/button";
 import { requireArea } from "@/lib/guards";
-import { MOCK_PHOTOGRAPHES } from "@/lib/mock-data-helpers";
-import { SeancesBoard } from "@/modules/seances/components/seances-board";
-import { SEANCES } from "@/modules/seances/mock-data";
+import { SeancesBrowser } from "@/modules/seances/components/seances-browser";
+import { listSeances } from "@/modules/seances/seance.service";
+import { listTypesEvenement } from "@/modules/seances/type-evenement.service";
 
 export const metadata: Metadata = { title: "Sessions" };
 
 export default async function SeancesPage() {
   const user = await requireArea("seances");
-  // A photographer only sees their own sessions (permission matrix).
-  const seances =
-    user.role === "PHOTOGRAPHE" ? SEANCES.filter((s) => s.photographe.id === "u-photo-1") : SEANCES;
-  const count = (statut: string) => seances.filter((s) => s.statut === statut).length;
-
+  const isAdmin = user.role === "ADMIN";
+  const [seances, types] = await Promise.all([
+    listSeances(isAdmin ? {} : { employeId: user.id }),
+    listTypesEvenement(),
+  ]);
   return (
     <div className="space-y-6">
       <PageHeader
         title="Sessions"
-        description="Schedule, confirm and follow the studio's photo sessions."
+        description={isAdmin ? "Plan, staff and follow every session." : "Your upcoming and past sessions."}
         actions={
-          <Button asChild>
-            <Link href="/dashboard/seances/nouvelle">
-              <CalendarPlus aria-hidden />
-              New session
-            </Link>
-          </Button>
+          isAdmin ? (
+            <Button asChild>
+              <Link href="/dashboard/seances/nouveau">
+                <Plus aria-hidden />
+                New session
+              </Link>
+            </Button>
+          ) : undefined
         }
       />
-      <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
-        <StatCard label="Total" value={seances.length} icon={CalendarDays} />
-        <StatCard label="Planned" value={count("PLANIFIEE")} icon={CalendarClock} tone="amber" />
-        <StatCard label="Confirmed" value={count("CONFIRMEE")} icon={CalendarCheck} tone="green" />
-        <StatCard label="Cancelled" value={count("ANNULEE")} icon={CalendarX2} tone="red" />
-      </div>
-      <SeancesBoard seances={seances} photographes={MOCK_PHOTOGRAPHES} />
+      <SeancesBrowser
+        seances={seances}
+        types={types.map((t) => ({ id: t.id, nom: t.nom }))}
+        canEdit={isAdmin}
+      />
     </div>
   );
 }

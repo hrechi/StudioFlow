@@ -1,260 +1,279 @@
 "use client";
 
-import { CalendarCheck, Clock, MapPin, Sparkles } from "lucide-react";
-import Link from "next/link";
-import { useState } from "react";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Loader2, Plus, Trash2 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useState, useTransition } from "react";
+import { Controller, useFieldArray, useForm, type Resolver } from "react-hook-form";
 import { toast } from "sonner";
-import { AIConfidence, AIPanel } from "@/components/shared/ai-panel";
-import { comingSoon } from "@/components/shared/coming-soon-button";
-import { FormField } from "@/components/shared/form-field";
-import { UserAvatar } from "@/components/shared/user-avatar";
+import { FormField, IconInput, describedBy } from "@/components/shared/form-field";
+import { applyFieldErrors } from "@/components/shared/form-utils";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Card } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { fullName } from "@/lib/mock-data-helpers";
-import { cn, formatDate, formatTime } from "@/lib/utils";
 import type { UtilisateurRef } from "@/modules/utilisateurs/utilisateur.types";
+import { createSeanceAction, updateSeanceAction } from "../seance.actions";
 import {
-  TYPES_SEANCE,
-  typeSeanceLabels,
-  type CreneauSuggere,
-  type Lieu,
-  type TypeSeance,
-} from "../seance.types";
+  ROLES_EQUIPE,
+  STATUTS_INITIAUX,
+  roleEquipeLabels,
+  statutSeanceReelConfig,
+  type SeanceDTO,
+} from "../seance.dto";
+import { seanceSchema, type SeanceInput } from "../seance.schemas";
 
-function toDateInput(iso: string) {
-  const d = new Date(iso);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
-function toTimeInput(iso: string) {
-  const d = new Date(iso);
-  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
-}
+const NO_PACK = "__custom__";
 
-/** /dashboard/seances/nouvelle — form + "AI suggested time slot" card. */
+const toLocal = (iso?: string) => {
+  if (!iso) return "";
+  const d = new Date(iso);
+  return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+};
+const toIso = (local: string) => (local ? new Date(local).toISOString() : "");
+
+type FormValues = Omit<SeanceInput, "dateDebut" | "dateFin"> & { dateDebut: string; dateFin: string };
+
 export function SeanceForm({
+  seance,
   clients,
   photographes,
-  lieux,
-  creneaux,
+  types,
+  packs,
 }: {
+  seance?: SeanceDTO;
   clients: UtilisateurRef[];
   photographes: UtilisateurRef[];
-  lieux: Lieu[];
-  creneaux: CreneauSuggere[];
+  types: { id: string; nom: string }[];
+  packs: { id: string; nom: string; typeId: string; disabled: boolean }[];
 }) {
-  const [type, setType] = useState<TypeSeance>("PORTRAIT");
-  const [photographe, setPhotographe] = useState(photographes[0]?.id ?? "");
-  const [lieu, setLieu] = useState(lieux[0]?.id ?? "");
-  const [date, setDate] = useState("");
-  const [debut, setDebut] = useState("10:00");
-  const [fin, setFin] = useState("12:00");
-  const [applied, setApplied] = useState<number | null>(null);
+  const editing = !!seance;
+  const router = useRouter();
+  const [pending, startTransition] = useTransition();
+  const [walkIn, setWalkIn] = useState(!!seance?.clientExterne);
 
-  const apply = (creneau: CreneauSuggere, index: number) => {
-    setDate(toDateInput(creneau.debut));
-    setDebut(toTimeInput(creneau.debut));
-    setFin(toTimeInput(creneau.fin));
-    setPhotographe(creneau.photographe.id);
-    setLieu(creneau.lieu.id);
-    setApplied(index);
-    toast.success("Slot applied to the form", {
-      description: "Check it before saving.",
+  const form = useForm<FormValues>({
+    resolver: zodResolver(seanceSchema) as unknown as Resolver<FormValues>,
+    defaultValues: {
+      titre: seance?.titre ?? "",
+      clientId: seance?.client?.id ?? "",
+      clientNom: seance?.clientExterne?.nom ?? "",
+      clientTelephone: seance?.clientExterne?.telephone ?? "",
+      clientEmail: seance?.clientExterne?.email ?? "",
+      typeEvenementId: seance?.typeEvenement.id ?? "",
+      packId: seance?.pack?.id ?? "",
+      prestationPersonnalisee: seance?.prestationPersonnalisee ?? "",
+      dateDebut: toLocal(seance?.dateDebut),
+      dateFin: toLocal(seance?.dateFin),
+      lieu: seance?.lieu ?? "",
+      statut: "CONFIRMEE",
+      equipe: seance?.equipe.map((m) => ({ employeId: m.employe.id, role: m.role })) ?? [],
+      notes: seance?.notes ?? "",
+    },
+  });
+  const { errors } = form.formState;
+  const team = useFieldArray({ control: form.control, name: "equipe" });
+  const typeId = form.watch("typeEvenementId");
+  const packId = form.watch("packId");
+  const typePacks = packs.filter((p) => p.typeId === typeId);
+  const err = (n: keyof FormValues) => errors[n]?.message as string | undefined;
+
+  const onSubmit = form.handleSubmit((values) => {
+    const payload = { ...values, dateDebut: toIso(values.dateDebut), dateFin: toIso(values.dateFin) };
+    startTransition(async () => {
+      const result = editing
+        ? await updateSeanceAction(seance.id, payload)
+        : await createSeanceAction(payload);
+      if (!result.ok) {
+        applyFieldErrors(form.setError, result.fieldErrors);
+        toast.error(result.error);
+        return;
+      }
+      toast.success(editing ? "Session saved" : "Session created");
+      if (editing) router.refresh();
+      else router.push("/dashboard/seances");
     });
-  };
+  });
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
-      <form
-        className="space-y-6"
-        onSubmit={(event) => {
-          event.preventDefault();
-          comingSoon("Schedule the session (seance.service)");
-        }}
-      >
-        <Card>
-          <CardHeader>
-            <CardTitle>Details</CardTitle>
-            <CardDescription>Session type, client and preparation notes.</CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-4 sm:grid-cols-2">
-            <FormField id="titre" label="Title" required className="sm:col-span-2">
-              <Input id="titre" placeholder="e.g. Sarra & Amine Wedding" className="h-10 bg-card" />
+    <form onSubmit={onSubmit} noValidate className="space-y-6">
+      <Card className="space-y-4 p-5">
+        <h2 className="font-semibold text-foreground">Session</h2>
+        <FormField id="titre" label="Title" required error={err("titre")}>
+          <IconInput id="titre" placeholder="Wedding — Sarra & Omar" invalid={!!errors.titre}
+            aria-describedby={describedBy("titre", err("titre"))} {...form.register("titre")} />
+        </FormField>
+        <div className="space-y-3 rounded-lg border p-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-sm font-medium text-foreground">Client</p>
+            <div className="inline-flex rounded-lg border p-0.5" role="group" aria-label="Client type">
+              <Button type="button" size="sm" variant={walkIn ? "ghost" : "default"} aria-pressed={!walkIn}
+                onClick={() => { setWalkIn(false); form.setValue("clientNom", ""); form.setValue("clientTelephone", ""); form.setValue("clientEmail", ""); }}>
+                Has an account
+              </Button>
+              <Button type="button" size="sm" variant={walkIn ? "default" : "ghost"} aria-pressed={walkIn}
+                onClick={() => { setWalkIn(true); form.setValue("clientId", ""); }}>
+                No account (phone / walk-in)
+              </Button>
+            </div>
+          </div>
+          {walkIn ? (
+            <div className="grid gap-4 sm:grid-cols-3">
+              <FormField id="clientNom" label="Full name" required error={err("clientNom")}>
+                <IconInput id="clientNom" {...form.register("clientNom")} />
+              </FormField>
+              <FormField id="clientTelephone" label="Phone" required error={err("clientTelephone")}>
+                <IconInput id="clientTelephone" type="tel" {...form.register("clientTelephone")} />
+              </FormField>
+              <FormField id="clientEmail" label="Email" error={err("clientEmail")}>
+                <IconInput id="clientEmail" type="email" {...form.register("clientEmail")} />
+              </FormField>
+            </div>
+          ) : (
+            <FormField id="clientId" label="Client account" required error={err("clientId") ?? err("clientNom")}>
+              <Controller control={form.control} name="clientId" render={({ field }) => (
+                <Select value={field.value} onValueChange={field.onChange}>
+                  <SelectTrigger id="clientId" className="h-10 w-full bg-card">
+                    <SelectValue placeholder="Choose a client">
+                      {(() => { const c = clients.find((x) => x.id === field.value); return c ? fullName(c) : undefined; })()}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {clients.map((c) => <SelectItem key={c.id} value={c.id}>{fullName(c)}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              )} />
             </FormField>
-            <FormField id="type" label="Session type" required>
-              <Select value={type} onValueChange={(v) => setType(v as TypeSeance)}>
-                <SelectTrigger id="type" className="h-10 w-full bg-card">
-                  <SelectValue>{typeSeanceLabels[type]}</SelectValue>
+          )}
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <FormField id="typeEvenementId" label="Event type" required error={err("typeEvenementId")}>
+            <Controller control={form.control} name="typeEvenementId" render={({ field }) => (
+              <Select value={field.value} onValueChange={(v) => { field.onChange(v); form.setValue("packId", ""); }}>
+                <SelectTrigger id="typeEvenementId" className="h-10 w-full bg-card">
+                  <SelectValue placeholder="Choose a type">{types.find((t) => t.id === field.value)?.nom}</SelectValue>
                 </SelectTrigger>
                 <SelectContent>
-                  {TYPES_SEANCE.map((t) => (
-                    <SelectItem key={t} value={t}>
-                      {typeSeanceLabels[t]}
-                    </SelectItem>
-                  ))}
+                  {types.map((t) => <SelectItem key={t.id} value={t.id}>{t.nom}</SelectItem>)}
                 </SelectContent>
               </Select>
-            </FormField>
-            <FormField id="client" label="Client" required>
-              <Select defaultValue={clients[0]?.id}>
-                <SelectTrigger id="client" className="h-10 w-full bg-card">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {clients.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {fullName(c)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </FormField>
-            <FormField id="notes" label="Notes" className="sm:col-span-2">
-              <Textarea
-                id="notes"
-                rows={3}
-                placeholder="Schedule, special requests, location constraints…"
-                className="bg-card"
-              />
-            </FormField>
-          </CardContent>
-        </Card>
+            )} />
+          </FormField>
+        </div>
+        <FormField id="packId" label="Pack" error={err("packId")} hint="Packs of the chosen event type, or a custom service.">
+          <Select
+            value={packId || NO_PACK}
+            onValueChange={(v) => form.setValue("packId", v === NO_PACK ? "" : v, { shouldValidate: true })}
+            disabled={!typeId}
+          >
+            <SelectTrigger id="packId" className="h-10 w-full bg-card">
+              <SelectValue>{packId ? typePacks.find((p) => p.id === packId)?.nom : "Custom service"}</SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={NO_PACK}>Custom service</SelectItem>
+              {typePacks.map((p) => (
+                <SelectItem key={p.id} value={p.id} disabled={p.disabled && p.id !== seance?.pack?.id}>
+                  {p.nom}{p.disabled ? " (disabled)" : ""}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </FormField>
+        {!packId && (
+          <FormField id="prestationPersonnalisee" label="Custom service" required error={err("prestationPersonnalisee")}>
+            <Textarea id="prestationPersonnalisee" rows={3} {...form.register("prestationPersonnalisee")} />
+          </FormField>
+        )}
+      </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Schedule</CardTitle>
-            <CardDescription>
-              Double bookings of the photographer and the location will be blocked.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-4 sm:grid-cols-3">
-            <FormField id="date" label="Date" required>
-              <Input
-                id="date"
-                type="date"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-                className="h-10 bg-card"
-              />
-            </FormField>
-            <FormField id="debut" label="Start" required>
-              <Input
-                id="debut"
-                type="time"
-                value={debut}
-                onChange={(e) => setDebut(e.target.value)}
-                className="h-10 bg-card"
-              />
-            </FormField>
-            <FormField id="fin" label="End" required>
-              <Input
-                id="fin"
-                type="time"
-                value={fin}
-                onChange={(e) => setFin(e.target.value)}
-                className="h-10 bg-card"
-              />
-            </FormField>
-            <FormField
-              id="photographe"
-              label="Photographer"
-              required
-              className="sm:col-span-3 md:col-span-1"
-            >
-              <Select value={photographe} onValueChange={setPhotographe}>
-                <SelectTrigger id="photographe" className="h-10 w-full bg-card">
-                  <SelectValue>
-                    {fullName(photographes.find((p) => p.id === photographe) ?? photographes[0])}
-                  </SelectValue>
+      <Card className="space-y-4 p-5">
+        <h2 className="font-semibold text-foreground">Schedule & location</h2>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <FormField id="dateDebut" label="Start" required error={err("dateDebut")}>
+            <IconInput id="dateDebut" type="datetime-local" {...form.register("dateDebut")} />
+          </FormField>
+          <FormField id="dateFin" label="End" required error={err("dateFin")}>
+            <IconInput id="dateFin" type="datetime-local" {...form.register("dateFin")} />
+          </FormField>
+        </div>
+        <FormField id="lieu" label="Location" required error={err("lieu")}>
+          <IconInput id="lieu" placeholder="Studio, venue address…" {...form.register("lieu")} />
+        </FormField>
+        {!editing && (
+          <FormField id="statut" label="Initial status" error={err("statut")}>
+            <Controller control={form.control} name="statut" render={({ field }) => (
+              <Select value={field.value} onValueChange={field.onChange}>
+                <SelectTrigger id="statut" className="h-10 w-full bg-card sm:w-72">
+                  <SelectValue>{field.value ? statutSeanceReelConfig[field.value as keyof typeof statutSeanceReelConfig].label : undefined}</SelectValue>
                 </SelectTrigger>
                 <SelectContent>
-                  {photographes.map((p) => (
-                    <SelectItem key={p.id} value={p.id}>
-                      {fullName(p)}
-                    </SelectItem>
-                  ))}
+                  {STATUTS_INITIAUX.map((s) => <SelectItem key={s} value={s}>{statutSeanceReelConfig[s].label}</SelectItem>)}
                 </SelectContent>
               </Select>
-            </FormField>
-            <FormField id="lieu" label="Location" required className="sm:col-span-3 md:col-span-2">
-              <Select value={lieu} onValueChange={setLieu}>
-                <SelectTrigger id="lieu" className="h-10 w-full bg-card">
-                  <SelectValue>{lieux.find((l) => l.id === lieu)?.nom}</SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  {lieux.map((l) => (
-                    <SelectItem key={l.id} value={l.id} disabled={!l.disponible}>
-                      {l.nom}
-                      {!l.disponible && " (unavailable)"}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </FormField>
-          </CardContent>
-        </Card>
+            )} />
+          </FormField>
+        )}
+      </Card>
 
-        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-          <Button variant="outline" asChild>
-            <Link href="/dashboard/seances">Cancel</Link>
-          </Button>
-          <Button type="submit">
-            <CalendarCheck aria-hidden />
-            Schedule session
+      <Card className="space-y-4 p-5">
+        <div className="flex items-center justify-between">
+          <h2 className="font-semibold text-foreground">Team</h2>
+          <Button type="button" variant="outline" size="sm" onClick={() => team.append({ employeId: "", role: "PHOTOGRAPHE_PRINCIPAL" })}>
+            <Plus aria-hidden />
+            Assign someone
           </Button>
         </div>
-      </form>
+        {(err("equipe") || (errors.equipe as { root?: { message?: string } } | undefined)?.root?.message) && (
+          <p role="alert" className="text-xs font-medium text-destructive-text">
+            {err("equipe") ?? (errors.equipe as { root: { message: string } }).root.message}
+          </p>
+        )}
+        {team.fields.length === 0 && <p className="text-sm text-muted-foreground">No one assigned yet. Conflicts are checked on save.</p>}
+        {team.fields.map((field, index) => (
+          <div key={field.id} className="grid items-start gap-3 sm:grid-cols-[2fr_2fr_auto]">
+            <FormField id={`equipe.${index}.employeId`} label="Employee" error={errors.equipe?.[index]?.employeId?.message}>
+              <Controller control={form.control} name={`equipe.${index}.employeId`} render={({ field: f }) => (
+                <Select value={f.value} onValueChange={f.onChange}>
+                  <SelectTrigger className="h-10 w-full bg-card">
+                    <SelectValue placeholder="Choose…">{(() => { const p = photographes.find((x) => x.id === f.value); return p ? fullName(p) : undefined; })()}</SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {photographes.map((p) => <SelectItem key={p.id} value={p.id}>{fullName(p)}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              )} />
+            </FormField>
+            <FormField id={`equipe.${index}.role`} label="Role" error={errors.equipe?.[index]?.role?.message}>
+              <Controller control={form.control} name={`equipe.${index}.role`} render={({ field: f }) => (
+                <Select value={f.value} onValueChange={f.onChange}>
+                  <SelectTrigger className="h-10 w-full bg-card"><SelectValue>{roleEquipeLabels[f.value]}</SelectValue></SelectTrigger>
+                  <SelectContent>
+                    {ROLES_EQUIPE.map((r) => <SelectItem key={r} value={r}>{roleEquipeLabels[r]}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              )} />
+            </FormField>
+            <Button type="button" variant="ghost" size="icon" className="mt-6" aria-label="Remove this person" onClick={() => team.remove(index)}>
+              <Trash2 aria-hidden />
+            </Button>
+          </div>
+        ))}
+      </Card>
 
-      <aside className="space-y-4 lg:sticky lg:top-24 lg:self-start">
-        <AIPanel
-          title="Suggested slots"
-          description="Computed from photographer and location availability and the session type."
-        >
-          <ul className="space-y-3">
-            {creneaux.map((creneau, index) => (
-              <li
-                key={creneau.debut}
-                className={cn(
-                  "rounded-lg border bg-card p-3 transition-shadow",
-                  applied === index ? "border-ai ring-2 ring-ai/25" : "border-ai/15",
-                )}
-              >
-                <p className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
-                  <Clock className="size-3.5 text-ai" aria-hidden />
-                  {formatDate(creneau.debut)} · {formatTime(creneau.debut)}–
-                  {formatTime(creneau.fin)}
-                </p>
-                <p className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <UserAvatar
-                    {...creneau.photographe}
-                    size="sm"
-                    className="size-5 text-[0.55rem]"
-                  />
-                  {fullName(creneau.photographe)}
-                  <MapPin className="ml-1 size-3" aria-hidden />
-                  <span className="truncate">{creneau.lieu.nom}</span>
-                </p>
-                <p className="mt-2 text-xs text-slate">{creneau.raison}</p>
-                <div className="mt-2.5 flex items-center justify-between gap-2">
-                  <AIConfidence value={creneau.score} />
-                  <Button size="xs" variant="ai-soft" onClick={() => apply(creneau, index)}>
-                    <Sparkles aria-hidden />
-                    Apply
-                  </Button>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </AIPanel>
-      </aside>
-    </div>
+      <Card className="space-y-4 p-5">
+        <FormField id="notes" label="Internal notes" error={err("notes")}>
+          <Textarea id="notes" rows={3} {...form.register("notes")} />
+        </FormField>
+      </Card>
+
+      <div className="flex justify-end gap-2">
+        <Button type="button" variant="outline" onClick={() => router.back()} disabled={pending}>Cancel</Button>
+        <Button type="submit" disabled={pending}>
+          {pending && <Loader2 className="animate-spin" aria-hidden />}
+          {editing ? "Save changes" : "Create session"}
+        </Button>
+      </div>
+    </form>
   );
 }
