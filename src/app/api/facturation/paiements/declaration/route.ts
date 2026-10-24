@@ -9,6 +9,7 @@ import { declarePaiement } from "@/modules/facturation/paiement.service";
 import { analyserDeclaration } from "@/modules/facturation/preuve.analyse";
 
 /**
+ * Declares a payment.
  * POST multipart/form-data { devisId, factureId, montant, date, modePaiement, reference?, commentaire?, preuve? }
  * The client declares a transfer / cheque / cash payment with its proof. A Route Handler (not a
  * Server Action) because Server Actions cap request bodies at 1 MB.
