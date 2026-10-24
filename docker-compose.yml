@@ -6,7 +6,7 @@ x-mongo-uri: &mongo-uri mongodb://mongo:27017/reframe
 
 services:
   mongo:
-    image: mongo:8
+    image: mongo:7
     attach: false # keep `docker compose up` readable; see its logs with `docker compose logs mongo`
     restart: unless-stopped
     ports:
@@ -45,6 +45,11 @@ services:
     environment:
       MONGODB_URI: *mongo-uri
       AUTH_SECRET: ${AUTH_SECRET:?Set AUTH_SECRET in .env (e.g. openssl rand -base64 32)}
+      USE_MOCKS: ${USE_MOCKS:-true}
+      PORTFOLIO_BASE_URL: ${PORTFOLIO_BASE_URL:-http://localhost:3000}
+      CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME:-}
+      CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY:-}
+      CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET:-}
     depends_on:
       mongo:
         condition: service_healthy

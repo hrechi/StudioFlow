@@ -12,7 +12,7 @@ import { fullName } from "@/lib/mock-data-helpers";
 import { FRONT_IMAGES, mockImage } from "@/lib/mock-images";
 import { cn } from "@/lib/utils";
 import { AVIS_PUBLIES } from "@/modules/avis-reclamations/mock-data";
-import { PORTFOLIOS_PUBLICS } from "@/modules/portfolio/mock-data";
+import { listPublicPortfolios } from "@/modules/portfolio/portfolio.service";
 import { ContactForm } from "./_components/contact-form";
 import { Testimonials } from "./_components/testimonials";
 
@@ -116,9 +116,17 @@ export default async function HomePage() {
       : role
         ? "/dashboard/seances/nouvelle"
         : "/register";
-  const publicSlugs = new Set(PORTFOLIOS_PUBLICS.map((p) => p.slug));
-  const gallery = PORTFOLIOS_PUBLICS.flatMap((p) =>
-    p.elements.slice(0, 3).map((e) => ({ ...e, slug: p.slug })),
+  const publishedPortfolios = (await listPublicPortfolios({ page: 1 })).items;
+  const publicSlugs = new Set(publishedPortfolios.map((portfolio) => portfolio.slug));
+  const gallery = publishedPortfolios.flatMap((portfolio) =>
+    portfolio.blocsPublies.flatMap((block) =>
+      block.elements.map((element) => ({
+        id: element.idElement,
+        legende: element.legende ?? element.titre ?? "Portfolio photograph",
+        slug: portfolio.slug,
+        photo: { url: element.media.urlMiniature || element.media.url },
+      })),
+    ),
   ).slice(0, 9);
   const testimonials = AVIS_PUBLIES.map((avis) => ({
     id: avis.id,
@@ -421,6 +429,7 @@ export default async function HomePage() {
                     src={element.photo.url}
                     alt={element.legende}
                     fill
+                    unoptimized
                     sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
                     className="img-zoom object-cover"
                   />
@@ -431,6 +440,16 @@ export default async function HomePage() {
                   </div>
                 </Link>
               </Reveal>
+            ))}
+          </ul>
+          <ul className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {publishedPortfolios.slice(0, 3).map((portfolio) => (
+              <li key={portfolio.id}>
+                <Link href={`/portfolio/${portfolio.slug}`} className="group block overflow-hidden rounded-2xl border border-foreground/10 bg-card">
+                  <div className="relative aspect-[16/10] overflow-hidden"><SafeImage src={portfolio.photoCouverture} alt="" fill unoptimized sizes="(min-width: 1024px) 33vw, 50vw" className="img-zoom object-cover" /></div>
+                  <div className="p-5"><p className="text-xs tracking-[0.18em] text-foreground/55 uppercase">{portfolio.specialites.join(" · ")}{portfolio.ville ? ` · ${portfolio.ville}` : ""}</p><h3 className="mt-2 text-lg font-semibold text-foreground">{portfolio.titre}</h3><p className="mt-1 text-sm text-foreground/60">{portfolio.photographe.prenom} {portfolio.photographe.nom}</p></div>
+                </Link>
+              </li>
             ))}
           </ul>
         </div>
