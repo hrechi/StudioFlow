@@ -28,7 +28,7 @@ async function nextNumber(): Promise<string> {
   const counter = await Counter.findOneAndUpdate(
     { key: `DEV-${year}` },
     { $inc: { value: 1 } },
-    { upsert: true, new: true, setDefaultsOnInsert: true },
+    { upsert: true, returnDocument: "after", setDefaultsOnInsert: true },
   ).lean();
   if (!counter) throw new Error("Could not allocate quote number.");
   return `DEV-${year}-${String(counter.value).padStart(4, "0")}`;

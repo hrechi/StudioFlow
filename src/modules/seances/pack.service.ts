@@ -1,5 +1,5 @@
 import "server-only";
-import { Types, type FilterQuery } from "mongoose";
+import { Types, type QueryFilter } from "mongoose";
 import { ServiceError } from "@/lib/action-result";
 import { connectDB } from "@/lib/db";
 import type {
@@ -94,7 +94,7 @@ export async function listPacks(
   filter: { typeId?: string; statut?: StatutPack; q?: string } = {},
 ): Promise<PackDTO[]> {
   await connectDB();
-  const query: FilterQuery<IPack> = {};
+  const query: QueryFilter<IPack> = {};
   if (filter.typeId && toObjectId(filter.typeId)) query.typeEvenement = filter.typeId;
   if (filter.statut) query.statut = filter.statut;
   if (filter.q) query.nom = { $regex: escapeRegex(filter.q), $options: "i" };

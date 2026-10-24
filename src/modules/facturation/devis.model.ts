@@ -95,7 +95,6 @@ const devisSchema = new Schema<IDevis>({
   factures: { type: [factureSchema], default: [] },
 }, { timestamps: true, collection: "devis" });
 
-devisSchema.index({ numero: 1 }, { unique: true });
 devisSchema.index({ client: 1, statut: 1 });
 
 export const Devis: Model<IDevis> = (models.Devis as Model<IDevis> | undefined) ?? model<IDevis>("Devis", devisSchema);

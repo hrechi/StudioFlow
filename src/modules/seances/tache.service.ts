@@ -1,5 +1,5 @@
 import "server-only";
-import { Types, type FilterQuery } from "mongoose";
+import { Types, type QueryFilter } from "mongoose";
 import { ServiceError } from "@/lib/action-result";
 import { connectDB } from "@/lib/db";
 import { findUtilisateurRefs, listPhotographeRefs } from "@/modules/utilisateurs/utilisateur.service";
@@ -49,7 +49,7 @@ async function hydrate(docs: TacheLean[]): Promise<TacheDTO[]> {
 
 export async function listTaches(filter: { employeId?: string } = {}): Promise<TacheDTO[]> {
   await connectDB();
-  const query: FilterQuery<ITache> = {};
+  const query: QueryFilter<ITache> = {};
   if (filter.employeId) query.employe = new Types.ObjectId(filter.employeId);
   const docs = await Tache.find(query).sort({ dateLimite: 1, createdAt: -1 }).lean<TacheLean[]>();
   return hydrate(docs);

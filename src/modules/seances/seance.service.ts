@@ -1,5 +1,5 @@
 import "server-only";
-import { Types, type FilterQuery } from "mongoose";
+import { Types, type QueryFilter } from "mongoose";
 import { ServiceError } from "@/lib/action-result";
 import { connectDB } from "@/lib/db";
 import { listPhotographeRefs, findUtilisateurRefs } from "@/modules/utilisateurs/utilisateur.service";
@@ -92,7 +92,7 @@ async function hydrate(docs: SeanceLean[]): Promise<SeanceDTO[]> {
 
 export async function listSeances(filter: { employeId?: string; clientId?: string } = {}): Promise<SeanceDTO[]> {
   await connectDB();
-  const query: FilterQuery<ISeance> = {};
+  const query: QueryFilter<ISeance> = {};
   if (filter.employeId) query["equipe.employe"] = new Types.ObjectId(filter.employeId);
   if (filter.clientId) query.client = new Types.ObjectId(filter.clientId);
   const docs = await Seance.find(query).sort({ dateDebut: -1 }).lean<SeanceLean[]>();
@@ -114,7 +114,7 @@ async function assertNoConflict(
 ): Promise<void> {
   if (equipeIds.length === 0) return;
   const ids = equipeIds.map((id) => new Types.ObjectId(id));
-  const query: FilterQuery<ISeance> = {
+  const query: QueryFilter<ISeance> = {
     statut: { $in: STATUTS_BLOQUANTS },
     "equipe.employe": { $in: ids },
     dateDebut: { $lt: fin },

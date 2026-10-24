@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useTransition } from "react";
 import { toast } from "sonner";
 import { SafeImage } from "@/components/shared/safe-image";
+import { PLACEHOLDER_IMAGE } from "@/lib/mock-images";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -35,7 +36,7 @@ export function ClientSeanceCard({ seance, className }: { seance: SeanceClientDT
   return (
     <Card className={cn("gap-0 overflow-hidden py-0", className)}>
       <div className="relative h-36 bg-muted">
-        <SafeImage src={undefined} alt="" fill sizes="33vw" className="object-cover" />
+        <SafeImage src={PLACEHOLDER_IMAGE} alt="" fill sizes="33vw" className="object-cover" />
       </div>
       <div className="space-y-2 p-4">
         <div className="flex items-start justify-between gap-2">

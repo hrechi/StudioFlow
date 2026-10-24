@@ -103,7 +103,7 @@ export async function updateTypeEvenement(
           actif: input.actif,
         },
       },
-      { new: true, runValidators: true },
+      { returnDocument: "after", runValidators: true },
     ).lean<Lean>();
     if (!doc) throw new ServiceError(NOT_FOUND);
     return toTypeDTO(doc);
@@ -154,7 +154,7 @@ export async function reserveSlot(typeId: Types.ObjectId): Promise<Lean> {
   const reserved = await TypeEvenement.findOneAndUpdate(
     { _id: typeId, $expr: { $lt: ["$packsCount", "$maxPacks"] } },
     { $inc: { packsCount: 1 } },
-    { new: true },
+    { returnDocument: "after" },
   ).lean<Lean>();
   if (reserved) return reserved;
 

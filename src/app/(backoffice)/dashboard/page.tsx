@@ -59,13 +59,13 @@ export default async function DashboardPage() {
   const nowIso = now.toISOString();
 
   const scope = user.role === "ADMIN" ? {} : { employeId: user.id };
-  const [seances, taches, galeriesParStatut, photosParCulling, galeries] = await Promise.all([
+  const [seances, taches, galeriesParStatut, photosParCulling, galeries, factures] = await Promise.all([
     listSeances(scope),
     listTaches(scope),
     countGaleriesByStatut(),
     countPhotosByCulling(),
     listGaleries(),
-    listFactures(user),
+    can(user.role, "facturation") ? listFactures(user) : Promise.resolve([]),
   ]);
   const active = seances.filter((s) => s.statut !== "ANNULEE" && s.statut !== "TERMINEE" && s.statut !== "REPORTEE");
   const upcoming = active
@@ -76,7 +76,7 @@ export default async function DashboardPage() {
   const toConfirm = seances.filter((s) => s.statut === "DEMANDE_RECUE" || s.statut === "EN_ATTENTE_CONFIRMATION").length;
   const lateTasks = taches.filter((t) => t.enRetard);
   const toCull = photosParCulling.EN_ATTENTE;
-  const unpaid = FACTURES.filter((f) => f.statut !== "PAYEE");
+  const unpaid = factures.filter((f) => f.statut !== "PAYEE");
   const openComplaints = RECLAMATIONS.filter((r) => r.statut === "OUVERTE" || r.statut === "EN_COURS");
   const recentGalleries = galeries.slice(0, 4);
 
