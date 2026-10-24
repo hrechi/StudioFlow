@@ -5,6 +5,7 @@ import {
   Copy,
   ExternalLink,
   Images,
+  RotateCcw,
   Trash2,
   X,
   Plus,
@@ -39,6 +40,9 @@ type PropertiesPanelProps = {
     couleurAccent?: string;
   };
   onUpdatePortfolioData?: (field: string, value: unknown) => void;
+  portfolioSlug?: string;
+  onDeletePortfolio?: () => void;
+  onResetPortfolio?: () => void;
   className?: string;
 };
 
@@ -62,6 +66,9 @@ export function PropertiesPanel({
     couleurAccent: "#e8a34a",
   },
   onUpdatePortfolioData,
+  portfolioSlug = "portfolio",
+  onDeletePortfolio,
+  onResetPortfolio,
   className = "",
 }: PropertiesPanelProps) {
   const conf = selectedBlock?.configuration || {};
@@ -646,6 +653,50 @@ export function PropertiesPanel({
                 </div>
               )}
 
+              {/* TEMOIGNAGES */}
+              {selectedBlock.type === "TEMOIGNAGES" && (
+                <TestimonialsPanel
+                  blocId={selectedBlock.idBloc}
+                  conf={conf}
+                  onUpdateConfiguration={onUpdateConfiguration}
+                />
+              )}
+
+              {/* SERVICES */}
+              {selectedBlock.type === "SERVICES" && (
+                <ServicesPanel
+                  blocId={selectedBlock.idBloc}
+                  conf={conf}
+                  onUpdateConfiguration={onUpdateConfiguration}
+                />
+              )}
+
+              {/* STATISTIQUES */}
+              {selectedBlock.type === "STATISTIQUES" && (
+                <div className="space-y-3">
+                  {(["1","2","3"] as const).map((n) => (
+                    <div key={n} className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="text-[11px] text-[#9a8f82]">Stat {n} — Valeur</label>
+                        <input type="text"
+                          value={(conf[`stat${n}_valeur`] as string) || ""}
+                          onChange={(e) => onUpdateConfiguration(selectedBlock.idBloc, `stat${n}_valeur`, e.target.value)}
+                          className="mt-1 w-full rounded-[6px] border border-white/[0.08] bg-black/30 px-2.5 py-1.5 font-sans text-xs text-[#f3ebdd] focus:border-[#e8a34a] focus:outline-hidden"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[11px] text-[#9a8f82]">Stat {n} — Label</label>
+                        <input type="text"
+                          value={(conf[`stat${n}_label`] as string) || ""}
+                          onChange={(e) => onUpdateConfiguration(selectedBlock.idBloc, `stat${n}_label`, e.target.value)}
+                          className="mt-1 w-full rounded-[6px] border border-white/[0.08] bg-black/30 px-2.5 py-1.5 font-sans text-xs text-[#f3ebdd] focus:border-[#e8a34a] focus:outline-hidden"
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
               {/* VIDEO */}
               {selectedBlock.type === "VIDEO" && (
                 <div className="space-y-3">
@@ -708,7 +759,10 @@ export function PropertiesPanel({
             </div>
 
             {/* 5. PHOTOGRAPHS LIST (IF APPLICABLE) */}
-            {(selectedBlock.type === "GALERIE" || selectedBlock.type === "COLLECTION") && (
+            {(selectedBlock.type === "GALERIE" ||
+              selectedBlock.type === "COLLECTION" ||
+              selectedBlock.type === "CASE_STUDY" ||
+              selectedBlock.type === "AVANT_APRES") && (
               <div className="border-t border-white/[0.08] pt-4 space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="font-mono text-[9px] font-semibold tracking-[0.16em] text-[#6f655a] uppercase">
@@ -941,16 +995,306 @@ export function PropertiesPanel({
                   <ExternalLink className="size-3 text-white/30" />
                 </div>
                 <div className="truncate font-mono text-[11px] text-[#e8a34a]">
-                  studioflow.app/portfolio/aurelie-morales
+                  studioflow.app/portfolio/{portfolioSlug || "portfolio"}
                 </div>
               </div>
               <p className="text-[10px] leading-relaxed text-[#9a8f82]">
                 La page publique ne lit que la version publiée. Les brouillons ne sont jamais visibles.
               </p>
             </div>
+
+            {/* Danger Zone: Delete / Reset Portfolio */}
+            <div className="border-t border-red-500/20 pt-4 space-y-3">
+              <div className="font-mono text-[9px] font-semibold tracking-[0.16em] text-red-400 uppercase">
+                Zone de danger
+              </div>
+              <div className="flex flex-col gap-2">
+                {onResetPortfolio && (
+                  <button
+                    type="button"
+                    onClick={onResetPortfolio}
+                    className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.03] py-2 font-sans text-xs font-medium text-white/80 transition-colors hover:border-[#e8a34a] hover:text-[#e8a34a]"
+                  >
+                    <RotateCcw className="size-3.5" />
+                    <span>Réinitialiser les blocs par défaut</span>
+                  </button>
+                )}
+                {onDeletePortfolio && (
+                  <button
+                    type="button"
+                    onClick={onDeletePortfolio}
+                    className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-red-500/30 bg-red-950/20 py-2 font-sans text-xs font-semibold text-red-400 transition-colors hover:bg-red-950/40 hover:text-red-300"
+                  >
+                    <Trash2 className="size-3.5" />
+                    <span>Supprimer le portfolio (MongoDB)</span>
+                  </button>
+                )}
+              </div>
+              <p className="text-[10px] text-white/40 leading-relaxed">
+                La suppression effacera définitivement ce portfolio et ses données de la base de données.
+              </p>
+            </div>
           </div>
         )}
       </div>
     </aside>
+  );
+}
+
+// ─── Sub-panel: Témoignages ───────────────────────────────────────────────────
+type Testimonial = { id: string; auteur: string; role: string; note: number; texte: string };
+
+function TestimonialsPanel({
+  blocId,
+  conf,
+  onUpdateConfiguration,
+}: {
+  blocId: string;
+  conf: Record<string, unknown>;
+  onUpdateConfiguration: (id: string, key: string, value: unknown) => void;
+}) {
+  const list: Testimonial[] = Array.isArray(conf.temoignages)
+    ? (conf.temoignages as Testimonial[])
+    : [];
+  const [newAuteur, setNewAuteur] = useState("");
+  const [newRole, setNewRole] = useState("");
+  const [newNote, setNewNote] = useState(5);
+  const [newTexte, setNewTexte] = useState("");
+
+  const save = (next: Testimonial[]) =>
+    onUpdateConfiguration(blocId, "temoignages", next);
+
+  const add = () => {
+    if (!newAuteur.trim() || !newTexte.trim()) return;
+    save([
+      ...list,
+      {
+        id: crypto.randomUUID().slice(0, 16),
+        auteur: newAuteur.trim(),
+        role: newRole.trim() || "Client",
+        note: newNote,
+        texte: newTexte.trim(),
+      },
+    ]);
+    setNewAuteur(""); setNewRole(""); setNewNote(5); setNewTexte("");
+  };
+
+  return (
+    <div className="space-y-4">
+      {list.length === 0 ? (
+        <p className="text-[10px] text-[#9a8f82]">
+          Aucun témoignage. Ajoutez-en un ci-dessous.
+        </p>
+      ) : (
+        <div className="space-y-2">
+          {list.map((t, idx) => (
+            <div
+              key={t.id}
+              className="rounded-[6px] border border-white/[0.06] bg-white/[0.02] p-2.5 space-y-1"
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-semibold text-white/90">{t.auteur}</span>
+                <button
+                  type="button"
+                  onClick={() => save(list.filter((_, i) => i !== idx))}
+                  className="text-white/30 hover:text-red-400"
+                >
+                  <X className="size-3.5" />
+                </button>
+              </div>
+              <p className="text-[10px] text-[#9a8f82]">
+                {t.role} · {"★".repeat(t.note)}
+              </p>
+              <p className="text-[11px] italic leading-relaxed text-white/70 line-clamp-2">
+                «&nbsp;{t.texte}&nbsp;»
+              </p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Add new testimonial */}
+      <div className="rounded-[8px] border border-white/[0.08] bg-black/30 p-3 space-y-2">
+        <p className="text-[10px] font-semibold text-[#e8a34a] uppercase tracking-[0.14em]">
+          Nouveau témoignage
+        </p>
+        <input
+          type="text"
+          placeholder="Nom du client"
+          value={newAuteur}
+          onChange={(e) => setNewAuteur(e.target.value)}
+          className="w-full rounded-[6px] border border-white/[0.08] bg-black/40 px-2.5 py-1.5 font-sans text-xs text-[#f3ebdd] focus:border-[#e8a34a] focus:outline-hidden"
+        />
+        <input
+          type="text"
+          placeholder="Rôle (ex: Couple marié)"
+          value={newRole}
+          onChange={(e) => setNewRole(e.target.value)}
+          className="w-full rounded-[6px] border border-white/[0.08] bg-black/40 px-2.5 py-1.5 font-sans text-xs text-[#f3ebdd] focus:border-[#e8a34a] focus:outline-hidden"
+        />
+        <div className="flex items-center gap-2">
+          <label className="text-[10px] text-[#9a8f82] whitespace-nowrap">Note :</label>
+          {[1, 2, 3, 4, 5].map((n) => (
+            <button
+              key={n}
+              type="button"
+              onClick={() => setNewNote(n)}
+              className={`font-mono text-sm transition-colors ${n <= newNote ? "text-[#e8a34a]" : "text-white/20"}`}
+            >
+              ★
+            </button>
+          ))}
+        </div>
+        <textarea
+          rows={3}
+          placeholder="Texte du témoignage…"
+          value={newTexte}
+          onChange={(e) => setNewTexte(e.target.value)}
+          className="w-full rounded-[6px] border border-white/[0.08] bg-black/40 p-2 font-sans text-xs text-[#f3ebdd] focus:border-[#e8a34a] focus:outline-hidden"
+        />
+        <button
+          type="button"
+          onClick={add}
+          disabled={!newAuteur.trim() || !newTexte.trim()}
+          className="flex w-full items-center justify-center gap-1.5 rounded-[6px] border border-white/10 bg-white/[0.04] py-1.5 font-sans text-xs font-medium text-white hover:border-[#e8a34a]/40 hover:bg-[#e8a34a]/10 disabled:opacity-40"
+        >
+          <Plus className="size-3 text-[#e8a34a]" />
+          Ajouter le témoignage
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Sub-panel: Services / Forfaits ──────────────────────────────────────────
+type ServicePackage = {
+  id: string;
+  nom: string;
+  prixAPartirDe: number;
+  duree: string;
+  description: string;
+};
+
+function ServicesPanel({
+  blocId,
+  conf,
+  onUpdateConfiguration,
+}: {
+  blocId: string;
+  conf: Record<string, unknown>;
+  onUpdateConfiguration: (id: string, key: string, value: unknown) => void;
+}) {
+  const list: ServicePackage[] = Array.isArray(conf.forfaits)
+    ? (conf.forfaits as ServicePackage[])
+    : [];
+  const [newNom, setNewNom] = useState("");
+  const [newPrix, setNewPrix] = useState(0);
+  const [newDuree, setNewDuree] = useState("");
+  const [newDesc, setNewDesc] = useState("");
+
+  const save = (next: ServicePackage[]) =>
+    onUpdateConfiguration(blocId, "forfaits", next);
+
+  const add = () => {
+    if (!newNom.trim()) return;
+    save([
+      ...list,
+      {
+        id: crypto.randomUUID().slice(0, 16),
+        nom: newNom.trim(),
+        prixAPartirDe: newPrix,
+        duree: newDuree.trim(),
+        description: newDesc.trim(),
+      },
+    ]);
+    setNewNom(""); setNewPrix(0); setNewDuree(""); setNewDesc("");
+  };
+
+  return (
+    <div className="space-y-4">
+      {list.length === 0 ? (
+        <p className="text-[10px] text-[#9a8f82]">
+          Aucun forfait. Ajoutez-en un ci-dessous.
+        </p>
+      ) : (
+        <div className="space-y-2">
+          {list.map((pkg, idx) => (
+            <div
+              key={pkg.id}
+              className="rounded-[6px] border border-white/[0.06] bg-white/[0.02] p-2.5 space-y-0.5"
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-semibold text-white/90">{pkg.nom}</span>
+                <button
+                  type="button"
+                  onClick={() => save(list.filter((_, i) => i !== idx))}
+                  className="text-white/30 hover:text-red-400"
+                >
+                  <X className="size-3.5" />
+                </button>
+              </div>
+              <p className="font-mono text-[10px] text-[#e8a34a]">
+                À partir de {pkg.prixAPartirDe} €{pkg.duree ? ` · ${pkg.duree}` : ""}
+              </p>
+              {pkg.description && (
+                <p className="text-[10px] text-white/50 line-clamp-1">{pkg.description}</p>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Add new package */}
+      <div className="rounded-[8px] border border-white/[0.08] bg-black/30 p-3 space-y-2">
+        <p className="text-[10px] font-semibold text-[#e8a34a] uppercase tracking-[0.14em]">
+          Nouveau forfait
+        </p>
+        <input
+          type="text"
+          placeholder="Nom du forfait"
+          value={newNom}
+          onChange={(e) => setNewNom(e.target.value)}
+          className="w-full rounded-[6px] border border-white/[0.08] bg-black/40 px-2.5 py-1.5 font-sans text-xs text-[#f3ebdd] focus:border-[#e8a34a] focus:outline-hidden"
+        />
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <label className="text-[10px] text-[#9a8f82]">Prix (€)</label>
+            <input
+              type="number"
+              min={0}
+              value={newPrix}
+              onChange={(e) => setNewPrix(Number(e.target.value))}
+              className="mt-1 w-full rounded-[6px] border border-white/[0.08] bg-black/40 px-2.5 py-1.5 font-sans text-xs text-[#f3ebdd] focus:border-[#e8a34a] focus:outline-hidden"
+            />
+          </div>
+          <div>
+            <label className="text-[10px] text-[#9a8f82]">Durée</label>
+            <input
+              type="text"
+              placeholder="2h30"
+              value={newDuree}
+              onChange={(e) => setNewDuree(e.target.value)}
+              className="mt-1 w-full rounded-[6px] border border-white/[0.08] bg-black/40 px-2.5 py-1.5 font-sans text-xs text-[#f3ebdd] focus:border-[#e8a34a] focus:outline-hidden"
+            />
+          </div>
+        </div>
+        <textarea
+          rows={2}
+          placeholder="Description courte…"
+          value={newDesc}
+          onChange={(e) => setNewDesc(e.target.value)}
+          className="w-full rounded-[6px] border border-white/[0.08] bg-black/40 p-2 font-sans text-xs text-[#f3ebdd] focus:border-[#e8a34a] focus:outline-hidden"
+        />
+        <button
+          type="button"
+          onClick={add}
+          disabled={!newNom.trim()}
+          className="flex w-full items-center justify-center gap-1.5 rounded-[6px] border border-white/10 bg-white/[0.04] py-1.5 font-sans text-xs font-medium text-white hover:border-[#e8a34a]/40 hover:bg-[#e8a34a]/10 disabled:opacity-40"
+        >
+          <Plus className="size-3 text-[#e8a34a]" />
+          Ajouter le forfait
+        </button>
+      </div>
+    </div>
   );
 }

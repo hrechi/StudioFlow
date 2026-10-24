@@ -2,6 +2,10 @@ import "server-only";
 import { Types } from "mongoose";
 import { ServiceError } from "@/lib/action-result";
 import { connectDB } from "@/lib/db";
+import { Photo } from "@/modules/photos-galeries/photo.model";
+import "@/modules/photos-galeries/galerie.model";
+import "@/modules/utilisateurs/utilisateur.model";
+import { findUtilisateurById } from "@/modules/utilisateurs/utilisateur.service";
 import {
   DemandeContact,
   Portfolio,
@@ -16,11 +20,11 @@ import {
   type PortfolioCreateInput,
   type PortfolioUpdateInput,
 } from "./portfolio.schemas";
-import type {
-  BlocPortfolio,
-  BlocPortfolioPublic,
-  StatutDemande,
-  TypeBloc,
+import {
+  CATEGORIES_PORTFOLIO,
+  type BlocPortfolio,
+  type BlocPortfolioPublic,
+  type StatutDemande,
 } from "./portfolio.types";
 import { portfolioIntegrations } from "./integrations";
 import { INITIAL_DEMO_BLOCKS } from "./components/editor/demoData";
@@ -49,30 +53,13 @@ function serializeBlocks(blocks: BlocPortfolio[], filigrane = false): BlocPortfo
 }
 
 function serializePublicBlocks(blocks: BlocPortfolio[], filigrane: boolean): BlocPortfolioPublic[] {
-  const configKeys: Record<TypeBloc, string[]> = {
-    HERO: ["titre", "sousTitre", "texteBouton", "lienBouton"],
-    A_PROPOS: ["texte", "anneesExperience"],
-    GALERIE: ["titre", "colonnes", "espacement", "categorie"],
-    COLLECTION: ["titre", "colonnes", "espacement", "categorie"],
-    CASE_STUDY: ["titre", "texte", "date", "lieu"],
-    AVANT_APRES: [],
-    TEMOIGNAGES: [],
-    SERVICES: ["forfaits"],
-    STATISTIQUES: ["afficher"],
-    VIDEO: ["urlVideo", "titre"],
-    CONTACT: ["texteIntro", "typesSeanceProposes"],
-  };
   return serializeBlocks(blocks, filigrane).map((block) => ({
     idBloc: block.idBloc,
     type: block.type,
     ordre: block.ordre,
     visible: block.visible,
     miseEnPage: block.miseEnPage,
-    configuration: Object.fromEntries(
-      configKeys[block.type]
-        .filter((key) => key in block.configuration)
-        .map((key) => [key, block.configuration[key]]),
-    ),
+    configuration: { ...block.configuration },
     elements: block.elements.map((element) => ({
       idElement: element.idElement,
       media: {
@@ -111,6 +98,8 @@ export type PortfolioPublic = {
   liensSociaux: PortfolioDocument["liensSociaux"];
   blocsPublies: BlocPortfolioPublic[];
   nombreVues: number;
+  noteMoyenne?: number;
+  nombreAvis?: number;
   datePublication?: string;
 };
 
@@ -142,6 +131,14 @@ function toPublic(
   doc: PortfolioLean,
   photographe: { nom: string; prenom: string },
 ): PortfolioPublic {
+  // If hero block has a custom cover photo, use it as the primary cover
+  const heroBlock = (doc.blocsPublies || doc.blocs || []).find((b: { type?: string }) => b.type === "HERO");
+  const heroCover = (heroBlock?.configuration as Record<string, unknown> | undefined)?.photoCouverture;
+  const cover =
+    typeof heroCover === "string" && heroCover.trim().length > 0
+      ? heroCover.trim()
+      : doc.photoCouverture;
+
   return {
     id: doc._id.toString(),
     proprietaire: doc.proprietaire.toString(),
@@ -150,7 +147,7 @@ function toPublic(
     titre: doc.titre,
     slogan: doc.slogan,
     bio: doc.bio,
-    photoCouverture: doc.filigrane ? applyWatermark(doc.photoCouverture) : doc.photoCouverture,
+    photoCouverture: doc.filigrane ? applyWatermark(cover) : cover,
     specialites: doc.specialites,
     ville: doc.ville,
     theme: doc.theme,
@@ -160,6 +157,8 @@ function toPublic(
     liensSociaux: doc.liensSociaux,
     blocsPublies: serializePublicBlocks(doc.blocsPublies, doc.filigrane),
     nombreVues: doc.nombreVues,
+    noteMoyenne: doc.noteMoyenne ?? 5,
+    nombreAvis: doc.nombreAvis ?? 0,
     datePublication: doc.datePublication?.toISOString(),
   };
 }
@@ -220,14 +219,56 @@ async function uniqueSlug(titre: string): Promise<string> {
 }
 
 function normalizeBlocks(blocks: BlocPortfolio[]): BlocPortfolio[] {
-  return blocks.map((block, blockIndex) => ({
-    ...block,
-    ordre: blockIndex,
-    elements: block.elements.map((element, elementIndex) => ({
-      ...element,
-      ordreAffichage: elementIndex,
-    })),
-  }));
+  return blocks.map((block, blockIndex) => {
+    const validBlockId =
+      block.idBloc && Types.ObjectId.isValid(block.idBloc)
+        ? block.idBloc
+        : new Types.ObjectId().toString();
+
+    return {
+      ...block,
+      idBloc: validBlockId,
+      ordre: blockIndex,
+      elements: (block.elements || []).map((element, elementIndex) => {
+        const validElementId =
+          element.idElement && Types.ObjectId.isValid(element.idElement)
+            ? element.idElement
+            : new Types.ObjectId().toString();
+
+        const validPhotoId =
+          element.photoId && Types.ObjectId.isValid(element.photoId)
+            ? element.photoId
+            : undefined;
+
+        const validClientId =
+          element.clientConcerne && Types.ObjectId.isValid(element.clientConcerne)
+            ? element.clientConcerne
+            : undefined;
+
+        const source =
+          element.source === "GALERIE_CLIENT" && !validClientId
+            ? "UPLOAD_PERSONNEL"
+            : element.source || "UPLOAD_PERSONNEL";
+
+        return {
+          ...element,
+          idElement: validElementId,
+          photoId: validPhotoId,
+          clientConcerne: validClientId,
+          source,
+          ordreAffichage: elementIndex,
+          // UPLOAD_PERSONNEL ne peut pas avoir de consentement client
+          statutConsentement:
+            source === "UPLOAD_PERSONNEL"
+              ? "NON_REQUIS"
+              : (element.statutConsentement || "ACCORDE"),
+          dateAjout: element.dateAjout
+            ? new Date(element.dateAjout).toISOString()
+            : new Date().toISOString(),
+        };
+      }),
+    };
+  });
 }
 
 function publishedBlocks(blocks: BlocPortfolio[]): { blocks: BlocPortfolio[]; removed: string[] } {
@@ -246,12 +287,17 @@ function publishedBlocks(blocks: BlocPortfolio[]): { blocks: BlocPortfolio[]; re
 
 function validatePublication(blocs: BlocPortfolio[], titre: string, photoCouverture: string): void {
   if (!titre.trim()) throw new ServiceError("A title is required.", "titre");
-  if (!photoCouverture) throw new ServiceError("A cover image is required.", "photoCouverture");
   if (blocs.filter((block) => block.type === "HERO").length !== 1) {
     throw new ServiceError("A portfolio must contain exactly one HERO block.", "blocs");
   }
-  if (!blocs.some((block) => block.elements.length > 0)) {
-    throw new ServiceError("At least one block must contain a photo.", "blocs");
+  // Accept publication if: doc has a cover photo, any block has photos, OR the HERO bloc config has a cover photo
+  const heroBlock = blocs.find((b) => b.type === "HERO");
+  const heroHasCover =
+    (heroBlock?.configuration?.photoCouverture && String(heroBlock.configuration.photoCouverture).trim().length > 0) ||
+    (photoCouverture && photoCouverture.trim().length > 0);
+  const anyBlockHasPhotos = blocs.some((block) => block.elements.length > 0);
+  if (!heroHasCover && !anyBlockHasPhotos) {
+    throw new ServiceError("Ajoutez au moins une photo de couverture dans le bloc Hero pour publier.", "blocs");
   }
   for (const block of blocs) {
     if (block.type !== "AVANT_APRES") continue;
@@ -384,37 +430,165 @@ export async function getPortfolioForEditor(
   };
 }
 
-export async function getOrCreatePortfolioForUser(
+export async function creerOuReinitialiserPortfolio(
   userId: string,
+  input: {
+    titre: string;
+    slogan?: string;
+    ville?: string;
+    specialites?: string[];
+    structureInitiale: "MODELE" | "VIDE";
+    photoCouverture?: string;
+  },
 ): Promise<PortfolioEditorData> {
   await connectDB();
   const ownerId = id(userId, "Owner");
+  const slug = await uniqueSlug(input.titre);
+
+  const cover =
+    input.photoCouverture ||
+    "https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=1600&q=80";
+
+  let initialBlocks: BlocPortfolio[] = [];
+
+  if (input.structureInitiale === "MODELE") {
+    initialBlocks = INITIAL_DEMO_BLOCKS.map((block) => {
+      const cloned = structuredClone(block);
+      if (cloned.type === "HERO") {
+        cloned.configuration.titre = input.titre;
+        if (input.slogan) cloned.configuration.sousTitre = input.slogan;
+      }
+      if (cloned.type === "A_PROPOS") {
+        cloned.configuration.titre = input.titre;
+      }
+      return cloned;
+    });
+  } else {
+    // Blank page mode: clean starting block
+    initialBlocks = [
+      {
+        idBloc: crypto.randomUUID().replaceAll("-", "").slice(0, 24),
+        type: "HERO",
+        ordre: 0,
+        visible: true,
+        miseEnPage: "PLEIN_ECRAN",
+        configuration: {
+          titre: input.titre,
+          sousTitre: input.slogan || "Photographie & direction artistique",
+          texteBouton: "Me contacter",
+          lienBouton: "#contact",
+          tagline:
+            input.specialites && input.specialites.length > 0
+              ? input.specialites.join(" · ").toUpperCase()
+              : (input.ville ? input.ville.toUpperCase() : "PORTFOLIO"),
+          photoCouverture: cover,
+          liensSociaux: [],
+        },
+        elements: [],
+      },
+    ];
+  }
+
+  // Delete existing portfolio if any
+  await Portfolio.deleteOne({ proprietaire: ownerId });
+
+  await Portfolio.create({
+    proprietaire: ownerId,
+    slug,
+    titre: input.titre,
+    slogan: input.slogan || "Photographe professionnel",
+    bio: "Capturing delicate, candid memories in natural light for more than a decade.",
+    photoCouverture: cover,
+    specialites: (input.specialites && input.specialites.length > 0
+      ? input.specialites
+          .map((s) => s.toUpperCase())
+          .filter((s): s is (typeof CATEGORIES_PORTFOLIO)[number] =>
+            (CATEGORIES_PORTFOLIO as readonly string[]).includes(s)
+          )
+      : ["MARIAGE", "PORTRAIT"]) as (typeof CATEGORIES_PORTFOLIO)[number][],
+    ville: input.ville || "Paris",
+    theme: "MINIMAL",
+    couleurAccent: "#E8A34A",
+    filigrane: false,
+    seo: { metaTitre: input.titre, metaDescription: input.slogan || `Portfolio de ${input.titre}` },
+    liensSociaux: [
+      { reseau: "INSTAGRAM", url: "https://instagram.com" },
+      { reseau: "SITE_WEB", url: "https://studioflow.app" },
+    ],
+    blocs: initialBlocks,
+    blocsPublies: [],
+    statut: "BROUILLON",
+    visibilite: "PUBLIC",
+    nombreVues: 0,
+    dateCreation: new Date(),
+    dateModification: new Date(),
+  });
+
+  return getOrCreatePortfolioForUser(userId, input.titre);
+}
+
+export async function resetPortfolioForUser(
+  userId: string,
+  explicitFullName?: string,
+): Promise<PortfolioEditorData> {
+  await connectDB();
+  const ownerId = id(userId, "Owner");
+  await Portfolio.deleteOne({ proprietaire: ownerId });
+  return getOrCreatePortfolioForUser(userId, explicitFullName);
+}
+
+export async function getOrCreatePortfolioForUser(
+  userId: string,
+  explicitFullName?: string,
+): Promise<PortfolioEditorData> {
+  await connectDB();
+  const ownerId = id(userId, "Owner");
+
+  // 1. Get real photographer name dynamically from MongoDB
+  const realUser = await findUtilisateurById(userId);
+  const photographe = realUser || (await portfolioIntegrations.utilisateursService.getUtilisateur(userId));
+  let photographerName = explicitFullName?.trim();
+  if (!photographerName && photographe) {
+    photographerName = `${photographe.prenom} ${photographe.nom}`.trim();
+  }
+  if (!photographerName) {
+    photographerName = "Photographe";
+  }
+
   let doc = await Portfolio.findOne({ proprietaire: ownerId }).lean<PortfolioLean>();
 
   if (!doc) {
-    const photographe = await portfolioIntegrations.utilisateursService.getUtilisateur(userId);
-    const titre = photographe ? `${photographe.prenom} ${photographe.nom}` : "Aurélie Morales";
-    const slug = await uniqueSlug(titre);
+    const slug = await uniqueSlug(photographerName);
+
+    const initialBlocks = INITIAL_DEMO_BLOCKS.map((block) => {
+      const cloned = structuredClone(block);
+      if (cloned.type === "HERO") {
+        cloned.configuration.titre = photographerName;
+      }
+      if (cloned.type === "A_PROPOS") {
+        cloned.configuration.titre = photographerName;
+      }
+      return cloned;
+    });
 
     const created = await Portfolio.create({
       proprietaire: ownerId,
       slug,
-      titre,
+      titre: photographerName,
       slogan: "Photographe de mariage & portraits intimes",
       bio: "Capturing delicate, candid memories in natural light for more than a decade. Based in south-west France, traveling worldwide for destinations that speak of love and grace.",
       photoCouverture: "https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=1600&q=80",
       specialites: ["MARIAGE", "PORTRAIT"],
-      ville: "Bordeaux",
+      ville: "Paris",
       theme: "MINIMAL",
       couleurAccent: "#E8A34A",
       filigrane: false,
-      seo: { metaTitre: titre, metaDescription: "Photographe de mariage & portraits intimes" },
+      seo: { metaTitre: photographerName, metaDescription: `Portfolio de ${photographerName}` },
       liensSociaux: [
-        { reseau: "INSTAGRAM", url: "https://instagram.com/aurelie_morales" },
-        { reseau: "FACEBOOK", url: "https://facebook.com/aurelie.morales.photo" },
+        { reseau: "INSTAGRAM", url: "https://instagram.com" },
         { reseau: "SITE_WEB", url: "https://studioflow.app" },
       ],
-      blocs: INITIAL_DEMO_BLOCKS,
+      blocs: initialBlocks,
       blocsPublies: [],
       statut: "BROUILLON",
       visibilite: "PUBLIC",
@@ -423,15 +597,65 @@ export async function getOrCreatePortfolioForUser(
       dateModification: new Date(),
     });
     doc = (await Portfolio.findById(created._id).lean<PortfolioLean>())!;
+  } else {
+    // If doc was previously seeded with placeholder titles, or Hero still has demo names,
+    // sync dynamically with the real connected photographer's name from MongoDB!
+    let needsUpdate = false;
+    const updates: Record<string, unknown> = {};
+
+    if (photographerName && photographerName !== "Photographe") {
+      if (!doc.titre || doc.titre === "Aurélie Morales" || doc.titre === "titlep") {
+        updates.titre = photographerName;
+        updates["seo.metaTitre"] = photographerName;
+        doc.titre = photographerName;
+        needsUpdate = true;
+      }
+
+      if (!doc.slug || doc.slug === "aurelie-morales" || doc.slug === "titlep") {
+        const newSlug = await uniqueSlug(photographerName);
+        updates.slug = newSlug;
+        doc.slug = newSlug;
+        needsUpdate = true;
+      }
+
+      doc.blocs = doc.blocs.map((block) => {
+        if (block.type === "HERO") {
+          if (!block.configuration.titre || block.configuration.titre === "Aurélie & Marc" || block.configuration.titre === "titlep") {
+            block.configuration.titre = photographerName;
+            needsUpdate = true;
+          }
+        }
+        if (block.type === "A_PROPOS") {
+          if (!block.configuration.titre || block.configuration.titre === "Aurélie Morales" || block.configuration.titre === "titlep") {
+            block.configuration.titre = photographerName;
+            needsUpdate = true;
+          }
+        }
+        return block;
+      });
+    }
+
+    if (needsUpdate) {
+      await Portfolio.updateOne(
+        { _id: doc._id },
+        {
+          $set: {
+            ...updates,
+            blocs: doc.blocs,
+          },
+        },
+      );
+      doc = (await Portfolio.findById(doc._id).lean<PortfolioLean>())!;
+    }
   }
 
-  const photographe = (await portfolioIntegrations.utilisateursService.getUtilisateur(userId)) || {
-    nom: "Morales",
-    prenom: "Aurélie",
+  const photographeInfo = photographe || {
+    nom: doc.titre.split(" ").slice(1).join(" ") || "Photographe",
+    prenom: doc.titre.split(" ")[0] || "Mon",
   };
 
   return {
-    ...toPublic(doc, photographe),
+    ...toPublic(doc, photographeInfo),
     statut: doc.statut,
     visibilite: doc.visibilite,
     dateCreation: doc.dateCreation.toISOString(),
@@ -480,11 +704,116 @@ export async function getPublicPortfolio(slug: string): Promise<PortfolioPublic 
     statut: "PUBLIE",
   }).lean<PortfolioLean>();
   if (!doc) return null;
-  const photographe = await portfolioIntegrations.utilisateursService.getUtilisateur(
-    doc.proprietaire.toString(),
-  );
-  if (!photographe) return null;
-  return toPublic(doc, photographe);
+  // Always query real user from MongoDB first!
+  const realUser = await findUtilisateurById(doc.proprietaire.toString());
+  const photographe = realUser
+    ? {
+        id: realUser.id,
+        nom: realUser.nom,
+        prenom: realUser.prenom,
+        role: realUser.role as "PHOTOGRAPHE" | "RETOUCHEUR" | "ADMIN",
+        statut: (realUser.statut === "ACTIF" ? "ACTIF" : "BLOQUE") as "ACTIF" | "BLOQUE",
+      }
+    : await portfolioIntegrations.utilisateursService.getUtilisateur(doc.proprietaire.toString());
+
+  const photoName = photographe
+    ? { nom: photographe.nom, prenom: photographe.prenom }
+    : { nom: "", prenom: doc.titre };
+  return toPublic(doc, photoName);
+}
+
+export type PortfolioRouteResult =
+  | {
+      status: "PUBLISHED";
+      portfolio: PortfolioPublic;
+    }
+  | {
+      status: "UNPUBLISHED";
+      slug: string;
+      photographeNom: string;
+      titre: string;
+    }
+  | {
+      status: "NOT_FOUND";
+      slug: string;
+    };
+
+export async function getPortfolioForPublicRoute(slug: string): Promise<PortfolioRouteResult> {
+  await connectDB();
+  const doc = await Portfolio.findOne({
+    slug: slug.toLowerCase(),
+  }).lean<PortfolioLean>();
+
+  if (!doc) {
+    return { status: "NOT_FOUND", slug };
+  }
+
+  // Always query real user from MongoDB first!
+  const realUser = await findUtilisateurById(doc.proprietaire.toString());
+  const photographe = realUser
+    ? {
+        id: realUser.id,
+        nom: realUser.nom,
+        prenom: realUser.prenom,
+        role: realUser.role as "PHOTOGRAPHE" | "RETOUCHEUR" | "ADMIN",
+        statut: (realUser.statut === "ACTIF" ? "ACTIF" : "BLOQUE") as "ACTIF" | "BLOQUE",
+      }
+    : await portfolioIntegrations.utilisateursService.getUtilisateur(doc.proprietaire.toString());
+
+  const photographeNom = photographe
+    ? `${photographe.prenom} ${photographe.nom}`.trim()
+    : doc.titre;
+
+  // Check if published with blocks
+  if (doc.statut === "PUBLIE" && doc.blocsPublies && doc.blocsPublies.length > 0) {
+    const photoName = photographe
+      ? { nom: photographe.nom, prenom: photographe.prenom }
+      : { nom: "", prenom: doc.titre };
+    const publicPort = toPublic(doc, photoName);
+    return { status: "PUBLISHED", portfolio: publicPort };
+  }
+
+  return {
+    status: "UNPUBLISHED",
+    slug,
+    photographeNom,
+    titre: doc.titre,
+  };
+}
+
+export async function noterPortfolio(
+  slug: string,
+  note: number,
+  auteur?: string,
+  commentaire?: string,
+): Promise<{ noteMoyenne: number; nombreAvis: number }> {
+  await connectDB();
+  if (note < 1 || note > 5) {
+    throw new ServiceError("La note doit être comprise entre 1 et 5 étoiles.");
+  }
+  const doc = await Portfolio.findOne({ slug: slug.toLowerCase() });
+  if (!doc) {
+    throw new ServiceError("Portfolio introuvable.");
+  }
+
+  const avisVisiteurs = doc.avisVisiteurs ?? [];
+  avisVisiteurs.push({
+    note,
+    auteur: auteur?.trim() || "Visiteur",
+    commentaire: commentaire?.trim() || "",
+    date: new Date(),
+  });
+
+  const total = avisVisiteurs.reduce((sum, a) => sum + a.note, 0);
+  const count = avisVisiteurs.length;
+  const noteMoyenne = Number((total / count).toFixed(1));
+
+  doc.avisVisiteurs = avisVisiteurs;
+  doc.nombreAvis = count;
+  doc.noteMoyenne = noteMoyenne;
+
+  await doc.save();
+  return { noteMoyenne, nombreAvis: count };
 }
 
 export async function listPublicPortfolios(
@@ -509,10 +838,21 @@ export async function listPublicPortfolios(
   ]);
   const items = await Promise.all(
     docs.map(async (doc) => {
-      const photographe = await portfolioIntegrations.utilisateursService.getUtilisateur(
-        doc.proprietaire.toString(),
-      );
-      return photographe ? toPublic(doc, photographe) : null;
+      const realUser = await findUtilisateurById(doc.proprietaire.toString());
+      const photographe = realUser
+        ? {
+            id: realUser.id,
+            nom: realUser.nom,
+            prenom: realUser.prenom,
+            role: realUser.role as "PHOTOGRAPHE" | "RETOUCHEUR" | "ADMIN",
+            statut: (realUser.statut === "ACTIF" ? "ACTIF" : "BLOQUE") as "ACTIF" | "BLOQUE",
+          }
+        : await portfolioIntegrations.utilisateursService.getUtilisateur(doc.proprietaire.toString());
+
+      const photoName = photographe
+        ? { nom: photographe.nom, prenom: photographe.prenom }
+        : { nom: "", prenom: doc.titre };
+      return toPublic(doc, photoName);
     }),
   );
   return {
@@ -614,9 +954,25 @@ export async function publishPortfolio(
   const { blocks, removed } = publishedBlocks(blocs);
   const slug = doc.slug ?? (await uniqueSlug(doc.titre));
   const publishedAt = new Date();
+  const heroBlock = blocs.find((b) => b.type === "HERO");
+  const heroCover = (heroBlock?.configuration as Record<string, unknown> | undefined)?.photoCouverture;
+  const newCover =
+    typeof heroCover === "string" && heroCover.trim().length > 0
+      ? heroCover.trim()
+      : doc.photoCouverture;
+
   const updated = await Portfolio.updateOne(
     { _id },
-    { $set: { slug, blocs, blocsPublies: blocks, statut: "PUBLIE", datePublication: publishedAt } },
+    {
+      $set: {
+        slug,
+        blocs,
+        blocsPublies: blocks,
+        photoCouverture: newCover,
+        statut: "PUBLIE",
+        datePublication: publishedAt,
+      },
+    },
     { timestamps: false },
   );
   if (!updated.matchedCount) throw new ServiceError("Portfolio not found.");
@@ -1000,3 +1356,70 @@ export async function listPendingConsents(clientId: string): Promise<PendingPort
   );
   return requests.flat();
 }
+
+export type PhotoPourSelecteur = {
+  id: string;
+  url: string;
+  urlMiniature: string;
+  titre: string;
+  client?: string;
+  clientId?: string;
+  dateAjout?: string;
+  scoreQualite: number;
+};
+
+/**
+ * Charge uniquement les photos appartenant au photographe connecté
+ * depuis la base de données MongoDB (collection `photos`, uploadePar = userId).
+ */
+export async function listerPhotosPhotographePourPortfolio(userId: string): Promise<PhotoPourSelecteur[]> {
+  await connectDB();
+  if (!Types.ObjectId.isValid(userId)) return [];
+  const userObjectId = new Types.ObjectId(userId);
+
+  try {
+    const photos = await Photo.find({
+      $or: [{ uploadePar: userObjectId }, { uploadePar: userId }],
+    })
+      .sort({ createdAt: -1 })
+      .populate({
+        path: "galerie",
+        select: "titre client",
+        populate: { path: "client", select: "nom prenom" },
+      })
+      .lean();
+
+    return photos.map((p) => {
+      const id = p._id.toString();
+      const galerie = p.galerie as
+        | { titre?: string; client?: { nom?: string; prenom?: string; _id?: Types.ObjectId } }
+        | undefined;
+
+      let clientNom: string | undefined;
+      let clientId: string | undefined;
+
+      if (galerie?.client && typeof galerie.client === "object") {
+        clientNom = `${galerie.client.prenom ?? ""} ${galerie.client.nom ?? ""}`.trim();
+        clientId = galerie.client._id?.toString();
+      }
+      if (!clientNom && galerie?.titre) {
+        clientNom = galerie.titre;
+      }
+
+      return {
+        id,
+        url: `/api/photos/${id}/file`,
+        urlMiniature: `/api/photos/${id}/miniature`,
+        titre: (p.nomFichier || "Photo").replace(/\.[^/.]+$/, ""),
+        client: clientNom || "Galerie client",
+        clientId,
+        dateAjout: p.createdAt ? new Date(p.createdAt).toISOString() : undefined,
+        scoreQualite: p.scoreQualite ?? 0,
+      };
+    });
+  } catch (err) {
+    console.error("Erreur lors de la récupération des photos du photographe:", err);
+    return [];
+  }
+}
+

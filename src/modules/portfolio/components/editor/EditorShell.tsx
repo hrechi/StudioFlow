@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   DndContext,
   DragOverlay,
@@ -24,7 +25,7 @@ import { EditorTopBar, type ViewportMode } from "./EditorTopBar";
 import { BlockPalette } from "./BlockPalette";
 import { Canvas } from "./Canvas";
 import { PropertiesPanel, type InspectorTab } from "./PropertiesPanel";
-import { PhotoPicker } from "./PhotoPicker";
+import { PhotoPicker, type PhotoItem } from "./PhotoPicker";
 import { INITIAL_DEMO_BLOCKS } from "./demoData";
 import { BLOCK_ICONS } from "./paletteData";
 import type { BlocPortfolio, ElementBlocPortfolio, TypeBloc } from "../../portfolio.types";
@@ -33,6 +34,8 @@ import {
   savePortfolio,
   mettreAJourPortfolio,
   publierPortfolio,
+  chargerPhotosPortfolio,
+  supprimerPortfolio,
 } from "../../portfolio.actions";
 import { editorFr } from "./fr";
 import "./editor.css";
@@ -118,14 +121,23 @@ type EditorShellProps = {
   initialPortfolio?: PortfolioEditorData;
   portfolioSlug?: string;
   portfolioTitle?: string;
+  initialPhotos?: PhotoItem[];
+  photographerName?: string;
 };
 
 export function EditorShell({
   initialPortfolio,
-  portfolioSlug = initialPortfolio?.slug || "aurelie-morales",
-  portfolioTitle = initialPortfolio?.titre || "Aurélie Morales",
+  portfolioSlug = initialPortfolio?.slug || "portfolio",
+  portfolioTitle = initialPortfolio?.titre || "Mon Portfolio",
+  initialPhotos = [],
+  photographerName = portfolioTitle,
 }: EditorShellProps) {
+  const router = useRouter();
   const portfolioId = initialPortfolio?.id;
+
+  // Connected photographer's photos from MongoDB
+  const [photographerPhotos, setPhotographerPhotos] = useState<PhotoItem[]>(initialPhotos);
+  const [isLoadingPhotos, setIsLoadingPhotos] = useState(false);
 
   // Core blocks state loaded from MongoDB
   const [blocks, setBlocks] = useState<BlocPortfolio[]>(
@@ -162,14 +174,32 @@ export function EditorShell({
   // Photo picker state
   const [photoPickerBlocId, setPhotoPickerBlocId] = useState<string | null>(null);
 
+  const handleOpenPhotoPicker = async (blocId: string) => {
+    setPhotoPickerBlocId(blocId);
+    if (photographerPhotos.length === 0) {
+      setIsLoadingPhotos(true);
+      try {
+        const res = await chargerPhotosPortfolio();
+        if (res.ok && res.data) {
+          setPhotographerPhotos(res.data);
+        }
+      } catch {
+        // keep current
+      } finally {
+        setIsLoadingPhotos(false);
+      }
+    }
+  };
+
   // Drag and Drop state
   const [draggedType, setDraggedType] = useState<TypeBloc | null>(null);
   const [draggedBlockId, setDraggedBlockId] = useState<string | null>(null);
   const [overTargetId, setOverTargetId] = useState<string | null>(null);
 
   // Portfolio page settings from MongoDB
+  const displayName = photographerName || initialPortfolio?.titre || portfolioTitle;
   const [portfolioData, setPortfolioData] = useState({
-    titre: initialPortfolio?.titre || portfolioTitle,
+    titre: displayName,
     slogan: initialPortfolio?.slogan || "Photographe de mariage & portraits intimes",
     ville: initialPortfolio?.ville || "Bordeaux",
     bio: initialPortfolio?.bio || "Capturing delicate, candid memories in natural light for more than a decade.",
@@ -201,6 +231,7 @@ export function EditorShell({
           const res = await savePortfolio({ portfolioId, blocs: nextBlocks });
           if (!res.ok) {
             console.error("Save portfolio failed:", res.error);
+            toast.error(res.error || "Erreur de sauvegarde.");
           }
         } catch (err) {
           console.error("Save portfolio exception:", err);
@@ -296,13 +327,18 @@ export function EditorShell({
           ? blocks.findIndex((b) => b.idBloc === selectedBlockId) + 1
           : blocks.length;
 
+    const config = structuredClone(defaultBlockConfigs[type]);
+    if ((type === "HERO" || type === "A_PROPOS") && portfolioTitle) {
+      config.titre = portfolioTitle;
+    }
+
     const newBlock: BlocPortfolio = {
       idBloc: newBlockId,
       type,
       ordre: insertAt,
       visible: true,
       miseEnPage: type === "HERO" ? "PLEIN_ECRAN" : "GRILLE",
-      configuration: structuredClone(defaultBlockConfigs[type]),
+      configuration: config,
       elements: [],
     };
 
@@ -409,10 +445,11 @@ export function EditorShell({
   const handleRemoveElement = (blocId: string, elementId: string) => {
     const nextBlocks = blocks.map((b) => {
       if (b.idBloc !== blocId) return b;
-      return {
-        ...b,
-        elements: b.elements.filter((el) => el.idElement !== elementId),
-      };
+      // Re-index ordreAffichage to stay continuous after removal
+      const remaining = b.elements
+        .filter((el) => el.idElement !== elementId)
+        .map((el, i) => ({ ...el, ordreAffichage: i }));
+      return { ...b, elements: remaining };
     });
     applyBlocksChange(nextBlocks);
     toast.success("Photo retirée du bloc");
@@ -423,9 +460,20 @@ export function EditorShell({
     if (!photoPickerBlocId) return;
     const nextBlocks = blocks.map((b) => {
       if (b.idBloc !== photoPickerBlocId) return b;
+      const updatedConfig = { ...b.configuration };
+      if (b.type === "HERO" && newElements[0]?.media?.url) {
+        updatedConfig.photoCouverture = newElements[0].media.url;
+      }
+      // Assign ordreAffichage continuing from the last existing element
+      const baseOrder = b.elements.length;
+      const reorderedNew = newElements.map((el, i) => ({
+        ...el,
+        ordreAffichage: baseOrder + i,
+      }));
       return {
         ...b,
-        elements: [...b.elements, ...newElements],
+        configuration: updatedConfig,
+        elements: [...b.elements, ...reorderedNew],
       };
     });
     applyBlocksChange(nextBlocks);
@@ -440,7 +488,12 @@ export function EditorShell({
     }
     setIsSaving(true);
     try {
-      await savePortfolio({ portfolioId, blocs: blocks });
+      const saveRes = await savePortfolio({ portfolioId, blocs: blocks });
+      if (!saveRes.ok) {
+        toast.error(saveRes.error || "Erreur d'enregistrement des blocs.");
+        setIsSaving(false);
+        return;
+      }
       const res = await publierPortfolio({ portfolioId });
       if (res.ok) {
         setIsPublished(true);
@@ -454,6 +507,46 @@ export function EditorShell({
     } finally {
       setIsSaving(false);
     }
+  };
+
+  // Delete portfolio from MongoDB
+  const handleDeletePortfolio = async () => {
+    if (!portfolioId) return;
+    if (!window.confirm("Êtes-vous sûr de vouloir supprimer définitivement ce portfolio de la base de données MongoDB ?")) {
+      return;
+    }
+    setIsSaving(true);
+    try {
+      const res = await supprimerPortfolio({ portfolioId });
+      if (res.ok) {
+        toast.success("Portfolio supprimé avec succès.");
+        router.push("/dashboard");
+        router.refresh();
+      } else {
+        toast.error(res.error || "Échec de la suppression.");
+      }
+    } catch {
+      toast.error("Erreur serveur lors de la suppression.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Reset portfolio blocks with photographer's name
+  const handleResetPortfolio = async () => {
+    if (!window.confirm(`Réinitialiser tous les blocs par défaut au nom de ${displayName} ?`)) {
+      return;
+    }
+    const freshBlocks = INITIAL_DEMO_BLOCKS.map((b) => {
+      const cloned = structuredClone(b);
+      cloned.idBloc = crypto.randomUUID().replaceAll("-", "").slice(0, 24);
+      if (cloned.type === "HERO" || cloned.type === "A_PROPOS") {
+        cloned.configuration.titre = displayName;
+      }
+      return cloned;
+    });
+    applyBlocksChange(freshBlocks);
+    toast.success("Blocs réinitialisés avec succès.");
   };
 
   // Collision detection: pointerWithin for palette, closestCenter for canvas
@@ -604,13 +697,15 @@ export function EditorShell({
                   : "published"
                 : editorFr.neverPublished
             }
+            theme={portfolioData.theme}
+            couleurAccent={portfolioData.couleurAccent}
             viewportMode={viewportMode}
             onSelectBlock={handleSelectBlock}
             onMoveBlock={handleMoveBlock}
             onToggleVisibility={handleToggleVisibility}
             onDuplicateBlock={handleDuplicateBlock}
             onDeleteBlock={handleDeleteBlock}
-            onOpenPhotoPicker={(id) => setPhotoPickerBlocId(id)}
+            onOpenPhotoPicker={handleOpenPhotoPicker}
             onDropAreaClick={() => handleAddBlock("GALERIE")}
           />
 
@@ -624,10 +719,13 @@ export function EditorShell({
               onUpdateConfiguration={handleUpdateConfiguration}
               onDuplicateBlock={handleDuplicateBlock}
               onDeleteBlock={handleDeleteBlock}
-              onOpenPhotoPicker={(id) => setPhotoPickerBlocId(id)}
+              onOpenPhotoPicker={handleOpenPhotoPicker}
               onRemoveElement={handleRemoveElement}
               portfolioData={portfolioData}
               onUpdatePortfolioData={handleUpdatePortfolioData}
+              portfolioSlug={portfolioSlug}
+              onDeletePortfolio={handleDeletePortfolio}
+              onResetPortfolio={handleResetPortfolio}
             />
           </div>
 
@@ -648,10 +746,13 @@ export function EditorShell({
                   onUpdateConfiguration={handleUpdateConfiguration}
                   onDuplicateBlock={handleDuplicateBlock}
                   onDeleteBlock={handleDeleteBlock}
-                  onOpenPhotoPicker={(id) => setPhotoPickerBlocId(id)}
+                  onOpenPhotoPicker={handleOpenPhotoPicker}
                   onRemoveElement={handleRemoveElement}
                   portfolioData={portfolioData}
                   onUpdatePortfolioData={handleUpdatePortfolioData}
+                  portfolioSlug={portfolioSlug}
+                  onDeletePortfolio={handleDeletePortfolio}
+                  onResetPortfolio={handleResetPortfolio}
                   className="w-full"
                 />
               </div>
@@ -688,6 +789,8 @@ export function EditorShell({
           destinationBlockName={
             selectedBlock ? editorFr.blockNames[selectedBlock.type] : "Gallery"
           }
+          photos={photographerPhotos}
+          isLoadingPhotos={isLoadingPhotos}
           onClose={() => setPhotoPickerBlocId(null)}
           onAddPhotos={handleAddPhotosToBlock}
         />

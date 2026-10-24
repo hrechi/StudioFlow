@@ -9,12 +9,16 @@ import {
   answerConsent,
   convertContactRequest,
   createPortfolio,
+  creerOuReinitialiserPortfolio,
   deletePortfolio,
   getPortfolioById,
   getPortfolioForEditor,
+  listerPhotosPhotographePourPortfolio,
+  noterPortfolio,
   publishPortfolio,
   saveGeneratedBio,
   savePortfolioBlocks,
+  type PhotoPourSelecteur,
   unpublishPortfolio,
   updateContactStatus,
   updatePortfolio,
@@ -69,7 +73,10 @@ export async function creerPortfolio(input: unknown): Promise<ActionResult<{ id:
 export async function savePortfolio(input: unknown): Promise<ActionResult> {
   const user = await requireArea("portfolio");
   const parsed = savePortfolioSchema.safeParse(input);
-  if (!parsed.success) return validationFailure(parsed.error);
+  if (!parsed.success) {
+    console.error("[savePortfolio] Validation errors:", JSON.stringify(parsed.error.issues, null, 2));
+    return validationFailure(parsed.error);
+  }
   try {
     await savePortfolioBlocks(parsed.data.portfolioId, user.id, parsed.data.blocs);
     revalidatePath(`/dashboard/portfolio/${parsed.data.portfolioId}`);
@@ -305,10 +312,10 @@ export async function lancerSelectionIA(categorie?: string) {
   }
 }
 
-export async function chargerPhotosPortfolio() {
-  const user = await requireRole("PHOTOGRAPHE");
+export async function chargerPhotosPortfolio(): Promise<ActionResult<PhotoPourSelecteur[]>> {
+  const user = await requireArea("portfolio");
   try {
-    const photos = await portfolioIntegrations.photosService.listerPhotosDuPhotographe(user.id);
+    const photos = await listerPhotosPhotographePourPortfolio(user.id);
     return success(photos);
   } catch (error) {
     return toFailure(error);
@@ -387,6 +394,52 @@ export async function suggererBlocsPortfolio(portfolioId: string): Promise<Actio
     const task = await suggererMiseEnPageIA(portfolio.blocs);
     if (!task.resultat) throw new Error(task.erreur ?? "Layout suggestion failed.");
     return success(task.resultat);
+  } catch (error) {
+    return toFailure(error);
+  }
+}
+
+export async function initialiserPortfolioAction(input: {
+  titre: string;
+  slogan?: string;
+  ville?: string;
+  specialites?: string[];
+  structureInitiale: "MODELE" | "VIDE";
+  photoCouverture?: string;
+}): Promise<ActionResult<{ id: string }>> {
+  const user = await requireArea("portfolio");
+  try {
+    const portfolio = await creerOuReinitialiserPortfolio(user.id, input);
+    revalidatePath("/dashboard/portfolio");
+    return success({ id: portfolio.id });
+  } catch (error) {
+    return toFailure(error);
+  }
+}
+
+export async function noterPortfolioAction(input: {
+  slug: string;
+  note: number;
+  auteur?: string;
+  commentaire?: string;
+}): Promise<ActionResult<{ noteMoyenne: number; nombreAvis: number }>> {
+  const schema = z.object({
+    slug: z.string().trim().min(1),
+    note: z.number().min(1).max(5),
+    auteur: z.string().trim().max(100).optional(),
+    commentaire: z.string().trim().max(1000).optional(),
+  });
+  const parsed = schema.safeParse(input);
+  if (!parsed.success) return validationFailure(parsed.error);
+  try {
+    const result = await noterPortfolio(
+      parsed.data.slug,
+      parsed.data.note,
+      parsed.data.auteur,
+      parsed.data.commentaire,
+    );
+    revalidatePath(`/portfolio/${parsed.data.slug}`);
+    return success(result);
   } catch (error) {
     return toFailure(error);
   }

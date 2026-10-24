@@ -1,52 +1,25 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Check, X } from "lucide-react";
+import { Check, Images, Loader2, Upload, X } from "lucide-react";
 import { SafeImage } from "@/components/shared/safe-image";
 import type { ElementBlocPortfolio } from "../../portfolio.types";
 
-const AVAILABLE_PHOTOS = [
-  {
-    id: "lib-1",
-    url: "https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=800&q=80",
-    titre: "Château de la Rivière - Domaine",
-    client: "Claire & Julien",
-  },
-  {
-    id: "lib-2",
-    url: "https://images.unsplash.com/photo-1511285560929-80b456fea0bc?auto=format&fit=crop&w=800&q=80",
-    titre: "Arche fleurie et allée",
-    client: "Claire & Julien",
-  },
-  {
-    id: "lib-3",
-    url: "https://images.unsplash.com/photo-1465495976277-4387d4b0b4c6?auto=format&fit=crop&w=800&q=80",
-    titre: "Échange des alliances en plein air",
-    client: "Élodie & Paul",
-  },
-  {
-    id: "lib-4",
-    url: "https://images.unsplash.com/photo-1583939003579-730e3918a45a?auto=format&fit=crop&w=800&q=80",
-    titre: "Danse dorée au crépuscule",
-    client: "Camille & Thomas",
-  },
-  {
-    id: "lib-5",
-    url: "https://images.unsplash.com/photo-1520854221256-17451cc331bf?auto=format&fit=crop&w=800&q=80",
-    titre: "Détails de table rustique",
-    client: "Claire & Julien",
-  },
-  {
-    id: "lib-6",
-    url: "https://images.unsplash.com/photo-1519225421980-715cb0215aed?auto=format&fit=crop&w=800&q=80",
-    titre: "Chemin des cyprès toscans",
-    client: "Sophie & Mathieu",
-  },
-];
+export type PhotoItem = {
+  id: string;
+  url: string;
+  urlMiniature?: string;
+  titre: string;
+  client?: string;
+  clientId?: string;
+  dateAjout?: string;
+};
 
 type PhotoPickerProps = {
   isOpen: boolean;
   destinationBlockName?: string;
+  photos?: PhotoItem[];
+  isLoadingPhotos?: boolean;
   onClose: () => void;
   onAddPhotos: (newElements: ElementBlocPortfolio[]) => void;
 };
@@ -54,12 +27,15 @@ type PhotoPickerProps = {
 export function PhotoPicker({
   isOpen,
   destinationBlockName = "Gallery",
+  photos = [],
+  isLoadingPhotos = false,
   onClose,
   onAddPhotos,
 }: PhotoPickerProps) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [customUrl, setCustomUrl] = useState("");
   const [customTitle, setCustomTitle] = useState("");
+  const [isUploading, setIsUploading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   // Close on Escape key
@@ -85,29 +61,74 @@ export function PhotoPicker({
     });
   };
 
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setIsUploading(true);
+    setErrorMessage(null);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch("/api/portfolio/upload", {
+        method: "POST",
+        body: formData,
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        throw new Error(data.message || "Échec du téléversement");
+      }
+      const uploadedMedia = data.data;
+      const newElem: ElementBlocPortfolio = {
+        idElement: crypto.randomUUID().replaceAll("-", "").slice(0, 24),
+        source: "UPLOAD_PERSONNEL",
+        media: {
+          url: uploadedMedia.url,
+          urlMiniature: uploadedMedia.urlMiniature || uploadedMedia.url,
+          largeur: uploadedMedia.largeur || 1600,
+          hauteur: uploadedMedia.hauteur || 1060,
+          publicId: uploadedMedia.publicId || `upload-${Date.now()}`,
+        },
+        titre: file.name.replace(/\.[^/.]+$/, ""),
+        ordreAffichage: 0,
+        estMisEnAvant: false,
+        role: "NORMAL",
+        statutConsentement: "NON_REQUIS",  // UPLOAD_PERSONNEL n'exige pas de consentement client
+        nombreLikes: 0,
+        dateAjout: new Date().toISOString(),
+      };
+      onAddPhotos([newElem]);
+      onClose();
+    } catch (err: unknown) {
+      setErrorMessage(err instanceof Error ? err.message : "Erreur de téléversement");
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
   const handleConfirm = () => {
     const selectedElements: ElementBlocPortfolio[] = [];
 
-    // From library
-    AVAILABLE_PHOTOS.forEach((photo) => {
+    // From connected photographer's MongoDB library (table photos / galeries)
+    photos.forEach((photo) => {
       if (selectedIds.has(photo.id)) {
         selectedElements.push({
-          idElement: `elem-${crypto.randomUUID().slice(0, 8)}`,
-          source: "GALERIE_CLIENT",
+          idElement: crypto.randomUUID().replaceAll("-", "").slice(0, 24),
+          photoId: photo.id.length === 24 ? photo.id : undefined,
+          source: "UPLOAD_PERSONNEL",
           media: {
             url: photo.url,
-            urlMiniature: photo.url,
-            largeur: 800,
-            hauteur: 600,
+            urlMiniature: photo.urlMiniature || photo.url,
+            largeur: 1600,
+            hauteur: 1060,
             publicId: photo.id,
           },
           titre: photo.titre,
           ordreAffichage: 0,
           estMisEnAvant: false,
           role: "NORMAL",
-          statutConsentement: "ACCORDE",
+          statutConsentement: "NON_REQUIS",  // UPLOAD_PERSONNEL n'exige pas de consentement client
           nombreLikes: 0,
-          dateAjout: new Date().toISOString(),
+          dateAjout: photo.dateAjout || new Date().toISOString(),
         });
       }
     });
@@ -119,20 +140,20 @@ export function PhotoPicker({
         return;
       }
       selectedElements.push({
-        idElement: `elem-${crypto.randomUUID().slice(0, 8)}`,
+        idElement: crypto.randomUUID().replaceAll("-", "").slice(0, 24),
         source: "UPLOAD_PERSONNEL",
         media: {
           url: customUrl.trim(),
           urlMiniature: customUrl.trim(),
-          largeur: 800,
-          hauteur: 600,
+          largeur: 1600,
+          hauteur: 1060,
           publicId: `upload-${Date.now()}`,
         },
         titre: customTitle.trim() || "Importation personnalisée",
         ordreAffichage: 0,
         estMisEnAvant: false,
         role: "NORMAL",
-        statutConsentement: "ACCORDE",
+        statutConsentement: "NON_REQUIS",  // UPLOAD_PERSONNEL n'exige pas de consentement client
         nombreLikes: 0,
         dateAjout: new Date().toISOString(),
       });
@@ -158,15 +179,15 @@ export function PhotoPicker({
       aria-labelledby="photo-picker-title"
       className="fixed inset-0 z-50 flex items-center justify-center p-4 select-none"
     >
-      {/* Blurred dark backdrop */}
+      {/* Blurred Backdrop */}
       <div
-        className="fixed inset-0 bg-black/80 backdrop-blur-sm transition-opacity"
+        className="fixed inset-0 bg-black/80 backdrop-blur-md transition-opacity"
         onClick={onClose}
         aria-hidden="true"
       />
 
-      {/* Modal 760px */}
-      <div className="relative z-10 flex max-h-[90vh] w-full max-w-[760px] flex-col rounded-2xl border border-white/10 bg-[#160e0a] text-[#f3ebdd] shadow-2xl animate-in zoom-in-95 duration-200">
+      {/* Modal Window: max 760px */}
+      <div className="relative flex max-h-[90vh] w-full max-w-[760px] flex-col rounded-2xl border border-white/10 bg-[#1c1410] shadow-[0_24px_64px_rgba(0,0,0,0.85)] z-10 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-white/[0.08] p-5">
           <div>
@@ -189,60 +210,104 @@ export function PhotoPicker({
 
         {/* Body */}
         <div className="flex-1 overflow-y-auto p-5 space-y-6">
-          {/* Photo library grid */}
+          {/* Photographer's MongoDB library grid */}
           <div>
-            <p className="mb-3 font-mono text-[10px] font-semibold tracking-wider text-[#9a8f82] uppercase">
-              From client galleries
-            </p>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-              {AVAILABLE_PHOTOS.map((photo) => {
-                const isSelected = selectedIds.has(photo.id);
-                return (
-                  <div
-                    key={photo.id}
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => toggleSelect(photo.id)}
-                    className={`group relative aspect-square cursor-pointer overflow-hidden rounded-xl border transition-all ${
-                      isSelected
-                        ? "border-[#e8a34a] ring-2 ring-[#e8a34a]/60 shadow-md"
-                        : "border-white/10 hover:border-white/30"
-                    }`}
-                  >
-                    <SafeImage
-                      src={photo.url}
-                      alt={photo.titre}
-                      fill
-                      unoptimized
-                      className="object-cover transition-transform group-hover:scale-105"
-                    />
+            <div className="mb-3 flex items-center justify-between">
+              <p className="font-mono text-[10px] font-semibold tracking-wider text-[#9a8f82] uppercase">
+                Vos photos de galeries ({photos.length})
+              </p>
+              <label className="flex cursor-pointer items-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-2.5 py-1 text-[11px] font-medium text-white/80 transition-colors hover:border-[#e8a34a] hover:text-[#e8a34a]">
+                {isUploading ? (
+                  <Loader2 className="size-3 animate-spin text-[#e8a34a]" />
+                ) : (
+                  <Upload className="size-3" />
+                )}
+                <span>Téléverser</span>
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  className="hidden"
+                  disabled={isUploading}
+                  onChange={handleFileUpload}
+                />
+              </label>
+            </div>
 
-                    {/* Check indicator */}
+            {isLoadingPhotos ? (
+              <div className="flex items-center justify-center py-12 text-white/40">
+                <Loader2 className="size-6 animate-spin text-[#e8a34a]" />
+              </div>
+            ) : photos.length === 0 ? (
+              <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-white/10 bg-white/[0.02] p-8 text-center">
+                <div className="mb-3 flex size-12 items-center justify-center rounded-full bg-[#e8a34a]/10 text-[#e8a34a]">
+                  <Images className="size-6" />
+                </div>
+                <p className="font-sans text-sm font-medium text-white">
+                  Aucune photo dans vos galeries
+                </p>
+                <p className="mt-1 max-w-sm text-xs text-white/50">
+                  Seules les photos de votre compte photographe sont disponibles. Vous pouvez téléverser un fichier ou utiliser une URL externe ci-dessous.
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 max-h-[380px] overflow-y-auto pr-1">
+                {photos.map((photo) => {
+                  const isSelected = selectedIds.has(photo.id);
+                  return (
                     <div
-                      className={`absolute top-2 right-2 flex size-6 items-center justify-center rounded-full border transition-all ${
+                      key={photo.id}
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => toggleSelect(photo.id)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          toggleSelect(photo.id);
+                        }
+                      }}
+                      className={`group relative aspect-square cursor-pointer overflow-hidden rounded-xl border transition-all ${
                         isSelected
-                          ? "border-[#e8a34a] bg-[#e8a34a] text-black shadow-xs"
-                          : "border-white/40 bg-black/50 text-transparent"
+                          ? "border-[#e8a34a] ring-2 ring-[#e8a34a]/60 shadow-md"
+                          : "border-white/10 hover:border-white/30"
                       }`}
                     >
-                      <Check className="size-3.5 stroke-[3]" />
-                    </div>
+                      <SafeImage
+                        src={photo.urlMiniature || photo.url}
+                        alt={photo.titre}
+                        fill
+                        unoptimized
+                        className="object-cover transition-transform group-hover:scale-105"
+                      />
 
-                    {/* Metadata badge at bottom */}
-                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/50 to-transparent p-2 text-left">
-                      <p className="truncate text-xs font-medium text-white">{photo.titre}</p>
-                      <p className="font-mono text-[9px] text-[#e8a34a]">{photo.client}</p>
+                      {/* Check indicator */}
+                      <div
+                        className={`absolute top-2 right-2 flex size-6 items-center justify-center rounded-full border transition-all ${
+                          isSelected
+                            ? "border-[#e8a34a] bg-[#e8a34a] text-black shadow-xs"
+                            : "border-white/40 bg-black/50 text-transparent"
+                        }`}
+                      >
+                        <Check className="size-3.5 stroke-[3]" />
+                      </div>
+
+                      {/* Metadata badge at bottom */}
+                      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/50 to-transparent p-2 text-left">
+                        <p className="truncate text-xs font-medium text-white">{photo.titre}</p>
+                        {photo.client && (
+                          <p className="truncate font-mono text-[9px] text-[#e8a34a]">{photo.client}</p>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           {/* Custom URL upload */}
           <div className="border-t border-white/[0.08] pt-5">
             <p className="mb-2 font-mono text-[10px] font-semibold tracking-wider text-[#9a8f82] uppercase">
-              Or import from external URL (https)
+              Ou importer depuis une URL externe (https)
             </p>
             <div className="grid gap-2 sm:grid-cols-3">
               <div className="sm:col-span-2">

@@ -442,16 +442,59 @@ export default async function HomePage() {
               </Reveal>
             ))}
           </ul>
-          <ul className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {publishedPortfolios.slice(0, 3).map((portfolio) => (
-              <li key={portfolio.id}>
-                <Link href={`/portfolio/${portfolio.slug}`} className="group block overflow-hidden rounded-2xl border border-foreground/10 bg-card">
-                  <div className="relative aspect-[16/10] overflow-hidden"><SafeImage src={portfolio.photoCouverture} alt="" fill unoptimized sizes="(min-width: 1024px) 33vw, 50vw" className="img-zoom object-cover" /></div>
-                  <div className="p-5"><p className="text-xs tracking-[0.18em] text-foreground/55 uppercase">{portfolio.specialites.join(" · ")}{portfolio.ville ? ` · ${portfolio.ville}` : ""}</p><h3 className="mt-2 text-lg font-semibold text-foreground">{portfolio.titre}</h3><p className="mt-1 text-sm text-foreground/60">{portfolio.photographe.prenom} {portfolio.photographe.nom}</p></div>
-                </Link>
-              </li>
-            ))}
-          </ul>
+          {publishedPortfolios.length > 0 && (
+            <div className="mt-16">
+              <div className="mb-6 flex items-center justify-between">
+                <div>
+                  <p className="eyebrow text-[#e8a34a]">Photographes StudioFlow</p>
+                  <h3 className="text-2xl font-bold tracking-tight text-foreground">Portfolios en ligne</h3>
+                </div>
+                <span className="font-mono text-xs text-foreground/50">{publishedPortfolios.length} portfolio(s) actif(s)</span>
+              </div>
+              <ul className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                {publishedPortfolios.map((portfolio) => (
+                  <li key={portfolio.id}>
+                    <Link
+                      href={`/portfolio/${portfolio.slug}`}
+                      className="group block overflow-hidden rounded-2xl border border-foreground/10 bg-card transition-all hover:border-[#e8a34a]/40 hover:shadow-xl"
+                    >
+                      <div className="relative aspect-[16/10] overflow-hidden bg-black/20">
+                        <SafeImage
+                          src={portfolio.photoCouverture}
+                          alt={portfolio.titre}
+                          fill
+                          unoptimized
+                          sizes="(min-width: 1024px) 33vw, 50vw"
+                          className="img-zoom object-cover"
+                        />
+                      </div>
+                      <div className="p-5">
+                        <p className="text-xs tracking-[0.18em] text-foreground/55 uppercase">
+                          {portfolio.specialites.join(" · ")}
+                          {portfolio.ville ? ` · ${portfolio.ville}` : ""}
+                        </p>
+                        <h4 className="mt-2 text-lg font-semibold text-foreground transition-colors group-hover:text-[#e8a34a]">
+                          {portfolio.titre}
+                        </h4>
+                        <div className="mt-2 flex items-center justify-between border-t border-foreground/10 pt-3">
+                          <p className="text-sm font-medium text-foreground/70">
+                            {portfolio.photographe.prenom} {portfolio.photographe.nom}
+                          </p>
+                          <div className="flex items-center gap-1 font-mono text-xs font-semibold text-[#e8a34a]">
+                            <span>★</span>
+                            <span>{(portfolio.noteMoyenne ?? 5).toFixed(1)}</span>
+                            {portfolio.nombreAvis ? (
+                              <span className="text-[10px] text-foreground/40">({portfolio.nombreAvis})</span>
+                            ) : null}
+                          </div>
+                        </div>
+                      </div>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
       </section>
 

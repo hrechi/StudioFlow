@@ -55,18 +55,19 @@ export function RenderBlockContent({
 
   switch (bloc.type) {
     case "HERO": {
-      const heading = (conf.titre as string) || "Aurélie & Marc";
+      const heading = (conf.titre as string) || "Portfolio";
       const subHeading = (conf.sousTitre as string) || "A late-summer wedding at Château de la Rivière";
       const buttonLabel = (conf.texteBouton as string) || editorFr.labels.enquiry;
       const tagline = (conf.tagline as string) || "BORDEAUX · MARIAGE · PORTRAIT";
       const cover =
         (conf.photoCouverture as string) ||
+        bloc.elements?.[0]?.media?.url ||
         "https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=1600&q=80";
 
       return (
-        <div className="relative flex min-h-[420px] w-full flex-col justify-end overflow-hidden p-8 text-white sm:min-h-[480px] sm:p-12">
+        <div className="relative isolate flex min-h-[420px] w-full flex-col justify-end overflow-hidden p-8 text-white sm:min-h-[480px] sm:p-12">
           {/* Cover image with subtle gradient overlay */}
-          <div className="absolute inset-0 -z-10 bg-neutral-900">
+          <div className="absolute inset-0 z-0 bg-neutral-900">
             <SafeImage
               src={cover}
               alt={heading}
@@ -118,7 +119,7 @@ export function RenderBlockContent({
     }
 
     case "A_PROPOS": {
-      const name = (conf.titre as string) || "Aurélie Morales";
+      const name = (conf.titre as string) || "À propos";
       const text = (conf.texte as string) || "Capturing delicate, candid memories in natural light...";
       const years = (conf.anneesExperience as number) ?? 11;
       const portrait =

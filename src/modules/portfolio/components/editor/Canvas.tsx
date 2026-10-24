@@ -14,6 +14,8 @@ type CanvasProps = {
   overTargetId?: string | null;
   portfolioTitle?: string;
   publicationStatus?: string;
+  theme?: string;
+  couleurAccent?: string;
   viewportMode: ViewportMode;
   onSelectBlock: (id: string | null) => void;
   onMoveBlock: (index: number, direction: "up" | "down") => void;
@@ -28,8 +30,10 @@ export function Canvas({
   blocks,
   selectedBlockId,
   overTargetId,
-  portfolioTitle = "Aurélie Morales",
+  portfolioTitle = "Mon Portfolio",
   publicationStatus = editorFr.neverPublished,
+  theme = "MINIMAL",
+  couleurAccent = "#e8a34a",
   viewportMode,
   onSelectBlock,
   onMoveBlock,
@@ -40,6 +44,7 @@ export function Canvas({
   onDropAreaClick,
 }: CanvasProps) {
   const visibleCount = blocks.filter((b) => b.visible).length;
+  const normalizedTheme = (theme || "MINIMAL").toUpperCase();
 
   const { setNodeRef: setEndDropRef, isOver: isEndOver } = useDroppable({
     id: "canvas-end",
@@ -82,11 +87,20 @@ export function Canvas({
           </div>
         </header>
 
-        {/* The White Sheet (La feuille blanche) */}
+        {/* The Sheet with dynamic theme applied */}
         <div
           onClick={(e) => e.stopPropagation()}
-          className={`sf-sheet-transition relative w-full overflow-hidden rounded-[12px] border border-black/10 bg-white text-[#1a120c] shadow-[0_20px_50px_rgba(0,0,0,0.5)] ${
+          style={{ "--portfolio-accent": couleurAccent } as React.CSSProperties}
+          className={`sf-sheet-transition relative w-full overflow-hidden rounded-[12px] shadow-[0_20px_50px_rgba(0,0,0,0.5)] transition-all duration-300 ${
             viewportMode === "mobile" ? "max-w-[390px]" : "max-w-[900px]"
+          } ${
+            normalizedTheme === "SOMBRE" || normalizedTheme === "DARK"
+              ? "bg-[#130d08] text-[#f3ebdd] border border-white/10"
+              : normalizedTheme === "EDITORIAL"
+                ? "bg-[#faf6ee] text-[#1c1410] border border-[#ded4c5] font-serif"
+                : normalizedTheme === "COLORE" || normalizedTheme === "COLOUR"
+                  ? "bg-[#fdfaf5] text-[#1b1510] border border-[#e8a34a]/30"
+                  : "bg-white text-[#1a120c] border border-black/10"
           }`}
         >
           {/* Sortable blocks container */}

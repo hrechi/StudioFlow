@@ -34,6 +34,14 @@ export type PortfolioDocument = {
   statut: (typeof STATUTS_PORTFOLIO)[number];
   visibilite: (typeof VISIBILITES)[number];
   nombreVues: number;
+  noteMoyenne?: number;
+  nombreAvis?: number;
+  avisVisiteurs?: {
+    note: number;
+    auteur?: string;
+    commentaire?: string;
+    date: Date;
+  }[];
   datePublication?: Date;
   dateCreation: Date;
   dateModification: Date;
@@ -107,6 +115,19 @@ const portfolioSchema = new Schema<PortfolioDocument>(
     statut: { type: String, enum: STATUTS_PORTFOLIO, default: "BROUILLON" },
     visibilite: { type: String, enum: VISIBILITES, default: "PUBLIC" },
     nombreVues: { type: Number, min: 0, default: 0 },
+    noteMoyenne: { type: Number, min: 1, max: 5, default: 5 },
+    nombreAvis: { type: Number, min: 0, default: 0 },
+    avisVisiteurs: {
+      type: [
+        {
+          note: { type: Number, min: 1, max: 5, required: true },
+          auteur: { type: String, trim: true, maxlength: 100 },
+          commentaire: { type: String, trim: true, maxlength: 1000 },
+          date: { type: Date, default: Date.now },
+        },
+      ],
+      default: [],
+    },
     datePublication: Date,
   },
   { timestamps: { createdAt: "dateCreation", updatedAt: "dateModification" }, collection: "portfolios" },

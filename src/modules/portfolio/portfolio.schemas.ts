@@ -37,10 +37,12 @@ export const mediaPortfolioSchema = z.object({
 
 export const elementPortfolioSchema = z
   .object({
-    idElement: objectId,
+    // Accept any non-empty string — normalizeBlocks() in the service converts these
+    // to valid 24-hex ObjectIds before writing to MongoDB.
+    idElement: z.string().min(1).max(64),
     source: z.enum(SOURCES_MEDIA),
-    photoId: objectId.optional(),
-    clientConcerne: objectId.optional(),
+    photoId: z.string().min(1).max(64).optional(),
+    clientConcerne: z.string().min(1).max(64).optional(),
     media: mediaPortfolioSchema,
     titre: z.string().trim().max(160).optional(),
     legende: z.string().trim().max(1000).optional(),
@@ -84,7 +86,8 @@ export const elementPortfolioSchema = z
   });
 
 const baseBlock = {
-  idBloc: objectId,
+  // Accept any non-empty string — normalizeBlocks() converts to valid ObjectId
+  idBloc: z.string().min(1).max(64),
   ordre: z.number().int().min(0),
   visible: z.boolean().default(true),
   miseEnPage: z.enum(MISES_EN_PAGE).default("GRILLE"),
@@ -210,16 +213,8 @@ export const portfolioBlocksSchema = z
 
     const allElementIds: string[] = [];
     for (const [blockIndex, block] of blocks.entries()) {
-      const elementOrders = block.elements
-        .map((element) => element.ordreAffichage)
-        .sort((a, b) => a - b);
-      if (elementOrders.some((order, index) => order !== index)) {
-        context.addIssue({
-          code: "custom",
-          path: [blockIndex, "elements"],
-          message: "Element order must be continuous starting at zero.",
-        });
-      }
+      // Note: ordreAffichage continuity is enforced by normalizeBlocks() in the service,
+      // not here, to avoid false rejections when elements are added/removed client-side.
       const pairRoles = new Map<number, { AVANT: number; APRES: number }>();
       for (const element of block.elements) {
         allElementIds.push(element.idElement);

@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import {
+  ArrowLeft,
   Check,
-  ChevronRight,
   Clock,
   ExternalLink,
   Loader2,
@@ -11,6 +11,7 @@ import {
   Redo2,
   RefreshCw,
   Smartphone,
+  Sparkles,
   Undo2,
   SlidersHorizontal,
   LayoutGrid,
@@ -37,7 +38,7 @@ type EditorTopBarProps = {
 };
 
 export function EditorTopBar({
-  portfolioSlug = "aurelie-morales",
+  portfolioSlug = "portfolio",
   isSaving = false,
   hasUnpublishedChanges = true,
   isPublished = false,
@@ -81,16 +82,15 @@ export function EditorTopBar({
           </span>
         </Link>
 
-        {/* Breadcrumb: hidden below 760px */}
-        <nav
-          aria-label="Fil d'Ariane"
-          className="hidden items-center gap-1.5 font-mono text-[11px] min-[760px]:flex"
+        {/* Return to Dashboard link */}
+        <Link
+          href="/dashboard"
+          title="Retour au tableau de bord"
+          className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-xs text-white/70 transition-all hover:border-[#e8a34a]/40 hover:bg-[#e8a34a]/10 hover:text-[#e8a34a]"
         >
-          <ChevronRight className="size-3.5 text-white/25" aria-hidden="true" />
-          <span className="text-white/40">/portfolio/{portfolioSlug}</span>
-          <ChevronRight className="size-3.5 text-white/25" aria-hidden="true" />
-          <span className="text-white/75">/edit</span>
-        </nav>
+          <ArrowLeft className="size-3.5" aria-hidden="true" />
+          <span className="font-sans text-[11px] font-medium hidden sm:inline">Tableau de bord</span>
+        </Link>
       </div>
 
       {/* Center status: Saved badge + Unpublished changes */}
@@ -195,6 +195,16 @@ export function EditorTopBar({
             <Smartphone className="size-3.5" aria-hidden="true" />
           </button>
         </div>
+
+        {/* Reconfigure / Change template button */}
+        <Link
+          href="/dashboard/portfolio?setup=true"
+          title="Reconfigurer (Page blanche ou Template)"
+          className="hidden items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-xs text-white/70 transition-colors hover:border-[#e8a34a]/50 hover:bg-[#e8a34a]/10 hover:text-[#e8a34a] sm:flex"
+        >
+          <Sparkles className="size-3 text-[#e8a34a]" />
+          <span className="font-sans text-[11px]">Modèle</span>
+        </Link>
 
         {/* View page button: visible once published */}
         {isPublished && (

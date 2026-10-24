@@ -1,4 +1,7 @@
 import "server-only";
+import { Types } from "mongoose";
+import { connectDB } from "@/lib/db";
+import { Photo } from "@/modules/photos-galeries/photo.model";
 import { createNotification } from "@/modules/utilisateurs/notification.service";
 import { findUtilisateurById, listUtilisateurs } from "@/modules/utilisateurs/utilisateur.service";
 import { mockAvisService, mockNotificationsService, mockPhotosService, mockSeancesService, mockUtilisateursService } from "./portfolio-integrations.mock";
@@ -32,16 +35,50 @@ const realIntegrations: PortfolioIntegrations = {
     },
   },
   photosService: {
-    // The gallery service does not yet expose photographer ownership and client-consent metadata.
-    // Fail closed until that contract is implemented instead of leaking arbitrary library photos.
-    async getPhotoPourPortfolio() {
-      return null;
+    async getPhotoPourPortfolio(photoId) {
+      await connectDB();
+      if (!Types.ObjectId.isValid(photoId)) return null;
+      const photo = await Photo.findById(photoId).lean();
+      if (!photo) return null;
+      return {
+        id: photo._id.toString(),
+        url: `/api/photos/${photo._id}/file`,
+        urlMiniature: `/api/photos/${photo._id}/miniature`,
+        scoreQualite: photo.scoreQualite ?? 0,
+      };
     },
-    async listerPhotosDuPhotographe() {
-      return [];
+    async listerPhotosDuPhotographe(photographeId) {
+      await connectDB();
+      if (!Types.ObjectId.isValid(photographeId)) return [];
+      const userObjectId = new Types.ObjectId(photographeId);
+      const photos = await Photo.find({
+        $or: [{ uploadePar: userObjectId }, { uploadePar: photographeId }],
+      })
+        .sort({ createdAt: -1 })
+        .lean();
+      return photos.map((p) => ({
+        id: p._id.toString(),
+        url: `/api/photos/${p._id}/file`,
+        urlMiniature: `/api/photos/${p._id}/miniature`,
+        scoreQualite: p.scoreQualite ?? 0,
+      }));
     },
-    async listerMeilleuresPhotos() {
-      return [];
+    async listerMeilleuresPhotos(photographeId, _categorie, limite = 12) {
+      await connectDB();
+      if (!Types.ObjectId.isValid(photographeId)) return [];
+      const userObjectId = new Types.ObjectId(photographeId);
+      const photos = await Photo.find({
+        $or: [{ uploadePar: userObjectId }, { uploadePar: photographeId }],
+      })
+        .sort({ scoreQualite: -1, createdAt: -1 })
+        .limit(limite)
+        .lean();
+      return photos.map((p) => ({
+        id: p._id.toString(),
+        url: `/api/photos/${p._id}/file`,
+        urlMiniature: `/api/photos/${p._id}/miniature`,
+        scoreQualite: p.scoreQualite ?? 0,
+      }));
     },
   },
   avisService: mocks.avisService,
