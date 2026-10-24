@@ -51,7 +51,80 @@ export type Facture = {
   paiements?: Paiement[];
   /** True when this single invoice covers the whole quote (plan COMPLET). */
   paiementUnique?: boolean;
+  /** Offline payments the client declared with a proof, waiting for / checked by the studio. */
+  declarations?: DeclarationPaiement[];
 };
+
+/** Proposé: status of a payment the client declared (transfer, cheque, cash) with its proof. */
+export const STATUTS_DECLARATION = ["EN_ATTENTE", "VALIDEE", "REJETEE"] as const;
+export type StatutDeclaration = (typeof STATUTS_DECLARATION)[number];
+
+export type DeclarationPaiement = {
+  id: string;
+  montant: number;
+  date: string;
+  modePaiement: ModePaiement;
+  reference?: string;
+  commentaire?: string;
+  statut: StatutDeclaration;
+  motifRejet?: string;
+  preuve?: { id: string; nom: string; contentType: string };
+  createdAt: string;
+  analyseIA?: AnalysePreuve;
+};
+
+/**
+ * AI check of a payment proof: Gemini only reads the document (extrait); the comparison with the
+ * declaration and the invoice (verifications, verdict) is computed by code, never by the model.
+ */
+export const VERDICTS_ANALYSE = ["EN_COURS", "CONCORDE", "ECART", "ILLISIBLE", "INDISPONIBLE"] as const;
+export type VerdictAnalyse = (typeof VERDICTS_ANALYSE)[number];
+
+export type VerificationPreuve = {
+  code: string;
+  statut: "ok" | "attention" | "ecart";
+  label: string;
+  detail?: string;
+};
+
+export type AnalysePreuve = {
+  verdict: VerdictAnalyse;
+  resume: string;
+  confiance?: number; // 0–1, how readable the document was
+  extrait?: {
+    typeDocument?: string;
+    montant?: number | null; // TND
+    devise?: string | null;
+    date?: string | null; // YYYY-MM-DD
+    reference?: string | null;
+    beneficiaire?: string | null;
+    emetteur?: string | null;
+    banque?: string | null;
+  };
+  verifications: VerificationPreuve[];
+  analyseLe?: string;
+};
+
+export const verdictAnalyseConfig: StatusConfig<VerdictAnalyse> = {
+  EN_COURS: { label: "AI is reading the proof…", tone: "neutral" },
+  CONCORDE: { label: "AI: matches", tone: "success" },
+  ECART: { label: "AI: mismatch found", tone: "danger" },
+  ILLISIBLE: { label: "AI: unreadable proof", tone: "warning" },
+  INDISPONIBLE: { label: "AI check unavailable", tone: "neutral" },
+};
+
+export const statutDeclarationConfig: StatusConfig<StatutDeclaration> = {
+  EN_ATTENTE: { label: "Proof under review", tone: "warning" },
+  VALIDEE: { label: "Confirmed", tone: "success" },
+  REJETEE: { label: "Rejected", tone: "danger" },
+};
+
+/** Online payments go through the gateway; the others are declared with a proof. */
+export const MODES_HORS_LIGNE = ["VIREMENT", "CHEQUE", "ESPECES"] as const satisfies readonly ModePaiement[];
+/** A proof document is mandatory for these methods (cash can be confirmed at the studio desk). */
+export const MODES_PREUVE_OBLIGATOIRE: readonly ModePaiement[] = ["VIREMENT", "CHEQUE"];
+export const PREUVE_TYPES = ["image/jpeg", "image/png", "image/webp", "application/pdf"] as const;
+export const PREUVE_TAILLE_MAX = 5 * 1024 * 1024;
 
 /** Proposé: one entry per full or partial payment (cahier: enregistrerPaiement). */
 export type Paiement = {
@@ -142,7 +215,7 @@ export const pdfHref = (devisId: string, factureId?: string) =>
 
 export const modePaiementLabels: Record<ModePaiement, string> = {
   ESPECES: "Cash",
-  CARTE: "Card",
+  CARTE: "Online (card / e-Dinar)",
   VIREMENT: "Bank transfer",
   CHEQUE: "Cheque",
 };

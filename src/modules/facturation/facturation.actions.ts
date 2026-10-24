@@ -1,12 +1,13 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { toFailure, success, validationFailure, type ActionResult } from "@/lib/action-result";
+import { failure, toFailure, success, validationFailure, type ActionResult } from "@/lib/action-result";
 import { requireRole } from "@/lib/guards";
 import {
   devisIdSchema,
   devisInputSchema,
   paiementFormSchema,
+  rejetDeclarationSchema,
   reponseDevisSchema,
 } from "./facturation.schema";
 import {
@@ -23,6 +24,13 @@ import {
   withdrawDevis,
 } from "./devis.service";
 import { toMillimes } from "./facturation.utils";
+import {
+  confirmPaiementEnLigne,
+  rejectDeclaration,
+  startPaiementEnLigne,
+  validateDeclaration,
+} from "./paiement.service";
+import { analyserDeclaration } from "./preuve.analyse";
 import type { LignePrestation } from "./facturation.types";
 
 const PATH = "/dashboard/facturation/devis";
@@ -120,4 +128,49 @@ export async function cancelFacturesAction(devisId: string): Promise<ActionResul
   const actor = await requireRole("ADMIN");
   try { await cancelFactures(devisId, actor); revalidateBilling(devisId); return success(); }
   catch (error) { return toFailure(error); }
+}
+
+// ── Payments: proofs (offline) and online checkout ──────────────────────────
+
+export async function validateDeclarationAction(devisId: string, factureId: string, declarationId: string): Promise<ActionResult> {
+  const actor = await requireRole("ADMIN");
+  try { await validateDeclaration(devisId, factureId, declarationId, actor); revalidateBilling(devisId); return success(); }
+  catch (error) { return toFailure(error); }
+}
+
+export async function rejectDeclarationAction(devisId: string, factureId: string, declarationId: string, input: unknown): Promise<ActionResult> {
+  const actor = await requireRole("ADMIN");
+  const parsed = rejetDeclarationSchema.safeParse(input);
+  if (!parsed.success) return validationFailure(parsed.error);
+  try { await rejectDeclaration(devisId, factureId, declarationId, parsed.data.motif, actor); revalidateBilling(devisId); return success(); }
+  catch (error) { return toFailure(error); }
+}
+
+/** Client: starts an online checkout; the browser then goes to the returned URL. */
+export async function startPaiementEnLigneAction(devisId: string, factureId: string, passerelle: unknown): Promise<ActionResult<{ url: string }>> {
+  const actor = await requireRole("CLIENT");
+  if (passerelle !== "KONNECT" && passerelle !== "STRIPE" && passerelle !== "SIMULATION") return failure("Choose a payment method.");
+  try { return success(await startPaiementEnLigne(devisId, factureId, passerelle, actor)); }
+  catch (error) { return toFailure(error); }
+}
+
+/** Development only: outcome chosen on the local test payment page. */
+export async function simulatePaiementAction(ref: string, reussi: boolean): Promise<ActionResult<{ statut: string }>> {
+  const actor = await requireRole("CLIENT");
+  try {
+    const statut = await confirmPaiementEnLigne(ref, { success: reussi === true, actor });
+    revalidateBilling();
+    return success({ statut });
+  } catch (error) { return toFailure(error); }
+}
+
+/** Admin: runs the AI proof check again (e.g. after a Gemini outage). */
+export async function reanalyserPreuveAction(devisId: string, factureId: string, declarationId: string): Promise<ActionResult> {
+  await requireRole("ADMIN");
+  try {
+    const analyse = await analyserDeclaration(devisId, factureId, declarationId);
+    if (!analyse) return failure("This declaration has no proof to analyse.");
+    revalidateBilling(devisId);
+    return success();
+  } catch (error) { return toFailure(error); }
 }

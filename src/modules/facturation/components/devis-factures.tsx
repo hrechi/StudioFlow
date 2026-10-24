@@ -21,6 +21,7 @@ import {
   type Devis,
   type Facture,
 } from "../facturation.types";
+import { DeclarationsReview } from "./declarations-review";
 import { PaiementDialog } from "./paiement-dialog";
 
 /**
@@ -102,6 +103,7 @@ export function DevisFactures({ devis }: { devis: Devis }) {
                       </Button>
                     </div>
                   </div>
+                  <DeclarationsReview devisId={devis.id} factureId={f.id} declarations={f.declarations ?? []} />
                   {(f.paiements?.length ?? 0) > 0 && (
                     <ul className="space-y-1 rounded-lg bg-muted/40 p-3 text-xs text-slate">
                       {f.paiements!.map((p, i) => (

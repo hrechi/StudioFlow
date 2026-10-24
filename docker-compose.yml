@@ -45,6 +45,17 @@ services:
     environment:
       MONGODB_URI: *mongo-uri
       AUTH_SECRET: ${AUTH_SECRET:?Set AUTH_SECRET in .env (e.g. openssl rand -base64 32)}
+      # Online payments (Konnect sandbox/production); without keys the test checkout is used if enabled.
+      APP_URL: ${APP_URL:-http://localhost:3000}
+      KONNECT_API_KEY: ${KONNECT_API_KEY:-}
+      KONNECT_WALLET_ID: ${KONNECT_WALLET_ID:-}
+      KONNECT_API_URL: ${KONNECT_API_URL:-https://api.sandbox.konnect.network/api/v2}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-} # chatbot + AI payment proof checker
+      GEMINI_MODEL: ${GEMINI_MODEL:-}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+      STRIPE_TND_EUR_RATE: ${STRIPE_TND_EUR_RATE:-0.3}
+      PAIEMENT_SIMULATION: ${PAIEMENT_SIMULATION:-true} # local demo only: set false on a real server
     depends_on:
       mongo:
         condition: service_healthy

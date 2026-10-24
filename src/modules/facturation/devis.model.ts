@@ -2,6 +2,7 @@ import { Schema, Types, model, models, type Model } from "mongoose";
 import {
   MODES_PAIEMENT,
   PLANS_PAIEMENT,
+  STATUTS_DECLARATION,
   STATUTS_DEVIS,
   STATUTS_FACTURE,
   TYPES_FACTURE,
@@ -23,6 +24,45 @@ const paiementSchema = new Schema({
   createdAt: { type: Date, required: true, default: Date.now },
 }, { _id: false });
 
+/** A payment the client says they made offline, with the proof the studio checks before confirming. */
+const declarationSchema = new Schema({
+  montant: { type: Number, required: true, min: 1, validate: Number.isInteger },
+  date: { type: Date, required: true },
+  modePaiement: { type: String, enum: MODES_PAIEMENT, required: true },
+  reference: { type: String, trim: true, maxlength: 120 },
+  commentaire: { type: String, trim: true, maxlength: 500 },
+  preuve: {
+    type: new Schema({
+      fichier: { type: Schema.Types.ObjectId, required: true }, // GridFS id (bucket preuvesPaiement)
+      nom: { type: String, required: true, maxlength: 200 },
+      contentType: { type: String, required: true },
+      taille: { type: Number, required: true },
+      sha256: { type: String, index: true }, // fingerprint: the same file cannot justify two payments
+    }, { _id: false }),
+  },
+  /** AI reading of the proof + code comparison (see preuve.analyse.ts). Mixed: shape evolves with the checks. */
+  analyseIA: { type: Schema.Types.Mixed },
+  statut: { type: String, enum: STATUTS_DECLARATION, default: "EN_ATTENTE", required: true },
+  motifRejet: { type: String, trim: true, maxlength: 500 },
+  declarePar: { type: Schema.Types.ObjectId, ref: "utilisateurs", required: true },
+  traitePar: { type: Schema.Types.ObjectId, ref: "utilisateurs" },
+  traiteLe: Date,
+  createdAt: { type: Date, required: true, default: Date.now },
+}, { _id: true });
+
+/** One checkout started on the payment gateway; confirmed only after asking the gateway itself. */
+const paiementEnLigneSchema = new Schema({
+  ref: { type: String, required: true },
+  fournisseur: { type: String, enum: ["KONNECT", "STRIPE", "SIMULATION"], required: true },
+  montant: { type: Number, required: true, validate: Number.isInteger }, // millimes of TND credited
+  /** What the gateway actually charged when it is not TND (Stripe: EUR cents). */
+  devise: { type: String, enum: ["TND", "EUR"], default: "TND" },
+  montantDevise: { type: Number, validate: Number.isInteger },
+  statut: { type: String, enum: ["EN_ATTENTE", "PAYE", "ECHOUE"], default: "EN_ATTENTE", required: true },
+  createdAt: { type: Date, required: true, default: Date.now },
+  payeLe: Date,
+}, { _id: false });
+
 const factureSchema = new Schema({
   numero: { type: String, required: true },
   type: { type: String, enum: TYPES_FACTURE, required: true },
@@ -34,6 +74,8 @@ const factureSchema = new Schema({
   statut: { type: String, enum: STATUTS_FACTURE, required: true },
   dateCompletePaiement: Date,
   paiements: { type: [paiementSchema], default: [] },
+  declarations: { type: [declarationSchema], default: [] },
+  paiementsEnLigne: { type: [paiementEnLigneSchema], default: [] },
 }, { _id: true });
 
 export interface IPaiement {
@@ -44,6 +86,34 @@ export interface IPaiement {
   commentaire?: string;
   enregistrePar: Types.ObjectId;
   createdAt: Date;
+}
+
+export interface IDeclaration {
+  _id: Types.ObjectId;
+  montant: number;
+  date: Date;
+  modePaiement: (typeof MODES_PAIEMENT)[number];
+  reference?: string;
+  commentaire?: string;
+  preuve?: { fichier: Types.ObjectId; nom: string; contentType: string; taille: number; sha256?: string };
+  analyseIA?: Record<string, unknown>;
+  statut: (typeof STATUTS_DECLARATION)[number];
+  motifRejet?: string;
+  declarePar: Types.ObjectId;
+  traitePar?: Types.ObjectId;
+  traiteLe?: Date;
+  createdAt: Date;
+}
+
+export interface IPaiementEnLigne {
+  ref: string;
+  fournisseur: "KONNECT" | "STRIPE" | "SIMULATION";
+  montant: number;
+  devise?: "TND" | "EUR";
+  montantDevise?: number;
+  statut: "EN_ATTENTE" | "PAYE" | "ECHOUE";
+  createdAt: Date;
+  payeLe?: Date;
 }
 
 export interface IFacture {
@@ -58,6 +128,8 @@ export interface IFacture {
   statut: (typeof STATUTS_FACTURE)[number];
   dateCompletePaiement?: Date;
   paiements: IPaiement[];
+  declarations?: IDeclaration[];
+  paiementsEnLigne?: IPaiementEnLigne[];
 }
 
 export interface IDevis {
@@ -126,5 +198,6 @@ const devisSchema = new Schema<IDevis>({
 }, { timestamps: true, collection: "devis" });
 
 devisSchema.index({ client: 1, statut: 1 });
+devisSchema.index({ "factures.paiementsEnLigne.ref": 1 });
 
 export const Devis: Model<IDevis> = (models.Devis as Model<IDevis> | undefined) ?? model<IDevis>("Devis", devisSchema);

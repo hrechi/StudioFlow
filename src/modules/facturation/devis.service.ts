@@ -17,6 +17,7 @@ import {
   type Devis as DevisView,
   type Facture,
   type FactureAvecContexte,
+  type AnalysePreuve,
   type LignePrestation,
   type PlanPaiement,
   type StatutDevis,
@@ -97,6 +98,19 @@ function toFactureView(facture: IFacture, doc: Pick<DevisLean, "_id" | "factures
     statut: statutFacture(facture),
     datePaiement: facture.dateCompletePaiement?.toISOString(),
     paiementUnique: facture.type === "SOLDE" && !doc.factures.some((f) => f.type === "ACOMPTE"),
+    declarations: (facture.declarations ?? []).map((d) => ({
+      id: d._id.toString(),
+      montant: fromMillimes(d.montant),
+      date: new Date(d.date).toISOString(),
+      modePaiement: d.modePaiement,
+      reference: d.reference,
+      commentaire: d.commentaire,
+      statut: d.statut,
+      motifRejet: d.motifRejet,
+      preuve: d.preuve ? { id: d.preuve.fichier.toString(), nom: d.preuve.nom, contentType: d.preuve.contentType } : undefined,
+      createdAt: new Date(d.createdAt).toISOString(),
+      analyseIA: d.analyseIA ? (JSON.parse(JSON.stringify(d.analyseIA)) as AnalysePreuve) : undefined,
+    })),
     paiements: facture.paiements.map((p) => ({
       montant: fromMillimes(p.montant),
       date: new Date(p.date).toISOString(),
@@ -417,15 +431,38 @@ export async function recordPaiement(devisId: string, factureId: string, input: 
   if (input.montant > reste) throw new ValidationError("The amount is higher than what remains to be paid.", "montant");
   if (input.date > new Date()) throw new ValidationError("The payment date cannot be in the future.", "date");
 
+  applyPaiement(doc, facture, input, actor);
+  await doc.save();
+  await notifyPaiementConfirme(doc, facture, input.montant);
+}
+
+/**
+ * Adds a confirmed payment to an invoice (cahier: enregistrerPaiement). Shared by the studio's
+ * manual entry, a validated client proof and a verified online payment. The caller saves.
+ */
+export function applyPaiement(doc: HydratedDocument<IDevis>, facture: IFacture, input: PaiementInput, actor: Actor) {
   facture.paiements.push({ ...input, enregistrePar: objectId(actor.id), createdAt: new Date() });
   facture.montantPaye += input.montant;
   facture.montantRestant = facture.montantTTC - facture.montantPaye;
   facture.statut = statutFacture(facture);
   if (facture.montantRestant === 0) facture.dateCompletePaiement = input.date;
   log(doc, "PAYMENT", actor, doc.statut);
-  await doc.save();
-  await notify(doc.client.toString(), "Payment received", `We recorded your payment on invoice ${facture.numero}. Thank you!`, CLIENT_PATH);
 }
+
+/** "Payment confirmed" notification: the client can then download the updated invoice. */
+export async function notifyPaiementConfirme(doc: Pick<IDevis, "client">, facture: IFacture, montant: number) {
+  const reste = facture.montantTTC - facture.montantPaye;
+  await notify(
+    doc.client.toString(),
+    reste > 0 ? "Payment confirmed" : "Invoice paid",
+    reste > 0
+      ? `Your payment of ${fromMillimes(montant).toFixed(3)} TND on invoice ${facture.numero} is confirmed. Remaining: ${fromMillimes(reste).toFixed(3)} TND.`
+      : `Invoice ${facture.numero} is fully paid. Thank you! You can download it from your space.`,
+    CLIENT_PATH,
+  );
+}
+
+export { notify as notifyFacturation, objectId as toObjectId };
 
 /**
  * Cancels all the invoices of a quote (e.g. wrong amounts) while nothing has been paid; the

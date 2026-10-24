@@ -14,6 +14,7 @@ export default async function FacturesPage() {
   const user = await requireArea("facturation");
   const factures = await listFactures(user);
   const unpaid = factures.filter((f) => f.statut !== "PAYEE");
+  const aRevoir = factures.reduce((n, f) => n + (f.declarations ?? []).filter((d) => d.statut === "EN_ATTENTE").length, 0);
   return (
     <div className="space-y-6">
       <PageHeader
@@ -26,7 +27,13 @@ export default async function FacturesPage() {
           value={formatTND(Math.round(unpaid.reduce((s, f) => s + f.montantTTC - f.montantPaye, 0) * 1000))}
           icon={Wallet}
         />
-        <StatCard label="Unpaid invoices" value={unpaid.length} icon={HandCoins} tone="amber" />
+        <StatCard
+          label="Unpaid invoices"
+          value={unpaid.length}
+          icon={HandCoins}
+          tone="amber"
+          hint={aRevoir > 0 ? `${aRevoir} payment proof${aRevoir > 1 ? "s" : ""} to review` : undefined}
+        />
         <StatCard
           label="Overdue"
           value={factures.filter((f) => f.statut === "EN_RETARD").length}

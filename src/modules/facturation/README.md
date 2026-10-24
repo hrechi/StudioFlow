@@ -20,11 +20,33 @@ their own non-draft quotes, and other staff roles are denied management access.
    choosing how to pay: **in full** (one invoice, due in 7 days) or **deposit +
    balance** (`tauxAcompte` % due in 7 days, the rest due on the session date),
    plus the payment method. The invoices are issued at that moment.
-4. The client pays the studio with that method; the admin confirms each payment
-   received (full or partial) on the invoice. The invoice status (`EN_ATTENTE`,
+4. The client pays each invoice from `/espace-client/factures`:
+   - **Online**, choosing the gateway when several are configured:
+     **Konnect** (`konnect.ts`, TND: Tunisian card, e-Dinar, wallet) and/or
+     **Stripe** (`stripe.ts`, test mode, charged in EUR at `STRIPE_TND_EUR_RATE`
+     since Stripe has no TND; return `/api/facturation/paiements/stripe`, optional
+     signed webhook `/api/facturation/paiements/stripe/webhook`). Konnect:
+     The callback `/api/facturation/paiements/konnect?payment_ref=…` is public,
+     but the payment is always re-read from the Konnect API before the invoice
+     is updated, and an atomic claim prevents applying it twice. Without
+     any gateway key, a test checkout
+     (`/espace-client/factures/paiement-test`) stands in: always in dev, and in a
+     production build only with `PAIEMENT_SIMULATION=true`.
+   - **Transfer / cheque / cash**: the client declares the amount, date and
+     reference with a proof (JPG/PNG/WEBP/PDF, 5 MB; mandatory for transfer and
+     cheque), stored in GridFS bucket `preuvesPaiement`. The admin opens the
+     proof on the quote page and confirms ("money received") or rejects with a
+     reason. The admin can still record a payment directly (e.g. cash at the desk).
+     **AI proof check** (`preuve.analyse.ts`, needs `GEMINI_API_KEY`): right after
+     the upload, Gemini reads the receipt (amount, date, reference, payee, bank,
+     signs of editing) and code compares it with the declaration and the invoice;
+     the admin sees "matches / mismatch / unreadable" with each check, and can run
+     it again. Each proof is fingerprinted (SHA-256): reusing the same file for
+     another payment is flagged even without Gemini. It is advisory only.
+   Every confirmed payment notifies the client; the invoice status (`EN_ATTENTE`,
    `PARTIELLEMENT_PAYEE`, `PAYEE`, `EN_RETARD`) is computed from the amounts and
-   today's date. Before any payment the admin can cancel the invoices and issue
-   them again.
+   today's date, and a paid invoice PDF carries a PAID stamp. Before any payment
+   the admin can cancel the invoices and issue them again.
 5. Quotes and invoices download as branded PDFs (`facturation.pdf.ts`, route
    `/api/facturation/devis/[id]/pdf[?facture=<id>]`), for the admin and the client.
 

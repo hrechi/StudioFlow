@@ -159,6 +159,15 @@ export function FacturesBoard({ factures }: { factures: FactureAvecContexte[] })
                     </td>
                     <td className="px-4 py-3">
                       <StatusBadge value={f.statut} config={statutFactureConfig} />
+                      {f.declarations?.some((d) => d.statut === "EN_ATTENTE") && (
+                        <Link
+                          href={`/dashboard/facturation/devis/${f.devis.id}`}
+                          className="mt-1 block text-xs font-semibold text-warning-text hover:underline"
+                        >
+                          Proof to review
+                          {f.declarations?.some((d) => d.statut === "EN_ATTENTE" && d.analyseIA?.verdict === "ECART") && " · AI found a mismatch"} →
+                        </Link>
+                      )}
                     </td>
                     <td className="px-4 py-3">
                       {f.statut !== "PAYEE" && f.risqueRetardIA !== undefined ? (

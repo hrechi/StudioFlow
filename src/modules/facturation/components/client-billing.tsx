@@ -1,7 +1,7 @@
 "use client";
 
 import { Check, Download, FileText, Loader2, Receipt, X } from "lucide-react";
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
@@ -35,16 +35,35 @@ import {
 } from "../facturation.types";
 import type { FactureAvecContexte } from "../facturation.types";
 import { answerDevisAction } from "../facturation.actions";
+import { ClientPaiementActions, type Passerelle } from "./client-paiement";
 
 /** /espace-client/factures — quotes to accept/refuse, invoices with paid/remaining. */
 export function ClientBilling({
   devis,
   factures,
+  passerelles,
+  tauxEur,
+  retourPaiement,
 }: {
   devis: Devis[];
   factures: FactureAvecContexte[];
+  /** Online gateways available: Konnect (TND), Stripe (test, EUR) or the local test checkout. */
+  passerelles: Passerelle[];
+  /** TND → EUR rate used by Stripe, to show the approximate charge. */
+  tauxEur: number;
+  /** Outcome when coming back from the online checkout (?paiement=…). */
+  retourPaiement?: "success" | "pending" | "failed";
 }) {
   const router = useRouter();
+  const shown = useRef(false);
+  useEffect(() => {
+    if (!retourPaiement || shown.current) return;
+    shown.current = true;
+    if (retourPaiement === "success") toast.success("Payment confirmed", { description: "Your invoice is updated; download it below." });
+    else if (retourPaiement === "pending") toast.info("Payment being processed", { description: "Refresh in a moment: the invoice updates as soon as the gateway confirms." });
+    else toast.error("Payment not completed", { description: "Nothing was charged. You can try again or send a proof of another payment." });
+    router.replace("/espace-client/factures", { scroll: false });
+  }, [retourPaiement, router]);
   const [accepting, setAccepting] = useState<Devis | null>(null);
   const [declining, setDeclining] = useState<Devis | null>(null);
   const [pending, start] = useTransition();
@@ -165,7 +184,7 @@ export function ClientBilling({
               {factures.map((f) => {
                 const reste = f.montantTTC - f.montantPaye;
                 return (
-                  <li key={f.id} className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center">
+                  <li key={f.id} className="flex flex-col gap-3 p-4 sm:flex-row sm:flex-wrap sm:items-center">
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="font-semibold text-foreground">{f.numero}</span>
@@ -203,6 +222,14 @@ export function ClientBilling({
                         PDF
                       </a>
                     </Button>
+                    <div className="w-full sm:basis-full">
+                      <ClientPaiementActions
+                        facture={f}
+                        passerelles={passerelles}
+                        tauxEur={tauxEur}
+                        modePrefere={devis.find((d) => d.id === f.devis.id)?.modePaiementPrefere}
+                      />
+                    </div>
                   </li>
                 );
               })}
@@ -320,8 +347,9 @@ function AcceptForm({ devis, onClose }: { devis: Devis; onClose: () => void }) {
             ))}
           </RadioGroup>
           <p className="text-xs text-muted-foreground">
-            You pay the studio directly with this method; the studio confirms each payment in your
-            space once it is received.
+            {mode === "CARTE"
+              ? "You will pay online by card or e-Dinar right after accepting, from your invoices."
+              : "After paying, send the proof from your invoices; the studio confirms it once the money is received."}
           </p>
         </fieldset>
       </div>

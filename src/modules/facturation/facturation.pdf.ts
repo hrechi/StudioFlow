@@ -1,5 +1,5 @@
 import "server-only";
-import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage, type RGB } from "pdf-lib";
+import { degrees, PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage, type RGB } from "pdf-lib";
 import { WORDMARK_PATH, WORDMARK_VIEWBOX } from "@/components/shared/logo-paths";
 import {
   factureTypeLabel,
@@ -75,7 +75,7 @@ class Writer {
 
   constructor(
     private doc: PDFDocument,
-    private fonts: Fonts,
+    readonly fonts: Fonts,
     private titre: string,
     private numero: string,
   ) {
@@ -245,6 +245,18 @@ function note(w: Writer, title: string, body: string) {
   w.y -= 12;
 }
 
+/** Green "PAID" stamp in the free space left of the totals, once the invoice is settled. */
+function paidStamp(w: Writer, top: number, datePaiement?: string) {
+  const x = M + 40;
+  const y = top - 78;
+  const rotate = degrees(12);
+  w.page.drawRectangle({ x, y, width: 140, height: 52, borderColor: C.success, borderWidth: 2.5, rotate, opacity: 0, borderOpacity: 0.85 });
+  w.page.drawText("PAID", { x: x + 30, y: y + 22, size: 26, font: w.fonts.bold, color: C.success, rotate, opacity: 0.85 });
+  if (datePaiement) {
+    w.page.drawText(safe(`in full · ${date(datePaiement)}`), { x: x + 22, y: y + 8, size: 8, font: w.fonts.regular, color: C.success, rotate, opacity: 0.85 });
+  }
+}
+
 async function create(titre: string, numero: string) {
   const doc = await PDFDocument.create();
   doc.setTitle(`${titre} ${numero} — ${STUDIO.nom}`);
@@ -303,7 +315,10 @@ export async function renderFacturePdf(devis: Devis, facture: Facture): Promise<
   }
   rows.push(["Paid", `- ${money(facture.montantPaye)}`]);
   rows.push([reste > 0 ? "Amount due" : "Paid in full", money(Math.max(0, reste)), "grand"]);
+  w.ensure(rows.length * 18 + 30);
+  const topTotals = w.y;
   totals(w, rows);
+  if (reste <= 0) paidStamp(w, topTotals, facture.datePaiement);
 
   if (facture.paiements?.length) {
     w.ensure(40 + facture.paiements.length * 14);
