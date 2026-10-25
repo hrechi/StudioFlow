@@ -8,7 +8,7 @@ import { materielSchema, objectIdSchema } from "./materiel.schemas";
 import { archiveMateriel, createMateriel, updateMateriel } from "./materiel.service";
 
 // Reads go through the pages (requireArea("materiel") + service); only writes need actions.
-const revalidate = () => revalidatePath("/dashboard/materiel", "layout");
+  const revalidate = () => revalidatePath("/dashboard/materiel", "layout");
 
 export async function createMaterielAction(input: unknown): Promise<ActionResult<{ id: string }>> {
   await requireRole("ADMIN");
