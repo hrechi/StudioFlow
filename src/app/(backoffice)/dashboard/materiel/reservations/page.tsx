@@ -2,17 +2,26 @@
 import { ArrowLeft, CalendarPlus } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ComingSoonButton } from "@/components/shared/coming-soon-button";
 import { PageHeader } from "@/components/shared/page-header";
+import { Button } from "@/components/ui/button";
 import { requireArea } from "@/lib/guards";
 import { KitSuggestion } from "@/modules/materiel/components/kit-suggestion";
+import { ReservationFormDialog } from "@/modules/materiel/components/reservation-form";
 import { ReservationsBoard } from "@/modules/materiel/components/reservations-board";
-import { KIT_SUGGERE, RESERVATIONS } from "@/modules/materiel/mock-data";
+import { listMateriels } from "@/modules/materiel/materiel.service";
+import { listReservations } from "@/modules/materiel/reservation-materiel.service";
+import { listSeancesReservables } from "@/modules/materiel/seance-source";
 
 export const metadata: Metadata = { title: "Equipment reservations" };
 
 export default async function ReservationsPage() {
-  await requireArea("materiel");
+  const user = await requireArea("materiel");
+  const [reservations, seances, materiels] = await Promise.all([
+    listReservations(),
+    listSeancesReservables(),
+    listMateriels(),
+  ]);
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -28,16 +37,25 @@ export default async function ReservationsPage() {
         title="Equipment reservations"
         description="Reserve equipment per session: overlapping reservations are blocked."
         actions={
-          <ComingSoonButton feature="New reservation">
-            <CalendarPlus aria-hidden />
-            New reservation
-          </ComingSoonButton>
+          <ReservationFormDialog
+            seances={seances}
+            materiels={materiels}
+            trigger={
+              <Button>
+                <CalendarPlus aria-hidden />
+                New reservation
+              </Button>
+            }
+          />
         }
       />
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]">
-        <ReservationsBoard reservations={RESERVATIONS} />
+        <ReservationsBoard
+          reservations={reservations}
+          currentUser={{ id: user.id, role: user.role }}
+        />
         <div className="self-start">
-          <KitSuggestion kit={KIT_SUGGERE} />
+          <KitSuggestion seances={seances} />
         </div>
       </div>
     </div>

@@ -41,11 +41,16 @@ export type Materiel = {
   etat: EtatMateriel;
   dateAchat: string;
   prix: number;
+  /** Manual flag: false = kept out of reservations (lent, maintenance…). Forced to false when EN_PANNE. */
   disponible: boolean;
-  photo: string; // UI only
+  photo?: string;
+  /** Archived equipment is hidden from the inventory and cannot be reserved. */
+  archive: boolean;
 };
 
-/** Collection `reservations` (searched by date to detect conflicts). */
+export type MaterielStats = { total: number; disponibles: number; enPanne: number };
+
+/** Collection `reservations_materiel` (searched by date to detect conflicts). */
 export type Reservation = {
   id: string;
   dateDebut: string;
@@ -53,15 +58,25 @@ export type Reservation = {
   statut: StatutReservation;
   remarqueRetour?: string;
   materiel: Pick<Materiel, "id" | "nom" | "categorie">;
-  seance: { id: string; titre: string };
-  photographe: UtilisateurRef;
+  seance: { id: string; titre: string; typeEvenement: string };
+  /** Who made the reservation (null if the account was deleted). */
+  utilisateur: UtilisateurRef | null;
 };
 
-/** AI-suggested kit for a séance (cahier §2.1). */
-export type KitSuggere = {
-  seance: { id: string; titre: string; type: string; date: string };
-  items: { materiel: Pick<Materiel, "id" | "nom" | "categorie">; raison: string }[];
-  confiance: number;
+/** Outcome of one item in a multi-item reservation (the "kit"). */
+export type ResultatReservation = { materielId: string; materielNom: string } & (
+  { ok: true; reservationId: string } | { ok: false; error: string }
+);
+
+/**
+ * Suggested kit for a séance (cahier §2.1), see kit.analyse.ts. `source` says who chose the
+ * items: the AI ("IA", with its confidence) or the fallback on past reservations ("HISTORIQUE").
+ */
+export type KitSuggereDTO = {
+  source: "IA" | "HISTORIQUE";
+  confiance?: number;
+  seance: { id: string; titre: string; typeEvenement: string; dateDebut: string; dateFin: string };
+  items: { materielId: string; nom: string; categorie: CategorieMateriel; raison: string }[];
 };
 
 export const categorieMaterielLabels: Record<CategorieMateriel, string> = {

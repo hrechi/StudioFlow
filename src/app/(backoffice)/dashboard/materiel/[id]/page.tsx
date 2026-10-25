@@ -3,8 +3,6 @@ import { AlertTriangle, ArrowLeft, CalendarPlus } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ComingSoonButton } from "@/components/shared/coming-soon-button";
-import { SafeImage } from "@/components/shared/safe-image";
 import { StatusBadge, ToneBadge } from "@/components/shared/status-badge";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { Button } from "@/components/ui/button";
@@ -13,23 +11,32 @@ import { requireArea } from "@/lib/guards";
 import { fullName } from "@/lib/mock-data-helpers";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { BreakdownDialog } from "@/modules/materiel/components/materiel-dialogs";
+import { MaterielPhoto } from "@/modules/materiel/components/materiel-photo";
+import { MaterielRowMenu } from "@/modules/materiel/components/materiel-row-menu";
+import { ReservationFormDialog } from "@/modules/materiel/components/reservation-form";
 import {
   categorieMaterielLabels,
   etatMaterielConfig,
   statutReservationConfig,
 } from "@/modules/materiel/materiel.types";
-import { getMateriel, getReservationsOf } from "@/modules/materiel/mock-data";
+import { getMaterielById } from "@/modules/materiel/materiel.service";
+import { listReservations } from "@/modules/materiel/reservation-materiel.service";
+import { listSeancesReservables } from "@/modules/materiel/seance-source";
 
 export const metadata: Metadata = { title: "Equipment" };
 
 export default async function MaterielDetailPage({
   params,
 }: PageProps<"/dashboard/materiel/[id]">) {
-  await requireArea("materiel");
+  const user = await requireArea("materiel");
   const { id } = await params;
-  const materiel = getMateriel(id);
+  const materiel = await getMaterielById(id);
   if (!materiel) notFound();
-  const reservations = getReservationsOf(id);
+  const [reservations, seances] = await Promise.all([
+    listReservations({ materielId: id }),
+    listSeancesReservables(),
+  ]);
+  const reservable = !materiel.archive && materiel.disponible && materiel.etat !== "EN_PANNE";
 
   const specs = [
     ["Category", categorieMaterielLabels[materiel.categorie]],
@@ -52,10 +59,9 @@ export default async function MaterielDetailPage({
       <div className="grid gap-6 lg:grid-cols-[22rem_minmax(0,1fr)]">
         <Card className="gap-0 self-start overflow-hidden py-0">
           <div className="relative aspect-[4/3] bg-muted">
-            <SafeImage
+            <MaterielPhoto
               src={materiel.photo}
               alt={materiel.nom}
-              fill
               sizes="352px"
               className="object-cover"
               priority
@@ -70,10 +76,16 @@ export default async function MaterielDetailPage({
                   label={materiel.disponible ? "Available" : "Unavailable"}
                   dot
                 />
+                {materiel.archive && <ToneBadge tone="dark" label="Archived" />}
               </div>
-              <h1 className="text-xl font-medium tracking-[0.08em] text-foreground uppercase">
-                {materiel.nom}
-              </h1>
+              <div className="flex items-start justify-between gap-2">
+                <h1 className="text-xl font-medium tracking-[0.08em] text-foreground uppercase">
+                  {materiel.nom}
+                </h1>
+                {user.role === "ADMIN" && !materiel.archive && (
+                  <MaterielRowMenu materiel={materiel} redirectTo="/dashboard/materiel" />
+                )}
+              </div>
             </div>
             <dl className="divide-y text-sm">
               {specs.map(([label, value]) => (
@@ -83,21 +95,40 @@ export default async function MaterielDetailPage({
                 </div>
               ))}
             </dl>
-            <div className="grid grid-cols-2 gap-2">
-              <ComingSoonButton feature="Reserve this equipment">
-                <CalendarPlus aria-hidden />
-                Reserve
-              </ComingSoonButton>
-              <BreakdownDialog
-                materielNom={materiel.nom}
-                trigger={
-                  <Button variant="destructive-soft">
-                    <AlertTriangle aria-hidden />
-                    Breakdown
+            {!materiel.archive && (
+              <div className="grid grid-cols-2 gap-2">
+                {reservable ? (
+                  <ReservationFormDialog
+                    seances={seances}
+                    materiels={[materiel]}
+                    materielId={materiel.id}
+                    trigger={
+                      <Button>
+                        <CalendarPlus aria-hidden />
+                        Reserve
+                      </Button>
+                    }
+                  />
+                ) : (
+                  <Button disabled title="This equipment cannot be reserved right now.">
+                    <CalendarPlus aria-hidden />
+                    Reserve
                   </Button>
-                }
-              />
-            </div>
+                )}
+                {materiel.etat !== "EN_PANNE" && (
+                  <BreakdownDialog
+                    materielId={materiel.id}
+                    materielNom={materiel.nom}
+                    trigger={
+                      <Button variant="destructive-soft">
+                        <AlertTriangle aria-hidden />
+                        Breakdown
+                      </Button>
+                    }
+                  />
+                )}
+              </div>
+            )}
           </div>
         </Card>
 
@@ -114,14 +145,15 @@ export default async function MaterielDetailPage({
               <ul className="divide-y">
                 {reservations.map((r) => (
                   <li key={r.id} className="flex flex-wrap items-center gap-3 px-5 py-3.5">
-                    <UserAvatar {...r.photographe} size="sm" />
+                    {r.utilisateur && <UserAvatar {...r.utilisateur} size="sm" />}
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-semibold text-foreground">
                         {r.seance.titre}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        {fullName(r.photographe)} · {formatDate(r.dateDebut)} →{" "}
-                        {formatDate(r.dateFin)}
+                        {r.seance.typeEvenement} ·{" "}
+                        {r.utilisateur ? fullName(r.utilisateur) : "Deleted account"} ·{" "}
+                        {formatDate(r.dateDebut)} → {formatDate(r.dateFin)}
                       </p>
                       {r.remarqueRetour && (
                         <p className="mt-1 text-xs text-slate">Return: “{r.remarqueRetour}”</p>

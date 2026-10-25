@@ -30,7 +30,7 @@ import { can, type Area } from "@/lib/rbac";
 import { cn, formatCurrency, formatDate, formatTime } from "@/lib/utils";
 import { RECLAMATIONS } from "@/modules/avis-reclamations/mock-data";
 import { listFactures } from "@/modules/facturation/devis.service";
-import { RESERVATIONS } from "@/modules/materiel/mock-data";
+import { countReservationsActives } from "@/modules/materiel/reservation-materiel.service";
 import { statutGalerieConfig } from "@/modules/photos-galeries/galerie.types";
 import { countGaleriesByStatut, listGaleries } from "@/modules/photos-galeries/galerie.service";
 import { countPhotosByCulling } from "@/modules/photos-galeries/photo.service";
@@ -79,6 +79,7 @@ export default async function DashboardPage() {
   const unpaid = factures.filter((f) => f.statut !== "PAYEE");
   const openComplaints = RECLAMATIONS.filter((r) => r.statut === "OUVERTE" || r.statut === "EN_COURS");
   const recentGalleries = galeries.slice(0, 4);
+  const reservedEquipment = can(user.role, "facturation") ? 0 : await countReservationsActives();
 
   const stats: {
     label: string;
@@ -92,7 +93,7 @@ export default async function DashboardPage() {
     { label: "Photos awaiting culling", value: toCull, icon: Images, tone: "amber" },
     ...(can(user.role, "facturation")
       ? [{ label: "Unpaid invoices", value: unpaid.length, icon: Receipt, tone: "red" as const, hint: formatCurrency(unpaid.reduce((s, f) => s + f.montantTTC - f.montantPaye, 0)) + " to collect" }]
-      : [{ label: "Reserved equipment", value: RESERVATIONS.filter((r) => r.statut === "CONFIRMEE" || r.statut === "EN_COURS").length, icon: Package, tone: "green" as const }]),
+      : [{ label: "Reserved equipment", value: reservedEquipment, icon: Package, tone: "green" as const }]),
     ...(can(user.role, "avis-reclamations")
       ? [{ label: "Open complaints", value: openComplaints.length, icon: MessageSquareWarning, tone: "red" as const, hint: `${openComplaints.filter((r) => r.priorite === "URGENTE").length} urgent` }]
       : [{ label: "Shared galleries", value: galeriesParStatut.PARTAGEE, icon: GalleryHorizontalEnd, tone: "blue" as const }]),

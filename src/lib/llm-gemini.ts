@@ -81,10 +81,12 @@ export async function generateJson<T>(input: {
   files?: { mimeType: string; data: Buffer }[];
   schema: Record<string, unknown>;
   timeoutMs?: number;
+  /** Optional model for this call; otherwise GEMINI_MODEL, then the default. */
+  model?: string;
 }): Promise<T> {
   const key = process.env.GEMINI_API_KEY;
   if (!key) throw new LlmUnavailableError("GEMINI_API_KEY is not configured.");
-  const model = process.env.GEMINI_MODEL || DEFAULT_MODEL;
+  const model = input.model || process.env.GEMINI_MODEL || DEFAULT_MODEL;
 
   let res: Response;
   try {

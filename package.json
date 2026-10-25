@@ -11,7 +11,9 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "seed:admin": "tsx --env-file=.env.local scripts/seed-admin.ts",
-    "seed:facturation": "tsx --env-file=.env.local scripts/seed-facturation.ts"
+    "seed:facturation": "tsx --env-file=.env.local scripts/seed-facturation.ts",
+    "seed:materiel": "tsx --env-file-if-exists=.env --env-file-if-exists=.env.local scripts/seed-materiel.ts",
+    "seed:demo": "tsx --conditions=react-server --env-file-if-exists=.env --env-file-if-exists=.env.local scripts/seed-demo.ts && npm run seed:materiel"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.9.1",

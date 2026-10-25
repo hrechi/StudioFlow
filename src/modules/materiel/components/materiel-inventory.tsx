@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ALL, FilterSelect, SearchInput, labelsOf } from "@/components/shared/filters";
-import { SafeImage } from "@/components/shared/safe-image";
 import { StatusBadge, ToneBadge } from "@/components/shared/status-badge";
 import { Card } from "@/components/ui/card";
 import { formatCurrency } from "@/lib/utils";
@@ -16,11 +15,19 @@ import {
   type EtatMateriel,
   type Materiel,
 } from "../materiel.types";
+import { MaterielPhoto } from "./materiel-photo";
+import { MaterielRowMenu } from "./materiel-row-menu";
 
 const DISPO = { oui: "Available", non: "Unavailable" } as const;
 
-/** /dashboard/materiel — inventory table with filters. */
-export function MaterielInventory({ materiels }: { materiels: Materiel[] }) {
+/** /dashboard/materiel — inventory table with filters; row actions for ADMIN. */
+export function MaterielInventory({
+  materiels,
+  isAdmin,
+}: {
+  materiels: Materiel[];
+  isAdmin: boolean;
+}) {
   const [query, setQuery] = useState("");
   const [categorie, setCategorie] = useState<CategorieMateriel | typeof ALL>(ALL);
   const [etat, setEtat] = useState<EtatMateriel | typeof ALL>(ALL);
@@ -92,6 +99,11 @@ export function MaterielInventory({ materiels }: { materiels: Materiel[] }) {
                 <th className="px-4 py-2.5">Condition</th>
                 <th className="px-4 py-2.5">Availability</th>
                 <th className="px-4 py-2.5 text-right">Value</th>
+                {isAdmin && (
+                  <th className="px-4 py-2.5 text-right">
+                    <span className="sr-only">Actions</span>
+                  </th>
+                )}
               </tr>
             </thead>
             <tbody>
@@ -103,13 +115,7 @@ export function MaterielInventory({ materiels }: { materiels: Materiel[] }) {
                       className="group flex items-center gap-3"
                     >
                       <span className="relative size-10 shrink-0 overflow-hidden rounded-lg bg-muted">
-                        <SafeImage
-                          src={m.photo}
-                          alt=""
-                          fill
-                          sizes="40px"
-                          className="object-cover"
-                        />
+                        <MaterielPhoto src={m.photo} alt="" sizes="40px" className="object-cover" />
                       </span>
                       <span>
                         <span className="block font-semibold text-foreground group-hover:text-primary-text">
@@ -131,13 +137,18 @@ export function MaterielInventory({ materiels }: { materiels: Materiel[] }) {
                   <td className="px-4 py-3">
                     <ToneBadge
                       tone={m.disponible ? "success" : "neutral"}
-                      label={m.disponible ? "Available" : "Reserved / unavailable"}
+                      label={m.disponible ? "Available" : "Unavailable"}
                       dot
                     />
                   </td>
                   <td className="px-4 py-3 text-right font-medium whitespace-nowrap text-slate">
                     {formatCurrency(m.prix)}
                   </td>
+                  {isAdmin && (
+                    <td className="px-2 py-3 text-right">
+                      <MaterielRowMenu materiel={m} />
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
