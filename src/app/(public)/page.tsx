@@ -11,7 +11,8 @@ import { auth } from "@/lib/auth";
 import { fullName } from "@/lib/mock-data-helpers";
 import { FRONT_IMAGES, mockImage } from "@/lib/mock-images";
 import { cn } from "@/lib/utils";
-import { AVIS_PUBLIES } from "@/modules/avis-reclamations/mock-data";
+import { listAvis } from "@/modules/avis-reclamations/avis.service";
+import { getPublicReviewSummary } from "@/modules/avis-reclamations/summary.service";
 import { PORTFOLIOS_PUBLICS } from "@/modules/portfolio/mock-data";
 import { ContactForm } from "./_components/contact-form";
 import { Testimonials } from "./_components/testimonials";
@@ -120,7 +121,9 @@ export default async function HomePage() {
   const gallery = PORTFOLIOS_PUBLICS.flatMap((p) =>
     p.elements.slice(0, 3).map((e) => ({ ...e, slug: p.slug })),
   ).slice(0, 9);
-  const testimonials = AVIS_PUBLIES.map((avis) => ({
+  const { items: publicReviews } = await listAvis({ publicOnly: true });
+  const reviewSummary = await getPublicReviewSummary();
+  const testimonials = publicReviews.map((avis) => ({
     id: avis.id,
     quote: avis.commentaire,
     author: fullName(avis.client),
@@ -445,6 +448,33 @@ export default async function HomePage() {
           <div className="mt-12">
             <Testimonials items={testimonials} />
           </div>
+          {reviewSummary && (
+            <div className="mx-auto mt-14 max-w-3xl border-t border-foreground/10 pt-8 text-center">
+              <p className="text-sm leading-relaxed text-foreground/70">{reviewSummary.summary}</p>
+              <div className="mt-5 grid gap-4 text-left sm:grid-cols-2">
+                <div>
+                  <p className="text-xs font-semibold tracking-[0.2em] text-foreground/50 uppercase">
+                    What clients love
+                  </p>
+                  <ul className="mt-2 space-y-1 text-sm text-foreground/70">
+                    {reviewSummary.strengths.map((item) => (
+                      <li key={item}>• {item}</li>
+                    ))}
+                  </ul>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold tracking-[0.2em] text-foreground/50 uppercase">
+                    Areas we improve
+                  </p>
+                  <ul className="mt-2 space-y-1 text-sm text-foreground/70">
+                    {reviewSummary.improvements.map((item) => (
+                      <li key={item}>• {item}</li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </section>
 

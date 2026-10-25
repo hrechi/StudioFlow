@@ -1,8 +1,8 @@
 "use client";
 
 import { Ban, CheckCircle2, Hand, Inbox, Send, Sparkles } from "lucide-react";
-import { useMemo, useState } from "react";
-import { comingSoon } from "@/components/shared/coming-soon-button";
+import { useMemo, useState, useTransition } from "react";
+import { toast } from "sonner";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ALL, FilterSelect, labelsOf } from "@/components/shared/filters";
 import { StatusBadge } from "@/components/shared/status-badge";
@@ -27,19 +27,22 @@ import {
   type Reclamation,
   type StatutReclamation,
 } from "../avis.types";
+import { generateFeedbackReplyAction, updateReclamationAction } from "../avis.actions";
 
 const PRIORITY_ORDER: Record<Priorite, number> = { URGENTE: 0, HAUTE: 1, MOYENNE: 2, BASSE: 3 };
 
 /** /dashboard/reclamations — complaints table + detail drawer (take charge / answer / resolve / reject). */
 export function ReclamationsBoard({ reclamations }: { reclamations: Reclamation[] }) {
+  const [items, setItems] = useState(reclamations);
   const [statut, setStatut] = useState<StatutReclamation | typeof ALL>(ALL);
   const [priorite, setPriorite] = useState<Priorite | typeof ALL>(ALL);
   const [openId, setOpenId] = useState<string | null>(null);
   const [reponse, setReponse] = useState("");
+  const [isPending, startTransition] = useTransition();
 
   const list = useMemo(
     () =>
-      reclamations
+      items
         .filter((r) => statut === ALL || r.statut === statut)
         .filter((r) => priorite === ALL || r.priorite === priorite)
         .sort(
@@ -47,9 +50,9 @@ export function ReclamationsBoard({ reclamations }: { reclamations: Reclamation[
             PRIORITY_ORDER[a.priorite] - PRIORITY_ORDER[b.priorite] ||
             b.dateCreation.localeCompare(a.dateCreation),
         ),
-    [reclamations, statut, priorite],
+    [items, statut, priorite],
   );
-  const current = reclamations.find((r) => r.id === openId) ?? null;
+  const current = items.find((r) => r.id === openId) ?? null;
   const closed = current && (current.statut === "RESOLUE" || current.statut === "REJETEE");
 
   return (
@@ -197,12 +200,38 @@ export function ReclamationsBoard({ reclamations }: { reclamations: Reclamation[
                 )}
 
                 <div className="space-y-2">
-                  <label htmlFor="reponse-reclamation" className="text-sm font-medium text-slate">
-                    Reply to the client
-                  </label>
+                  <div className="flex items-center justify-between gap-2">
+                    <label htmlFor="reponse-reclamation" className="text-sm font-medium text-slate">
+                      Reply to the client
+                    </label>
+                    {!closed && (
+                      <Button
+                        variant="ai-soft"
+                        size="sm"
+                        disabled={isPending}
+                        onClick={() =>
+                          startTransition(async () => {
+                            const result = await generateFeedbackReplyAction({
+                              id: current.id,
+                              kind: "reclamation",
+                            });
+                            if (!result.ok) {
+                              toast.error(result.error);
+                              return;
+                            }
+                            setReponse(result.data.draft);
+                            toast.info("AI draft ready — review it before sending");
+                          })
+                        }
+                      >
+                        <Sparkles aria-hidden />
+                        Generate reply
+                      </Button>
+                    )}
+                  </div>
                   <Textarea
                     id="reponse-reclamation"
-                    rows={4}
+                    rows={6}
                     value={reponse}
                     onChange={(e) => setReponse(e.target.value)}
                     disabled={!!closed}
@@ -217,7 +246,31 @@ export function ReclamationsBoard({ reclamations }: { reclamations: Reclamation[
                       <Button
                         variant="outline"
                         className="col-span-2"
-                        onClick={() => comingSoon("Take charge of the complaint")}
+                        onClick={() =>
+                          startTransition(async () => {
+                            const result = await updateReclamationAction({
+                              id: current.id,
+                              statut: "EN_COURS",
+                              reponse,
+                            });
+                            if (!result.ok) {
+                              toast.error(result.error);
+                              return;
+                            }
+                            setItems((prev) =>
+                              prev.map((item) =>
+                                item.id === current.id
+                                  ? {
+                                      ...item,
+                                      statut: "EN_COURS",
+                                      reponse: reponse.trim() || item.reponse,
+                                    }
+                                  : item,
+                              ),
+                            );
+                            toast.success("Complaint taken in charge");
+                          })
+                        }
                       >
                         <Hand aria-hidden />
                         Take charge
@@ -226,22 +279,94 @@ export function ReclamationsBoard({ reclamations }: { reclamations: Reclamation[
                     <Button
                       variant="outline"
                       className="col-span-2"
-                      disabled={!reponse.trim()}
-                      onClick={() => comingSoon("Send the reply to the client")}
+                      disabled={!reponse.trim() || isPending}
+                      onClick={() =>
+                        startTransition(async () => {
+                          const result = await updateReclamationAction({
+                            id: current.id,
+                            statut: current.statut === "OUVERTE" ? "EN_COURS" : current.statut,
+                            reponse,
+                          });
+                          if (!result.ok) {
+                            toast.error(result.error);
+                            return;
+                          }
+                          setItems((prev) =>
+                            prev.map((item) =>
+                              item.id === current.id
+                                ? {
+                                    ...item,
+                                    reponse: reponse.trim(),
+                                    statut: item.statut === "OUVERTE" ? "EN_COURS" : item.statut,
+                                  }
+                                : item,
+                            ),
+                          );
+                          toast.success("Reply sent");
+                        })
+                      }
                     >
                       <Send aria-hidden />
                       Send reply
                     </Button>
                     <Button
-                      onClick={() => comingSoon("Mark as resolved")}
-                      disabled={!reponse.trim()}
+                      onClick={() =>
+                        startTransition(async () => {
+                          const result = await updateReclamationAction({
+                            id: current.id,
+                            statut: "RESOLUE",
+                            reponse,
+                          });
+                          if (!result.ok) {
+                            toast.error(result.error);
+                            return;
+                          }
+                          setItems((prev) =>
+                            prev.map((item) =>
+                              item.id === current.id
+                                ? {
+                                    ...item,
+                                    statut: "RESOLUE",
+                                    reponse: reponse.trim() || item.reponse,
+                                  }
+                                : item,
+                            ),
+                          );
+                          toast.success("Complaint resolved");
+                        })
+                      }
+                      disabled={!reponse.trim() || isPending}
                     >
                       <CheckCircle2 aria-hidden />
                       Resolve
                     </Button>
                     <Button
                       variant="destructive-soft"
-                      onClick={() => comingSoon("Reject the complaint")}
+                      onClick={() =>
+                        startTransition(async () => {
+                          const result = await updateReclamationAction({
+                            id: current.id,
+                            statut: "REJETEE",
+                            reponse,
+                          });
+                          if (!result.ok) {
+                            toast.error(result.error);
+                            return;
+                          }
+                          setItems((prev) =>
+                            prev.map((item) =>
+                              item.id === current.id
+                                ? {
+                                    ...item,
+                                    statut: "REJETEE",
+                                    reponse: reponse.trim() || item.reponse,
+                                  }
+                                : item,
+                            ),
+                          );
+                          toast.success("Complaint rejected");
+                        })
+                      }
                     >
                       <Ban aria-hidden />
                       Reject

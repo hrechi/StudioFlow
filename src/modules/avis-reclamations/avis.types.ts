@@ -9,6 +9,28 @@ import type { UtilisateurRef } from "@/modules/utilisateurs/utilisateur.types";
 export const SENTIMENTS = ["POSITIF", "NEUTRE", "NEGATIF"] as const;
 export type Sentiment = (typeof SENTIMENTS)[number];
 
+export const STATUTS_AVIS = ["EN_ATTENTE", "PUBLIE", "REJETE"] as const;
+export type StatutAvis = (typeof STATUTS_AVIS)[number];
+
+export const STATUTS_ANALYSE_IA = ["EN_ATTENTE", "TERMINEE", "ECHOUEE"] as const;
+export type StatutAnalyseIA = (typeof STATUTS_ANALYSE_IA)[number];
+
+export const TOPICS_AVIS = [
+  "QUALITE_PHOTO",
+  "PONCTUALITE",
+  "PRIX",
+  "COMMUNICATION",
+  "RETOUCHE",
+  "SERVICE_CLIENT",
+  "PROFESSIONNALISME",
+  "LIVRAISON",
+  "AUTRE",
+] as const;
+export type TopicAvis = (typeof TOPICS_AVIS)[number];
+
+export const CATEGORIES_MODERATION = ["ABUS", "SPAM", "HORS_SUJET", "AUTRE"] as const;
+export type CategorieModeration = (typeof CATEGORIES_MODERATION)[number];
+
 export const STATUTS_RECLAMATION = ["OUVERTE", "EN_COURS", "RESOLUE", "REJETEE"] as const;
 export type StatutReclamation = (typeof STATUTS_RECLAMATION)[number];
 
@@ -28,6 +50,15 @@ export type Avis = {
   sentimentIA: Sentiment;
   scoreSentimentIA: number; // 0–1
   estPublie: boolean;
+  statut?: StatutAvis;
+  topicsIA?: TopicAvis[];
+  statutAnalyseIA?: StatutAnalyseIA;
+  moderation?: {
+    statut: "EN_ATTENTE" | "SIGNALE" | "APPROUVE" | "REJETE";
+    categories: CategorieModeration[];
+    explication?: string;
+    dateAnalyse?: string;
+  };
   reponseStudio?: string;
   client: UtilisateurRef;
   seance: { id: string; titre: string; type: string };
@@ -50,11 +81,49 @@ export type Reclamation = {
   traitePar?: UtilisateurRef;
 };
 
+export type AvisListResult = {
+  items: Avis[];
+  total: number;
+  page: number;
+  pageCount: number;
+  pageSize: number;
+};
+
+export type ReclamationListResult = {
+  items: Reclamation[];
+  total: number;
+  page: number;
+  pageCount: number;
+  pageSize: number;
+};
+
 export const sentimentConfig: StatusConfig<Sentiment> = {
   POSITIF: { label: "Positive", tone: "success" },
   NEUTRE: { label: "Neutral", tone: "neutral" },
   NEGATIF: { label: "Negative", tone: "danger" },
 };
+
+export const topicLabels: Record<TopicAvis, string> = {
+  QUALITE_PHOTO: "Photo quality",
+  PONCTUALITE: "Punctuality",
+  PRIX: "Price",
+  COMMUNICATION: "Communication",
+  RETOUCHE: "Retouching",
+  SERVICE_CLIENT: "Customer service",
+  PROFESSIONNALISME: "Professionalism",
+  LIVRAISON: "Delivery",
+  AUTRE: "Other",
+};
+
+/** One row of the insights aggregation: reviews of a month, for one topic and sentiment. */
+export type AvisInsightRow = {
+  month: string; // YYYY-MM
+  topic: TopicAvis | null; // null = month total, all topics
+  sentiment: Sentiment;
+  count: number;
+};
+
+export type AvisInsights = { months: string[]; rows: AvisInsightRow[] };
 
 export const statutReclamationConfig: StatusConfig<StatutReclamation> = {
   OUVERTE: { label: "Open", tone: "warning" },

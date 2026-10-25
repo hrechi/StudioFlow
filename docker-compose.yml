@@ -56,6 +56,13 @@ services:
       STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
       STRIPE_TND_EUR_RATE: ${STRIPE_TND_EUR_RATE:-0.3}
       PAIEMENT_SIMULATION: ${PAIEMENT_SIMULATION:-true} # local demo only: set false on a real server
+      # Optional AI features (avis-reclamations); empty = disabled
+      AI_API_KEY: ${AI_API_KEY:-}
+      AI_MODEL: ${AI_MODEL:-}
+      AI_BASE_URL: ${AI_BASE_URL:-}
+      RAPIDAPI_KEY: ${RAPIDAPI_KEY:-}
+      RAPIDAPI_PROFANITY_HOST: ${RAPIDAPI_PROFANITY_HOST:-}
+      RAPIDAPI_PROFANITY_URL: ${RAPIDAPI_PROFANITY_URL:-}
     depends_on:
       mongo:
         condition: service_healthy
