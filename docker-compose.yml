@@ -6,7 +6,7 @@ x-mongo-uri: &mongo-uri mongodb://mongo:27017/reframe
 
 services:
   mongo:
-    image: mongo:8
+    image: mongo:8 # keep 8: the data volume was created by MongoDB 8 (7 cannot open it)
     attach: false # keep `docker compose up` readable; see its logs with `docker compose logs mongo`
     restart: unless-stopped
     ports:
@@ -50,7 +50,7 @@ services:
       KONNECT_API_KEY: ${KONNECT_API_KEY:-}
       KONNECT_WALLET_ID: ${KONNECT_WALLET_ID:-}
       KONNECT_API_URL: ${KONNECT_API_URL:-https://api.sandbox.konnect.network/api/v2}
-      GEMINI_API_KEY: ${GEMINI_API_KEY:-} # chatbot + AI payment proof checker
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-} # chatbot, AI payment proof checker, portfolio AI
       GEMINI_MODEL: ${GEMINI_MODEL:-}
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
       STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
@@ -63,6 +63,12 @@ services:
       RAPIDAPI_KEY: ${RAPIDAPI_KEY:-}
       RAPIDAPI_PROFANITY_HOST: ${RAPIDAPI_PROFANITY_HOST:-}
       RAPIDAPI_PROFANITY_URL: ${RAPIDAPI_PROFANITY_URL:-}
+      # Portfolio module
+      USE_MOCKS: ${USE_MOCKS:-true}
+      PORTFOLIO_BASE_URL: ${PORTFOLIO_BASE_URL:-http://localhost:3000}
+      CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME:-}
+      CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY:-}
+      CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET:-}
     depends_on:
       mongo:
         condition: service_healthy

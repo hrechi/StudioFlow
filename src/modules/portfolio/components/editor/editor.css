@@ -1,0 +1,100 @@
+/* StudioFlow Portfolio Editor — Theme & Skeleton Styles */
+@import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Jost:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400;1,600&display=swap");
+
+.studioflow-editor {
+  /* Atelier Color Palette */
+  --sf-bg: #0f0905;
+  --sf-panel: #1c1410;
+  --sf-panel-palette: #170e09;
+  --sf-panel-border: rgba(255, 255, 255, 0.08);
+  --sf-canvas-bg: #0d0805;
+  --sf-text: #f3ebdd;
+  --sf-text-secondary: color-mix(in srgb, #f3ebdd 65%, transparent);
+  --sf-text-muted: color-mix(in srgb, #f3ebdd 40%, transparent);
+  --sf-label: #6f655a;
+
+  /* Accent: Unique Amber */
+  --sf-accent: #e8a34a;
+  --sf-accent-hover: #f0b25e;
+  --sf-accent-soft: rgba(232, 163, 74, 0.15);
+  --sf-accent-glow: rgba(232, 163, 74, 0.25);
+
+  /* Functional Colors */
+  --sf-danger: #e07b63;
+  --sf-danger-bg: #2a1410;
+  --sf-danger-border: rgba(224, 123, 99, 0.3);
+  --sf-success: #4ade80;
+  --sf-warning: #fbbf24;
+
+  /* Page Sheet Rendering */
+  --sf-page-bg: #ffffff;
+  --sf-page-ivory: #f6f1e9;
+  --sf-page-text: #1a120c;
+
+  /* Typography */
+  --sf-font-sans: "Jost", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --sf-font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+  /* Shape tokens */
+  --sf-radius-control: 8px;
+  --sf-radius-pill: 999px;
+  --sf-radius-card: 12px;
+
+  font-family: var(--sf-font-sans);
+  color: var(--sf-text);
+  background-color: var(--sf-bg);
+}
+
+/* Custom warm dark scrollbar for internal panes */
+.studioflow-editor ::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.studioflow-editor ::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.studioflow-editor ::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+}
+
+.studioflow-editor ::-webkit-scrollbar-thumb:hover {
+  background: rgba(232, 163, 74, 0.35);
+}
+
+/* Canvas background with diffuse amber radial halo */
+.sf-canvas-area {
+  background-color: var(--sf-canvas-bg);
+  background-image: radial-gradient(
+    circle at 50% 0%,
+    rgba(232, 163, 74, 0.1) 0%,
+    rgba(13, 8, 5, 0) 65%
+  );
+  background-repeat: no-repeat;
+}
+
+/* Micro-transitions */
+.sf-toolbar-enter {
+  transition: opacity 0.18s cubic-bezier(0.16, 1, 0.3, 1), transform 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.sf-switch-toggle {
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.2s ease;
+}
+
+.sf-sheet-transition {
+  transition: width 0.35s cubic-bezier(0.16, 1, 0.3, 1), max-width 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.sf-modal-enter {
+  transition: transform 0.26s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.26s ease;
+}
+
+/* Focus visible amber ring */
+.studioflow-editor :focus-visible {
+  outline: 2px solid var(--sf-accent);
+  outline-offset: 2px;
+}
+
