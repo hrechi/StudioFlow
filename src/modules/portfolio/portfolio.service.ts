@@ -2,8 +2,9 @@ import "server-only";
 import { Types } from "mongoose";
 import { ServiceError } from "@/lib/action-result";
 import { connectDB } from "@/lib/db";
+import { Galerie } from "@/modules/photos-galeries/galerie.model";
 import { Photo } from "@/modules/photos-galeries/photo.model";
-import "@/modules/photos-galeries/galerie.model";
+import { openFile } from "@/modules/photos-galeries/photo.storage";
 import "@/modules/utilisateurs/utilisateur.model";
 import { findUtilisateurById } from "@/modules/utilisateurs/utilisateur.service";
 import {
@@ -22,11 +23,15 @@ import {
 } from "./portfolio.schemas";
 import {
   CATEGORIES_PORTFOLIO,
+  MAX_AUTOMATIC_PORTFOLIO_PHOTOS,
   type BlocPortfolio,
   type BlocPortfolioPublic,
+  type CategoriePortfolio,
+  type ElementBlocPortfolio,
   type StatutDemande,
 } from "./portfolio.types";
 import { portfolioIntegrations } from "./integrations";
+import { analyserPhotoAvecGemini, type GeminiPhotoAnalysis } from "./ia.service";
 import { INITIAL_DEMO_BLOCKS } from "./components/editor/demoData";
 
 type PortfolioLean = PortfolioDocument & { _id: Types.ObjectId };
@@ -132,8 +137,11 @@ function toPublic(
   photographe: { nom: string; prenom: string },
 ): PortfolioPublic {
   // If hero block has a custom cover photo, use it as the primary cover
-  const heroBlock = (doc.blocsPublies || doc.blocs || []).find((b: { type?: string }) => b.type === "HERO");
-  const heroCover = (heroBlock?.configuration as Record<string, unknown> | undefined)?.photoCouverture;
+  const heroBlock = (doc.blocsPublies || doc.blocs || []).find(
+    (b: { type?: string }) => b.type === "HERO",
+  );
+  const heroCover = (heroBlock?.configuration as Record<string, unknown> | undefined)
+    ?.photoCouverture;
   const cover =
     typeof heroCover === "string" && heroCover.trim().length > 0
       ? heroCover.trim()
@@ -236,9 +244,7 @@ function normalizeBlocks(blocks: BlocPortfolio[]): BlocPortfolio[] {
             : new Types.ObjectId().toString();
 
         const validPhotoId =
-          element.photoId && Types.ObjectId.isValid(element.photoId)
-            ? element.photoId
-            : undefined;
+          element.photoId && Types.ObjectId.isValid(element.photoId) ? element.photoId : undefined;
 
         const validClientId =
           element.clientConcerne && Types.ObjectId.isValid(element.clientConcerne)
@@ -259,9 +265,7 @@ function normalizeBlocks(blocks: BlocPortfolio[]): BlocPortfolio[] {
           ordreAffichage: elementIndex,
           // UPLOAD_PERSONNEL ne peut pas avoir de consentement client
           statutConsentement:
-            source === "UPLOAD_PERSONNEL"
-              ? "NON_REQUIS"
-              : (element.statutConsentement || "ACCORDE"),
+            source === "UPLOAD_PERSONNEL" ? "NON_REQUIS" : element.statutConsentement || "ACCORDE",
           dateAjout: element.dateAjout
             ? new Date(element.dateAjout).toISOString()
             : new Date().toISOString(),
@@ -293,11 +297,15 @@ function validatePublication(blocs: BlocPortfolio[], titre: string, photoCouvert
   // Accept publication if: doc has a cover photo, any block has photos, OR the HERO bloc config has a cover photo
   const heroBlock = blocs.find((b) => b.type === "HERO");
   const heroHasCover =
-    (heroBlock?.configuration?.photoCouverture && String(heroBlock.configuration.photoCouverture).trim().length > 0) ||
+    (heroBlock?.configuration?.photoCouverture &&
+      String(heroBlock.configuration.photoCouverture).trim().length > 0) ||
     (photoCouverture && photoCouverture.trim().length > 0);
   const anyBlockHasPhotos = blocs.some((block) => block.elements.length > 0);
   if (!heroHasCover && !anyBlockHasPhotos) {
-    throw new ServiceError("Ajoutez au moins une photo de couverture dans le bloc Hero pour publier.", "blocs");
+    throw new ServiceError(
+      "Ajoutez au moins une photo de couverture dans le bloc Hero pour publier.",
+      "blocs",
+    );
   }
   for (const block of blocs) {
     if (block.type !== "AVANT_APRES") continue;
@@ -480,7 +488,9 @@ export async function creerOuReinitialiserPortfolio(
           tagline:
             input.specialites && input.specialites.length > 0
               ? input.specialites.join(" · ").toUpperCase()
-              : (input.ville ? input.ville.toUpperCase() : "PORTFOLIO"),
+              : input.ville
+                ? input.ville.toUpperCase()
+                : "PORTFOLIO",
           photoCouverture: cover,
           liensSociaux: [],
         },
@@ -503,7 +513,7 @@ export async function creerOuReinitialiserPortfolio(
       ? input.specialites
           .map((s) => s.toUpperCase())
           .filter((s): s is (typeof CATEGORIES_PORTFOLIO)[number] =>
-            (CATEGORIES_PORTFOLIO as readonly string[]).includes(s)
+            (CATEGORIES_PORTFOLIO as readonly string[]).includes(s),
           )
       : ["MARIAGE", "PORTRAIT"]) as (typeof CATEGORIES_PORTFOLIO)[number][],
     ville: input.ville || "Paris",
@@ -546,7 +556,8 @@ export async function getOrCreatePortfolioForUser(
 
   // 1. Get real photographer name dynamically from MongoDB
   const realUser = await findUtilisateurById(userId);
-  const photographe = realUser || (await portfolioIntegrations.utilisateursService.getUtilisateur(userId));
+  const photographe =
+    realUser || (await portfolioIntegrations.utilisateursService.getUtilisateur(userId));
   let photographerName = explicitFullName?.trim();
   if (!photographerName && photographe) {
     photographerName = `${photographe.prenom} ${photographe.nom}`.trim();
@@ -577,7 +588,8 @@ export async function getOrCreatePortfolioForUser(
       titre: photographerName,
       slogan: "Photographe de mariage & portraits intimes",
       bio: "Capturing delicate, candid memories in natural light for more than a decade. Based in south-west France, traveling worldwide for destinations that speak of love and grace.",
-      photoCouverture: "https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=1600&q=80",
+      photoCouverture:
+        "https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=1600&q=80",
       specialites: ["MARIAGE", "PORTRAIT"],
       ville: "Paris",
       theme: "MINIMAL",
@@ -620,13 +632,21 @@ export async function getOrCreatePortfolioForUser(
 
       doc.blocs = doc.blocs.map((block) => {
         if (block.type === "HERO") {
-          if (!block.configuration.titre || block.configuration.titre === "Aurélie & Marc" || block.configuration.titre === "titlep") {
+          if (
+            !block.configuration.titre ||
+            block.configuration.titre === "Aurélie & Marc" ||
+            block.configuration.titre === "titlep"
+          ) {
             block.configuration.titre = photographerName;
             needsUpdate = true;
           }
         }
         if (block.type === "A_PROPOS") {
-          if (!block.configuration.titre || block.configuration.titre === "Aurélie Morales" || block.configuration.titre === "titlep") {
+          if (
+            !block.configuration.titre ||
+            block.configuration.titre === "Aurélie Morales" ||
+            block.configuration.titre === "titlep"
+          ) {
             block.configuration.titre = photographerName;
             needsUpdate = true;
           }
@@ -847,7 +867,9 @@ export async function listPublicPortfolios(
             role: realUser.role as "PHOTOGRAPHE" | "RETOUCHEUR" | "ADMIN",
             statut: (realUser.statut === "ACTIF" ? "ACTIF" : "BLOQUE") as "ACTIF" | "BLOQUE",
           }
-        : await portfolioIntegrations.utilisateursService.getUtilisateur(doc.proprietaire.toString());
+        : await portfolioIntegrations.utilisateursService.getUtilisateur(
+            doc.proprietaire.toString(),
+          );
 
       const photoName = photographe
         ? { nom: photographe.nom, prenom: photographe.prenom }
@@ -955,7 +977,8 @@ export async function publishPortfolio(
   const slug = doc.slug ?? (await uniqueSlug(doc.titre));
   const publishedAt = new Date();
   const heroBlock = blocs.find((b) => b.type === "HERO");
-  const heroCover = (heroBlock?.configuration as Record<string, unknown> | undefined)?.photoCouverture;
+  const heroCover = (heroBlock?.configuration as Record<string, unknown> | undefined)
+    ?.photoCouverture;
   const newCover =
     typeof heroCover === "string" && heroCover.trim().length > 0
       ? heroCover.trim()
@@ -1368,11 +1391,136 @@ export type PhotoPourSelecteur = {
   scoreQualite: number;
 };
 
+export type PhotoQualityCheck = GeminiPhotoAnalysis & { photoId: string };
+
+type GeminiSupportedImageMime = "image/jpeg" | "image/png" | "image/webp";
+
+function geminiSupportedMime(mimeType: string): GeminiSupportedImageMime {
+  const normalized = mimeType.toLowerCase().split(";")[0]?.trim();
+  if (normalized === "image/jpeg" || normalized === "image/png" || normalized === "image/webp") {
+    return normalized;
+  }
+  throw new ServiceError("Gemini accepte uniquement les images JPEG, PNG ou WebP.");
+}
+
+export async function chargerImagePhotoPourGemini(
+  userId: string,
+  element: ElementBlocPortfolio,
+): Promise<{ data: Buffer; mimeType: GeminiSupportedImageMime }> {
+  const maxBytes = 20 * 1024 * 1024;
+  if (element.photoId && Types.ObjectId.isValid(element.photoId)) {
+    await connectDB();
+    const owner = new Types.ObjectId(userId);
+    const photo = await Photo.findOne({
+      _id: new Types.ObjectId(element.photoId),
+      $or: [{ uploadePar: owner }, { uploadePar: userId }],
+    }).select("fichier format taille");
+    if (!photo) throw new ServiceError("Cette photo n’appartient pas à votre bibliothèque.");
+    if (photo.taille > maxBytes)
+      throw new ServiceError("La photo dépasse la taille maximale de 20 Mo.");
+    const file = await openFile(photo.fichier);
+    if (!file) throw new ServiceError("Le fichier de la photo est introuvable.");
+    return {
+      data: Buffer.from(await new Response(file.stream).arrayBuffer()),
+      mimeType: geminiSupportedMime(photo.format || file.contentType),
+    };
+  }
+
+  let url: URL;
+  try {
+    url = new URL(element.media.url);
+  } catch {
+    throw new ServiceError("L’image de ce bloc ne peut pas être lue pour l’analyse.");
+  }
+  const cloudName = process.env.CLOUDINARY_CLOUD_NAME?.trim();
+  if (
+    url.protocol !== "https:" ||
+    url.hostname !== "res.cloudinary.com" ||
+    !url.pathname.startsWith(`/${cloudName}/image/upload/`)
+  ) {
+    throw new ServiceError(
+      "L’analyse visuelle est disponible pour les photos de la bibliothèque ou Cloudinary.",
+    );
+  }
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      signal: AbortSignal.timeout(15_000),
+      redirect: "error",
+      cache: "no-store",
+    });
+  } catch {
+    throw new ServiceError("Impossible de récupérer la photo Cloudinary pour l’analyse.");
+  }
+  if (!response.ok) throw new ServiceError("Cloudinary n’a pas fourni le fichier de la photo.");
+  const contentLength = Number(response.headers.get("content-length") ?? 0);
+  if (contentLength > maxBytes)
+    throw new ServiceError("La photo dépasse la taille maximale de 20 Mo.");
+  const data = Buffer.from(await response.arrayBuffer());
+  if (!data.length || data.length > maxBytes)
+    throw new ServiceError("Le fichier de la photo est vide ou trop volumineux.");
+  return {
+    data,
+    mimeType: geminiSupportedMime(response.headers.get("content-type") ?? ""),
+  };
+}
+
+/** Analyse jusqu’aux six photos les plus récentes appartenant au photographe connecté. */
+export async function analyserQualitePhotosPhotographe(
+  userId: string,
+  categorie?: CategoriePortfolio,
+): Promise<PhotoQualityCheck[]> {
+  await connectDB();
+  if (!Types.ObjectId.isValid(userId)) throw new ServiceError("Photographe invalide.");
+  const galleryIds = categorie ? await Galerie.find({ categorie }).distinct("_id") : undefined;
+  if (categorie && !galleryIds?.length) return [];
+  const query: Record<string, unknown> = {
+    $or: [{ uploadePar: new Types.ObjectId(userId) }, { uploadePar: userId }],
+  };
+  if (galleryIds) query.galerie = { $in: galleryIds };
+  const photos = await Photo.find(query)
+    .select("_id fichier format taille")
+    .sort({ createdAt: -1 })
+    .limit(MAX_AUTOMATIC_PORTFOLIO_PHOTOS)
+    .lean();
+
+  const checks: PhotoQualityCheck[] = [];
+  for (let index = 0; index < photos.length; index += 3) {
+    const batch = photos.slice(index, index + 3);
+    const batchResults = await Promise.all(
+      batch.map(async (photo) => {
+        if (photo.taille > 20 * 1024 * 1024) {
+          throw new ServiceError(`La photo ${photo._id} dépasse la taille analysable de 20 Mo.`);
+        }
+        const file = await openFile(photo.fichier);
+        if (!file) throw new ServiceError(`Fichier introuvable pour la photo ${photo._id}.`);
+        const buffer = Buffer.from(await new Response(file.stream).arrayBuffer());
+        const analysis = await analyserPhotoAvecGemini(buffer, photo.format || file.contentType);
+        await Photo.updateOne(
+          { _id: photo._id, uploadePar: new Types.ObjectId(userId) },
+          {
+            $set: {
+              scoreQualite: analysis.score,
+              estFloue: analysis.nettete < 40,
+              tagsIA: analysis.defauts.slice(0, 8),
+            },
+          },
+        );
+        return { photoId: photo._id.toString(), ...analysis };
+      }),
+    );
+    checks.push(...batchResults);
+  }
+  return checks;
+}
+
 /**
  * Charge uniquement les photos appartenant au photographe connecté
  * depuis la base de données MongoDB (collection `photos`, uploadePar = userId).
  */
-export async function listerPhotosPhotographePourPortfolio(userId: string): Promise<PhotoPourSelecteur[]> {
+export async function listerPhotosPhotographePourPortfolio(
+  userId: string,
+): Promise<PhotoPourSelecteur[]> {
   await connectDB();
   if (!Types.ObjectId.isValid(userId)) return [];
   const userObjectId = new Types.ObjectId(userId);
@@ -1422,4 +1570,3 @@ export async function listerPhotosPhotographePourPortfolio(userId: string): Prom
     return [];
   }
 }
-

@@ -52,6 +52,9 @@ import { CanvasEndDrop } from "./portfolio-block-palette";
 import { editorFr } from "./editor/fr";
 import {
   chargerPhotosPortfolio,
+  analyserQualitePortfolioAction,
+  genererSEOAction,
+  genererHistoireProjetAction,
   depublierPortfolio,
   dupliquerBloc,
   genererBioPortfolio,
@@ -71,8 +74,11 @@ import {
   THEMES_PORTFOLIO,
   type BlocPortfolio,
   type ElementBlocPortfolio,
+  type PortfolioQualityAudit as PortfolioQualityAuditResult,
+  type PhotoQualityReport,
   type TypeBloc,
 } from "../portfolio.types";
+import { PortfolioQualityAudit } from "./editor/PortfolioQualityAudit";
 import type { PortfolioEditorData } from "../portfolio.service";
 import type { PortfolioUpdateInput } from "../portfolio.schemas";
 import type { PhotoPortfolio } from "../integrations/portfolio-integrations.types";
@@ -124,7 +130,23 @@ export function PortfolioEditor({ portfolio }: { portfolio: PortfolioEditorData 
   const [bioDraft, setBioDraft] = useState(portfolio.bio ?? "");
   const [layoutSuggestion, setLayoutSuggestion] = useState<BlocPortfolio[] | null>(null);
   const [suggestedPhotoIds, setSuggestedPhotoIds] = useState<string[]>([]);
+  const [suggestedPhotoReports, setSuggestedPhotoReports] = useState<
+    Record<string, PhotoQualityReport>
+  >({});
+  const [suggestedPhotoScores, setSuggestedPhotoScores] = useState<Record<string, number>>({});
+  const [seoSuggestion, setSeoSuggestion] = useState<{
+    metaTitre: string;
+    metaDescription: string;
+  } | null>(null);
+  const [storySuggestion, setStorySuggestion] = useState<{
+    blockId: string;
+    titre: string;
+    texte: string;
+  } | null>(null);
   const [aiPending, setAiPending] = useState(false);
+  const [qualityAudit, setQualityAudit] = useState<PortfolioQualityAuditResult | null>(null);
+  const [qualityAuditOpen, setQualityAuditOpen] = useState(false);
+  const [qualityAuditLoading, setQualityAuditLoading] = useState(false);
   const [preview, setPreview] = useState<"desktop" | "mobile" | null>(null);
   const [mobilePanel, setMobilePanel] = useState<"palette" | "inspector" | null>(null);
   const [paletteDrag, setPaletteDrag] = useState<TypeBloc | null>(null);
@@ -382,6 +404,38 @@ export function PortfolioEditor({ portfolio }: { portfolio: PortfolioEditorData 
     setBioDraft(result.data.bio);
     toast.success("AI bio suggestion ready. Review it before publishing.");
   }
+  async function generateSEO() {
+    setAiPending(true);
+    const result = await genererSEOAction(portfolio.id);
+    setAiPending(false);
+    if (!result.ok) {
+      toast.error(result.error);
+      return;
+    }
+    setSeoSuggestion(result.data);
+  }
+  async function generateStory(block: BlocPortfolio) {
+    if (block.type !== "CASE_STUDY") return;
+    const notes =
+      typeof block.configuration.texte === "string" ? block.configuration.texte.trim() : "";
+    if (notes.length < 20) {
+      toast.error("Ajoutez au moins quelques notes factuelles avant de générer un récit.");
+      return;
+    }
+    setAiPending(true);
+    const result = await genererHistoireProjetAction({
+      portfolioId: portfolio.id,
+      blockId: block.idBloc,
+      notes,
+      titre: typeof block.configuration.titre === "string" ? block.configuration.titre : undefined,
+    });
+    setAiPending(false);
+    if (!result.ok) {
+      toast.error(result.error);
+      return;
+    }
+    setStorySuggestion({ blockId: block.idBloc, ...result.data });
+  }
   async function suggestLayout() {
     setAiPending(true);
     const result = await suggererBlocsPortfolio(portfolio.id);
@@ -393,6 +447,12 @@ export function PortfolioEditor({ portfolio }: { portfolio: PortfolioEditorData 
     setLayoutSuggestion(result.data.blocs);
   }
   async function suggestPhotos() {
+    if (
+      !window.confirm(
+        "Les photos de votre bibliothèque seront envoyées à Gemini pour leur analyse visuelle. Continuer ?",
+      )
+    )
+      return;
     setAiPending(true);
     const result = await lancerSelectionIA();
     setAiPending(false);
@@ -401,8 +461,35 @@ export function PortfolioEditor({ portfolio }: { portfolio: PortfolioEditorData 
       return;
     }
     setSuggestedPhotoIds(result.data.photoIds);
+    setSuggestedPhotoReports(result.data.reports ?? {});
+    setSuggestedPhotoScores(result.data.scores);
     if (!result.data.photoIds.length)
       toast.message("No connected gallery photos are available for AI selection.");
+  }
+  async function auditPortfolio() {
+    if (
+      !window.confirm(
+        "L’audit envoie à Gemini les textes et données structurées de ce portfolio. Les images ne sont pas incluses. Continuer ?",
+      )
+    )
+      return;
+    setQualityAuditOpen(true);
+    setQualityAuditLoading(true);
+    try {
+      const saved = await savePortfolio({ portfolioId: portfolio.id, blocs: blocks });
+      if (!saved.ok) {
+        toast.error(saved.error);
+        return;
+      }
+      const result = await analyserQualitePortfolioAction({ portfolioId: portfolio.id });
+      if (!result.ok) {
+        toast.error(result.error);
+        return;
+      }
+      setQualityAudit(result.data);
+    } finally {
+      setQualityAuditLoading(false);
+    }
   }
   const removeBlock = useCallback(
     (block: BlocPortfolio) => {
@@ -574,20 +661,20 @@ export function PortfolioEditor({ portfolio }: { portfolio: PortfolioEditorData 
             </Button>
           </div>
           <div className={`${styles.mobilePanelButtons} flex gap-2`}>
-          <Button
-            size="sm"
-            variant={mobilePanel === "palette" ? "default" : "outline"}
-            onClick={() => setMobilePanel(mobilePanel === "palette" ? null : "palette")}
-          >
-            Blocs
-          </Button>
-          <Button
-            size="sm"
-            variant={mobilePanel === "inspector" ? "default" : "outline"}
-            onClick={() => setMobilePanel(mobilePanel === "inspector" ? null : "inspector")}
-          >
-            Réglages
-          </Button>
+            <Button
+              size="sm"
+              variant={mobilePanel === "palette" ? "default" : "outline"}
+              onClick={() => setMobilePanel(mobilePanel === "palette" ? null : "palette")}
+            >
+              Blocs
+            </Button>
+            <Button
+              size="sm"
+              variant={mobilePanel === "inspector" ? "default" : "outline"}
+              onClick={() => setMobilePanel(mobilePanel === "inspector" ? null : "inspector")}
+            >
+              Réglages
+            </Button>
           </div>
           <Button size="sm" variant="outline" disabled={!history.past.length} onClick={undo}>
             <Undo2 className="size-4" />
@@ -596,6 +683,15 @@ export function PortfolioEditor({ portfolio }: { portfolio: PortfolioEditorData 
           <Button size="sm" variant="outline" disabled={!history.future.length} onClick={redo}>
             <Redo2 className="size-4" />
             Rétablir
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={qualityAuditLoading}
+            onClick={() => void auditPortfolio()}
+          >
+            <Sparkles className="size-4" />
+            Audit IA
           </Button>
           {portfolio.statut === "PUBLIE" && (
             <Button size="sm" variant="outline" onClick={() => void unpublish()}>
@@ -706,8 +802,13 @@ export function PortfolioEditor({ portfolio }: { portfolio: PortfolioEditorData 
                             sizes="120px"
                             className="object-cover"
                           />
-                          <span className="absolute inset-x-0 bottom-0 bg-black/60 p-1 text-[10px] text-white">
-                            Ajouter au bloc
+                          <span className="absolute inset-x-0 bottom-0 bg-black/70 p-1.5 text-left text-[10px] leading-snug text-white">
+                            <span className="block font-semibold">
+                              Gemini {suggestedPhotoScores[id]}/100 · Ajouter au bloc
+                            </span>
+                            <span className="mt-0.5 line-clamp-2 block text-white/75">
+                              {suggestedPhotoReports[id]?.raison}
+                            </span>
                           </span>
                         </button>
                       ) : null;
@@ -876,15 +977,63 @@ export function PortfolioEditor({ portfolio }: { portfolio: PortfolioEditorData 
                   })
                 }
                 onGenerateBio={() => void generateBio()}
+                onGenerateSEO={() => void generateSEO()}
+                seoSuggestion={seoSuggestion}
+                onDismissSEO={() => setSeoSuggestion(null)}
+                onApplySEO={() => {
+                  if (!seoSuggestion) return;
+                  void mettreAJourPortfolio(portfolio.id, {
+                    seo: { ...portfolio.seo, ...seoSuggestion },
+                  }).then((result) => {
+                    if (!result.ok) toast.error(result.error);
+                    else {
+                      setSeoSuggestion(null);
+                      router.refresh();
+                    }
+                  });
+                }}
                 aiPending={aiPending}
               />
             ) : selectedBlock ? (
               <>
+                {storySuggestion?.blockId === selectedBlock.idBloc && (
+                  <div className="space-y-2 rounded-lg border border-violet-500/30 bg-violet-500/5 p-3 text-xs">
+                    <p className="font-semibold">
+                      Suggestion de récit — vérifiez les faits avant application
+                    </p>
+                    <p className="font-medium">{storySuggestion.titre}</p>
+                    <p className="whitespace-pre-wrap text-muted-foreground">
+                      {storySuggestion.texte}
+                    </p>
+                    <div className="flex gap-2">
+                      <Button
+                        size="xs"
+                        onClick={() => {
+                          updateBlock(selectedBlock.idBloc, {
+                            configuration: {
+                              ...selectedBlock.configuration,
+                              titre: storySuggestion.titre,
+                              texte: storySuggestion.texte,
+                            },
+                          });
+                          setStorySuggestion(null);
+                        }}
+                      >
+                        Appliquer
+                      </Button>
+                      <Button size="xs" variant="ghost" onClick={() => setStorySuggestion(null)}>
+                        Ignorer
+                      </Button>
+                    </div>
+                  </div>
+                )}
                 <BlockProperties
                   block={selectedBlock}
                   onChange={(key, value) => updateConfiguration(selectedBlock.idBloc, key, value)}
                   onVisible={(visible) => updateBlock(selectedBlock.idBloc, { visible })}
                   onLayout={(miseEnPage) => updateBlock(selectedBlock.idBloc, { miseEnPage })}
+                  onGenerateStory={() => void generateStory(selectedBlock)}
+                  aiPending={aiPending}
                 />
                 <PhotoProperties
                   portfolioId={portfolio.id}
@@ -910,6 +1059,14 @@ export function PortfolioEditor({ portfolio }: { portfolio: PortfolioEditorData 
           ) : null}
         </DragOverlay>
       </DndContext>
+      {qualityAuditOpen && (
+        <PortfolioQualityAudit
+          audit={qualityAudit}
+          isLoading={qualityAuditLoading}
+          onClose={() => setQualityAuditOpen(false)}
+          onAddBlock={(type) => addBlock(type, blocks.length)}
+        />
+      )}
     </div>
   );
 }
@@ -1472,11 +1629,15 @@ function BlockProperties({
   onChange,
   onVisible,
   onLayout,
+  onGenerateStory,
+  aiPending,
 }: {
   block: BlocPortfolio;
   onChange: (key: string, value: unknown) => void;
   onVisible: (value: boolean) => void;
   onLayout: (value: BlocPortfolio["miseEnPage"]) => void;
+  onGenerateStory: () => void;
+  aiPending: boolean;
 }) {
   const configurationFields = Object.entries(block.configuration).filter(
     ([key]) => key !== "forfaits" && key !== "categorie",
@@ -1516,6 +1677,18 @@ function BlockProperties({
         <h3 className="text-[10px] font-semibold tracking-widest text-muted-foreground uppercase">
           {editorFr.content}
         </h3>
+        {block.type === "CASE_STUDY" && (
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            disabled={aiPending}
+            onClick={onGenerateStory}
+          >
+            <Sparkles className="size-4" />
+            Suggérer un récit depuis mes notes
+          </Button>
+        )}
         {configurationFields.map(([key, value]) => {
           const label = editorFr.fields[key] ?? key;
           if (Array.isArray(value)) {
@@ -1758,6 +1931,10 @@ function PortfolioPageProperties({
   onBioChange,
   onUpdate,
   onGenerateBio,
+  onGenerateSEO,
+  seoSuggestion,
+  onDismissSEO,
+  onApplySEO,
   aiPending,
 }: {
   portfolio: PortfolioEditorData;
@@ -1765,6 +1942,10 @@ function PortfolioPageProperties({
   onBioChange: (value: string) => void;
   onUpdate: (update: PortfolioUpdateInput) => void;
   onGenerateBio: () => void;
+  onGenerateSEO: () => void;
+  seoSuggestion: { metaTitre: string; metaDescription: string } | null;
+  onDismissSEO: () => void;
+  onApplySEO: () => void;
   aiPending: boolean;
 }) {
   return (
@@ -1942,9 +2123,29 @@ function PortfolioPageProperties({
       </section>
       <section className="space-y-3">
         <h3 className="text-sm font-semibold">Référencement</h3>
+        <Button size="sm" variant="outline" disabled={aiPending} onClick={onGenerateSEO}>
+          <Sparkles className="size-4" />
+          Suggérer les métadonnées SEO
+        </Button>
+        {seoSuggestion && (
+          <div className="space-y-2 rounded-lg border border-violet-500/30 bg-violet-500/5 p-3 text-xs">
+            <p className="font-semibold">Suggestion Gemini — relisez avant d’appliquer</p>
+            <p className="font-medium">{seoSuggestion.metaTitre}</p>
+            <p className="text-muted-foreground">{seoSuggestion.metaDescription}</p>
+            <div className="flex gap-2">
+              <Button size="xs" onClick={onApplySEO}>
+                Appliquer
+              </Button>
+              <Button size="xs" variant="ghost" onClick={onDismissSEO}>
+                Ignorer
+              </Button>
+            </div>
+          </div>
+        )}
         <label className="grid gap-1 text-xs">
           Titre SEO
           <Input
+            key={portfolio.seo.metaTitre}
             defaultValue={portfolio.seo.metaTitre}
             maxLength={160}
             onBlur={(event) =>
@@ -1955,6 +2156,7 @@ function PortfolioPageProperties({
         <label className="grid gap-1 text-xs">
           Description SEO
           <textarea
+            key={portfolio.seo.metaDescription}
             defaultValue={portfolio.seo.metaDescription}
             maxLength={320}
             onBlur={(event) =>
@@ -1996,6 +2198,12 @@ function PhotoProperties({
   async function generate(
     action: typeof genererLegendePortfolio | typeof genererTexteAltPortfolio,
   ) {
+    if (
+      !window.confirm(
+        "Cette action envoie l’image à Gemini pour générer le texte demandé. Continuer ?",
+      )
+    )
+      return;
     setPending(true);
     const result = await action({ portfolioId, elementId: currentElement.idElement });
     setPending(false);

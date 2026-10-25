@@ -16,26 +16,37 @@ import {
   type DragOverEvent,
   type DragStartEvent,
 } from "@dnd-kit/core";
-import {
-  arrayMove,
-  sortableKeyboardCoordinates,
-} from "@dnd-kit/sortable";
+import { arrayMove, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import { toast } from "sonner";
 import { EditorTopBar, type ViewportMode } from "./EditorTopBar";
 import { BlockPalette } from "./BlockPalette";
 import { Canvas } from "./Canvas";
 import { PropertiesPanel, type InspectorTab } from "./PropertiesPanel";
 import { PhotoPicker, type PhotoItem } from "./PhotoPicker";
+import { PortfolioQualityAudit } from "./PortfolioQualityAudit";
+import { PortfolioStatsInsights } from "../portfolio-stats-insights";
 import { INITIAL_DEMO_BLOCKS } from "./demoData";
 import { BLOCK_ICONS } from "./paletteData";
-import type { BlocPortfolio, ElementBlocPortfolio, TypeBloc } from "../../portfolio.types";
+import type {
+  BlocPortfolio,
+  ElementBlocPortfolio,
+  PortfolioQualityAudit as PortfolioQualityAuditResult,
+  TypeBloc,
+} from "../../portfolio.types";
 import type { PortfolioEditorData } from "../../portfolio.service";
 import {
   savePortfolio,
   mettreAJourPortfolio,
   publierPortfolio,
   chargerPhotosPortfolio,
+  analyserQualitePortfolioAction,
   supprimerPortfolio,
+  genererBioPortfolio,
+  genererSEOAction,
+  genererHistoireProjetAction,
+  genererLegendePortfolio,
+  genererTexteAltPortfolio,
+  suggererBlocsPortfolio,
 } from "../../portfolio.actions";
 import { editorFr } from "./fr";
 import "./editor.css";
@@ -47,7 +58,8 @@ const defaultBlockConfigs: Record<TypeBloc, Record<string, unknown>> = {
     texteBouton: "Enquire about your date →",
     lienBouton: "#contact",
     tagline: "BORDEAUX · MARIAGE · PORTRAIT",
-    photoCouverture: "https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=1600&q=80",
+    photoCouverture:
+      "https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=1600&q=80",
     liensSociaux: [
       { reseau: "INSTAGRAM", url: "https://instagram.com" },
       { reseau: "SITE_WEB", url: "https://studioflow.app" },
@@ -55,9 +67,11 @@ const defaultBlockConfigs: Record<TypeBloc, Record<string, unknown>> = {
   },
   A_PROPOS: {
     titre: "Aurélie Morales",
-    texte: "Capturing delicate, candid memories in natural light for more than a decade. Based in south-west France, traveling worldwide for destinations that speak of love and grace.",
+    texte:
+      "Capturing delicate, candid memories in natural light for more than a decade. Based in south-west France, traveling worldwide for destinations that speak of love and grace.",
     anneesExperience: 11,
-    photoPortrait: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=600&q=80",
+    photoPortrait:
+      "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=600&q=80",
   },
   GALERIE: { titre: "MARIAGE", colonnes: 3, categorie: "MARIAGE", espacement: 10 },
   COLLECTION: { titre: "PORTRAIT SESSION", colonnes: 3, categorie: "PORTRAIT", espacement: 10 },
@@ -66,13 +80,16 @@ const defaultBlockConfigs: Record<TypeBloc, Record<string, unknown>> = {
     texte: "An early dawn session catching the vendors setting their stalls...",
     date: "14 Septembre",
     lieu: "Bordeaux, Saint-Michel",
-    photo: "https://images.unsplash.com/photo-1509316975850-ff9c5deb0cd9?auto=format&fit=crop&w=1200&q=80",
+    photo:
+      "https://images.unsplash.com/photo-1509316975850-ff9c5deb0cd9?auto=format&fit=crop&w=1200&q=80",
   },
   AVANT_APRES: {
     titre: "Color grading & retouching",
     description: "Subtle film toning and shadow recovery preserving natural skin tones.",
-    photoAvant: "https://images.unsplash.com/photo-1492691527719-9d1e07e534b4?auto=format&fit=crop&w=1000&q=80",
-    photoApres: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=1000&q=80",
+    photoAvant:
+      "https://images.unsplash.com/photo-1492691527719-9d1e07e534b4?auto=format&fit=crop&w=1000&q=80",
+    photoApres:
+      "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=1000&q=80",
   },
   TEMOIGNAGES: {
     titre: "Words from couples & families",
@@ -108,7 +125,8 @@ const defaultBlockConfigs: Record<TypeBloc, Record<string, unknown>> = {
   VIDEO: {
     titre: "Summer Highlights Teaser",
     urlVideo: "https://vimeo.com/76979871",
-    affiche: "https://images.unsplash.com/photo-1518895949257-7621c3c786d7?auto=format&fit=crop&w=1200&q=80",
+    affiche:
+      "https://images.unsplash.com/photo-1518895949257-7621c3c786d7?auto=format&fit=crop&w=1200&q=80",
   },
   CONTACT: {
     titre: "Let's connect",
@@ -143,10 +161,10 @@ export function EditorShell({
   const [blocks, setBlocks] = useState<BlocPortfolio[]>(
     initialPortfolio?.blocs && initialPortfolio.blocs.length > 0
       ? initialPortfolio.blocs
-      : INITIAL_DEMO_BLOCKS
+      : INITIAL_DEMO_BLOCKS,
   );
   const [selectedBlockId, setSelectedBlockId] = useState<string | null>(
-    initialPortfolio?.blocs?.[0]?.idBloc ?? "000000000000000000000001"
+    initialPortfolio?.blocs?.[0]?.idBloc ?? "000000000000000000000001",
   );
 
   // History stack for Undo / Redo
@@ -159,7 +177,7 @@ export function EditorShell({
   const [viewportMode, setViewportMode] = useState<ViewportMode>("desktop");
   const [isSaving, setIsSaving] = useState(false);
   const [hasUnpublishedChanges, setHasUnpublishedChanges] = useState(
-    initialPortfolio?.statut !== "PUBLIE"
+    initialPortfolio?.statut !== "PUBLIE",
   );
   const [isPublished, setIsPublished] = useState(initialPortfolio?.statut === "PUBLIE");
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -167,6 +185,21 @@ export function EditorShell({
   // Responsive drawers
   const [paletteDrawerOpen, setPaletteDrawerOpen] = useState(false);
   const [inspectorDrawerOpen, setInspectorDrawerOpen] = useState(false);
+  const [qualityAudit, setQualityAudit] = useState<PortfolioQualityAuditResult | null>(null);
+  const [isQualityAuditOpen, setIsQualityAuditOpen] = useState(false);
+  const [isQualityAuditLoading, setIsQualityAuditLoading] = useState(false);
+  const [isAiPending, setIsAiPending] = useState(false);
+  const [isStatsInsightsOpen, setIsStatsInsightsOpen] = useState(false);
+  const [layoutSuggestion, setLayoutSuggestion] = useState<BlocPortfolio[] | null>(null);
+  const [seoSuggestion, setSeoSuggestion] = useState<{
+    metaTitre: string;
+    metaDescription: string;
+  } | null>(null);
+  const [storySuggestion, setStorySuggestion] = useState<{
+    blockId: string;
+    titre: string;
+    texte: string;
+  } | null>(null);
 
   // Inspector tab
   const [activeTab, setActiveTab] = useState<InspectorTab>("block");
@@ -202,55 +235,182 @@ export function EditorShell({
     titre: displayName,
     slogan: initialPortfolio?.slogan || "Photographe de mariage & portraits intimes",
     ville: initialPortfolio?.ville || "Bordeaux",
-    bio: initialPortfolio?.bio || "Capturing delicate, candid memories in natural light for more than a decade.",
+    bio:
+      initialPortfolio?.bio ||
+      "Capturing delicate, candid memories in natural light for more than a decade.",
     specialites: (initialPortfolio?.specialites as string[]) || ["Mariage", "Portrait"],
     theme: (initialPortfolio?.theme as string) || "Minimal",
     couleurAccent: initialPortfolio?.couleurAccent || "#e8a34a",
+    seo: initialPortfolio?.seo || { metaTitre: "", metaDescription: "" },
   });
 
   // dnd-kit sensors
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
 
   // Auto-save blocks to MongoDB with debounce
-  const applyBlocksChange = useCallback((nextBlocks: BlocPortfolio[]) => {
-    setHistory((prev) => ({
-      past: [...prev.past.slice(-30), blocks],
-      future: [],
-    }));
-    setBlocks(nextBlocks);
-    setHasUnpublishedChanges(true);
+  const applyBlocksChange = useCallback(
+    (nextBlocks: BlocPortfolio[]) => {
+      setHistory((prev) => ({
+        past: [...prev.past.slice(-30), blocks],
+        future: [],
+      }));
+      setBlocks(nextBlocks);
+      setHasUnpublishedChanges(true);
 
-    setIsSaving(true);
-    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
-    saveTimeoutRef.current = setTimeout(async () => {
-      if (portfolioId) {
-        try {
-          const res = await savePortfolio({ portfolioId, blocs: nextBlocks });
-          if (!res.ok) {
-            console.error("Save portfolio failed:", res.error);
-            toast.error(res.error || "Erreur de sauvegarde.");
+      setIsSaving(true);
+      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+      saveTimeoutRef.current = setTimeout(async () => {
+        if (portfolioId) {
+          try {
+            const res = await savePortfolio({ portfolioId, blocs: nextBlocks });
+            if (!res.ok) {
+              console.error("Save portfolio failed:", res.error);
+              toast.error(res.error || "Erreur de sauvegarde.");
+            }
+          } catch (err) {
+            console.error("Save portfolio exception:", err);
           }
-        } catch (err) {
-          console.error("Save portfolio exception:", err);
         }
-      }
-      setIsSaving(false);
-    }, 1000);
-  }, [blocks, portfolioId]);
+        setIsSaving(false);
+      }, 1000);
+    },
+    [blocks, portfolioId],
+  );
 
   // Update Page Settings and persist to MongoDB
   const handleUpdatePortfolioData = async (field: string, val: unknown) => {
-    setPortfolioData((prev) => {
-      const updated = { ...prev, [field]: val };
-      if (portfolioId) {
-        void mettreAJourPortfolio(portfolioId, { [field]: val }).catch(console.error);
-      }
-      return updated;
-    });
+    setPortfolioData((prev) => ({ ...prev, [field]: val }));
     setHasUnpublishedChanges(true);
+    if (!portfolioId) return;
+    const result = await mettreAJourPortfolio(portfolioId, { [field]: val });
+    if (!result.ok) toast.error(result.error);
+  };
+
+  const handleGenerateBio = async () => {
+    if (!portfolioId) return toast.error("Portfolio introuvable.");
+    setIsAiPending(true);
+    try {
+      const result = await genererBioPortfolio(portfolioId);
+      if (!result.ok) return toast.error(result.error);
+      setPortfolioData((current) => ({ ...current, bio: result.data.bio }));
+      setHasUnpublishedChanges(true);
+      toast.success("Biographie IA générée. Relis-la avant publication.");
+    } catch {
+      toast.error("Impossible de générer la biographie.");
+    } finally {
+      setIsAiPending(false);
+    }
+  };
+
+  const handleGenerateSeo = async () => {
+    if (!portfolioId) return toast.error("Portfolio introuvable.");
+    setIsAiPending(true);
+    try {
+      const result = await genererSEOAction(portfolioId);
+      if (!result.ok) return toast.error(result.error);
+      setSeoSuggestion(result.data);
+    } catch {
+      toast.error("Impossible de générer les métadonnées SEO.");
+    } finally {
+      setIsAiPending(false);
+    }
+  };
+
+  const handleGenerateStory = async (blockId: string) => {
+    if (!portfolioId) return toast.error("Portfolio introuvable.");
+    const block = blocks.find((item) => item.idBloc === blockId);
+    const notes =
+      typeof block?.configuration.texte === "string" ? block.configuration.texte.trim() : "";
+    if (!block || block.type !== "CASE_STUDY") return;
+    if (notes.length < 20) {
+      toast.error("Ajoute au moins 20 caractères de notes factuelles dans le récit.");
+      return;
+    }
+    setIsAiPending(true);
+    try {
+      const result = await genererHistoireProjetAction({
+        portfolioId,
+        blockId,
+        notes,
+        titre:
+          typeof block.configuration.titre === "string" ? block.configuration.titre : undefined,
+      });
+      if (!result.ok) return toast.error(result.error);
+      setStorySuggestion({ blockId, ...result.data });
+    } catch {
+      toast.error("Impossible de générer le récit de cette étude de cas.");
+    } finally {
+      setIsAiPending(false);
+    }
+  };
+
+  const handleGeneratePhotoText = async (elementId: string, kind: "caption" | "alt") => {
+    if (!portfolioId) return toast.error("Portfolio introuvable.");
+    if (!window.confirm("Cette action envoie l’image sélectionnée à Gemini. Continuer ?")) return;
+    setIsAiPending(true);
+    try {
+      let update: Partial<ElementBlocPortfolio>;
+      if (kind === "caption") {
+        const result = await genererLegendePortfolio({ portfolioId, elementId });
+        if (!result.ok) return toast.error(result.error);
+        update = { legende: result.data.legende, legendeGenereeIA: true };
+      } else {
+        const result = await genererTexteAltPortfolio({ portfolioId, elementId });
+        if (!result.ok) return toast.error(result.error);
+        update = { texteAlt: result.data.texteAlt, texteAltGenereeIA: true };
+      }
+      const nextBlocks = blocks.map((block) => ({
+        ...block,
+        elements: block.elements.map((element) =>
+          element.idElement === elementId ? { ...element, ...update } : element,
+        ),
+      }));
+      applyBlocksChange(nextBlocks);
+      toast.success(kind === "caption" ? "Légende générée." : "Texte alternatif généré.");
+    } catch {
+      toast.error("Impossible de générer le texte de la photo.");
+    } finally {
+      setIsAiPending(false);
+    }
+  };
+
+  const handleSuggestLayout = async () => {
+    if (!portfolioId) return toast.error("Portfolio introuvable.");
+    setIsAiPending(true);
+    try {
+      const result = await suggererBlocsPortfolio(portfolioId);
+      if (!result.ok) return toast.error(result.error);
+      setLayoutSuggestion(result.data.blocs);
+    } catch {
+      toast.error("Impossible de suggérer l’ordre des blocs.");
+    } finally {
+      setIsAiPending(false);
+    }
+  };
+
+  const handleApplySeoSuggestion = () => {
+    if (!seoSuggestion) return;
+    void handleUpdatePortfolioData("seo", { ...portfolioData.seo, ...seoSuggestion });
+    setSeoSuggestion(null);
+    toast.success("Métadonnées SEO appliquées.");
+  };
+
+  const handleApplyStorySuggestion = () => {
+    if (!storySuggestion) return;
+    const block = blocks.find((item) => item.idBloc === storySuggestion.blockId);
+    if (!block) return setStorySuggestion(null);
+    handleUpdateBlock(block.idBloc, {
+      configuration: {
+        ...block.configuration,
+        titre: storySuggestion.titre,
+        texte: storySuggestion.texte,
+      },
+    });
+    setStorySuggestion(null);
+    toast.success("Récit appliqué au bloc.");
   };
 
   // Undo / Redo handlers
@@ -297,10 +457,13 @@ export function EditorShell({
   }, [handleUndo, handleRedo]);
 
   // Block counts calculation for palette
-  const blockUsageCounts = blocks.reduce((acc, b) => {
-    acc[b.type] = (acc[b.type] || 0) + 1;
-    return acc;
-  }, {} as Partial<Record<TypeBloc, number>>);
+  const blockUsageCounts = blocks.reduce(
+    (acc, b) => {
+      acc[b.type] = (acc[b.type] || 0) + 1;
+      return acc;
+    },
+    {} as Partial<Record<TypeBloc, number>>,
+  );
 
   // Selection
   const handleSelectBlock = (id: string | null) => {
@@ -342,11 +505,9 @@ export function EditorShell({
       elements: [],
     };
 
-    const nextBlocks = [
-      ...blocks.slice(0, insertAt),
-      newBlock,
-      ...blocks.slice(insertAt),
-    ].map((b, idx) => ({ ...b, ordre: idx }));
+    const nextBlocks = [...blocks.slice(0, insertAt), newBlock, ...blocks.slice(insertAt)].map(
+      (b, idx) => ({ ...b, ordre: idx }),
+    );
 
     applyBlocksChange(nextBlocks);
     handleSelectBlock(newBlockId);
@@ -366,9 +527,7 @@ export function EditorShell({
 
   // Toggle visibility
   const handleToggleVisibility = (id: string) => {
-    const nextBlocks = blocks.map((b) =>
-      b.idBloc === id ? { ...b, visible: !b.visible } : b
-    );
+    const nextBlocks = blocks.map((b) => (b.idBloc === id ? { ...b, visible: !b.visible } : b));
     applyBlocksChange(nextBlocks);
   };
 
@@ -420,9 +579,7 @@ export function EditorShell({
 
   // Update block properties
   const handleUpdateBlock = (id: string, update: Partial<BlocPortfolio>) => {
-    const nextBlocks = blocks.map((b) =>
-      b.idBloc === id ? { ...b, ...update } : b
-    );
+    const nextBlocks = blocks.map((b) => (b.idBloc === id ? { ...b, ...update } : b));
     applyBlocksChange(nextBlocks);
   };
 
@@ -509,10 +666,44 @@ export function EditorShell({
     }
   };
 
+  const handleQualityAudit = async () => {
+    if (!portfolioId) {
+      toast.error("Portfolio introuvable.");
+      return;
+    }
+    const confirmed = window.confirm(
+      "L’audit envoie à Gemini les textes et données structurées du portfolio. Les images ne sont pas incluses. Continuer ?",
+    );
+    if (!confirmed) return;
+    setIsQualityAuditOpen(true);
+    setIsQualityAuditLoading(true);
+    try {
+      const saveRes = await savePortfolio({ portfolioId, blocs: blocks });
+      if (!saveRes.ok) {
+        toast.error(saveRes.error || "Erreur d'enregistrement des blocs.");
+        return;
+      }
+      const result = await analyserQualitePortfolioAction({ portfolioId });
+      if (!result.ok) {
+        toast.error(result.error || "Impossible d'analyser le portfolio.");
+        return;
+      }
+      setQualityAudit(result.data);
+    } catch {
+      toast.error("Erreur serveur pendant l'analyse.");
+    } finally {
+      setIsQualityAuditLoading(false);
+    }
+  };
+
   // Delete portfolio from MongoDB
   const handleDeletePortfolio = async () => {
     if (!portfolioId) return;
-    if (!window.confirm("Êtes-vous sûr de vouloir supprimer définitivement ce portfolio de la base de données MongoDB ?")) {
+    if (
+      !window.confirm(
+        "Êtes-vous sûr de vouloir supprimer définitivement ce portfolio de la base de données MongoDB ?",
+      )
+    ) {
       return;
     }
     setIsSaving(true);
@@ -647,6 +838,8 @@ export function EditorShell({
           onUndo={handleUndo}
           onRedo={handleRedo}
           onPublish={handlePublish}
+          onQualityAudit={() => void handleQualityAudit()}
+          onOpenStatsInsights={() => setIsStatsInsightsOpen(true)}
           onTogglePaletteDrawer={() => setPaletteDrawerOpen((prev) => !prev)}
           onToggleInspectorDrawer={() => setInspectorDrawerOpen((prev) => !prev)}
         />
@@ -659,6 +852,14 @@ export function EditorShell({
               totalBlocksCount={blocks.length}
               blockUsageCounts={blockUsageCounts}
               onAddBlock={(type) => handleAddBlock(type)}
+              onSuggestLayout={() => void handleSuggestLayout()}
+              layoutSuggestion={layoutSuggestion}
+              layoutSuggestionPending={isAiPending}
+              onApplyLayoutSuggestion={() => {
+                if (layoutSuggestion) applyBlocksChange(layoutSuggestion);
+                setLayoutSuggestion(null);
+              }}
+              onDismissLayoutSuggestion={() => setLayoutSuggestion(null)}
             />
           </div>
 
@@ -670,7 +871,7 @@ export function EditorShell({
                 onClick={() => setPaletteDrawerOpen(false)}
                 aria-hidden="true"
               />
-              <div className="relative z-50 h-full w-[260px] shadow-2xl animate-in slide-in-from-left duration-200">
+              <div className="relative z-50 h-full w-[260px] animate-in shadow-2xl duration-200 slide-in-from-left">
                 <BlockPalette
                   totalBlocksCount={blocks.length}
                   blockUsageCounts={blockUsageCounts}
@@ -678,6 +879,14 @@ export function EditorShell({
                     handleAddBlock(type);
                     setPaletteDrawerOpen(false);
                   }}
+                  onSuggestLayout={() => void handleSuggestLayout()}
+                  layoutSuggestion={layoutSuggestion}
+                  layoutSuggestionPending={isAiPending}
+                  onApplyLayoutSuggestion={() => {
+                    if (layoutSuggestion) applyBlocksChange(layoutSuggestion);
+                    setLayoutSuggestion(null);
+                  }}
+                  onDismissLayoutSuggestion={() => setLayoutSuggestion(null)}
                   className="w-full"
                 />
               </div>
@@ -721,6 +930,19 @@ export function EditorShell({
               onDeleteBlock={handleDeleteBlock}
               onOpenPhotoPicker={handleOpenPhotoPicker}
               onRemoveElement={handleRemoveElement}
+              onGeneratePhotoText={(elementId, kind) =>
+                void handleGeneratePhotoText(elementId, kind)
+              }
+              onGenerateBio={() => void handleGenerateBio()}
+              onGenerateSeo={() => void handleGenerateSeo()}
+              seoSuggestion={seoSuggestion}
+              onApplySeoSuggestion={handleApplySeoSuggestion}
+              onDismissSeoSuggestion={() => setSeoSuggestion(null)}
+              onGenerateStory={(blockId) => void handleGenerateStory(blockId)}
+              storySuggestion={storySuggestion}
+              onApplyStorySuggestion={handleApplyStorySuggestion}
+              onDismissStorySuggestion={() => setStorySuggestion(null)}
+              aiPending={isAiPending}
               portfolioData={portfolioData}
               onUpdatePortfolioData={handleUpdatePortfolioData}
               portfolioSlug={portfolioSlug}
@@ -737,7 +959,7 @@ export function EditorShell({
                 onClick={() => setInspectorDrawerOpen(false)}
                 aria-hidden="true"
               />
-              <div className="relative z-50 h-full w-[330px] shadow-2xl animate-in slide-in-from-right duration-200">
+              <div className="relative z-50 h-full w-[330px] animate-in shadow-2xl duration-200 slide-in-from-right">
                 <PropertiesPanel
                   activeTab={activeTab}
                   onTabChange={setActiveTab}
@@ -748,6 +970,19 @@ export function EditorShell({
                   onDeleteBlock={handleDeleteBlock}
                   onOpenPhotoPicker={handleOpenPhotoPicker}
                   onRemoveElement={handleRemoveElement}
+                  onGeneratePhotoText={(elementId, kind) =>
+                    void handleGeneratePhotoText(elementId, kind)
+                  }
+                  onGenerateBio={() => void handleGenerateBio()}
+                  onGenerateSeo={() => void handleGenerateSeo()}
+                  seoSuggestion={seoSuggestion}
+                  onApplySeoSuggestion={handleApplySeoSuggestion}
+                  onDismissSeoSuggestion={() => setSeoSuggestion(null)}
+                  onGenerateStory={(blockId) => void handleGenerateStory(blockId)}
+                  storySuggestion={storySuggestion}
+                  onApplyStorySuggestion={handleApplyStorySuggestion}
+                  onDismissStorySuggestion={() => setStorySuggestion(null)}
+                  aiPending={isAiPending}
                   portfolioData={portfolioData}
                   onUpdatePortfolioData={handleUpdatePortfolioData}
                   portfolioSlug={portfolioSlug}
@@ -777,7 +1012,7 @@ export function EditorShell({
               </span>
             </div>
           ) : draggedBlockId ? (
-            <div className="flex items-center gap-2 rounded-lg border border-[#e8a34a] bg-black/90 px-4 py-2 text-xs font-mono font-semibold text-[#e8a34a] shadow-2xl">
+            <div className="flex items-center gap-2 rounded-lg border border-[#e8a34a] bg-black/90 px-4 py-2 font-mono text-xs font-semibold text-[#e8a34a] shadow-2xl">
               <span>⠿ DÉPLACEMENT DU BLOC</span>
             </div>
           ) : null}
@@ -786,15 +1021,51 @@ export function EditorShell({
         {/* Photo Picker Modal */}
         <PhotoPicker
           isOpen={photoPickerBlocId !== null}
-          destinationBlockName={
-            selectedBlock ? editorFr.blockNames[selectedBlock.type] : "Gallery"
-          }
+          destinationBlockName={selectedBlock ? editorFr.blockNames[selectedBlock.type] : "Gallery"}
           photos={photographerPhotos}
           isLoadingPhotos={isLoadingPhotos}
           onClose={() => setPhotoPickerBlocId(null)}
           onAddPhotos={handleAddPhotosToBlock}
         />
       </div>
+      {isStatsInsightsOpen && portfolioId && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-label="Conseils IA sur les statistiques"
+            className="w-full max-w-3xl rounded-2xl border border-violet-300/20 bg-[#1a100b] p-5 text-[#f3ebdd] shadow-2xl"
+          >
+            <div className="mb-4 flex items-center justify-between">
+              <div>
+                <p className="font-mono text-[10px] font-semibold tracking-[0.16em] text-violet-200 uppercase">
+                  Gemini · Portfolio
+                </p>
+                <h2 className="mt-1 text-lg font-semibold">Conseils sur vos statistiques</h2>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsStatsInsightsOpen(false)}
+                aria-label="Fermer les conseils statistiques"
+                className="rounded-lg px-3 py-2 text-sm text-white/60 hover:bg-white/10 hover:text-white"
+              >
+                Fermer
+              </button>
+            </div>
+            <PortfolioStatsInsights portfolioId={portfolioId} />
+          </section>
+        </div>
+      )}
+      {isQualityAuditOpen && (
+        <PortfolioQualityAudit
+          audit={qualityAudit}
+          isLoading={isQualityAuditLoading}
+          onClose={() => setIsQualityAuditOpen(false)}
+          onAddBlock={(type) => {
+            handleAddBlock(type);
+          }}
+        />
+      )}
     </DndContext>
   );
 }

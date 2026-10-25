@@ -111,6 +111,66 @@ export type BlocPortfolioPublic = {
   elements: ElementPortfolioPublic[];
 };
 
+export type PortfolioQualityCriterion = {
+  id:
+    | "COVER"
+    | "PHOTO_COHERENCE"
+    | "PHOTO_VARIETY"
+    | "TITLES"
+    | "TEXTS"
+    | "CTA"
+    | "TESTIMONIALS"
+    | "SERVICES"
+    | "SEO"
+    | "MOBILE"
+    | "PERFORMANCE"
+    | "ACCESSIBILITY";
+  label: string;
+  score: number;
+  maxScore: number;
+  status: "GOOD" | "WARNING" | "ACTION";
+  detail: string;
+  recommendedBlock?: TypeBloc;
+};
+
+export type PortfolioQualityAudit = {
+  score: number;
+  aiSuggestionsAvailable: boolean;
+  criteria: PortfolioQualityCriterion[];
+  strengths: string[];
+  improvements: string[];
+  missingBlocks: { type: TypeBloc; label: string; reason: string }[];
+  idealStructure: TypeBloc[];
+  checksPublication: {
+    id: "CONSENT" | "ALT_TEXT" | "SEO";
+    label: string;
+    status: "READY" | "ACTION";
+    detail: string;
+  }[];
+  generatedAt: string;
+};
+
+export type PhotoQualityReport = {
+  raison: string;
+  nettete: number;
+  exposition: number;
+  composition: number;
+  couleurs: number;
+  defauts: string[];
+};
+
+export type SmartPhotoSelection = {
+  photoIds: string[];
+  scores: Record<string, number>;
+  reports?: Record<string, PhotoQualityReport>;
+  similarPhotoIds: string[];
+  lowQualityPhotoIds: string[];
+  selectionValidated?: boolean;
+};
+
+export const PHOTO_QUALITY_SELECTION_THRESHOLD = 50;
+export const MAX_AUTOMATIC_PORTFOLIO_PHOTOS = 6;
+
 export const categoriePortfolioLabels: Record<CategoriePortfolio, string> = {
   MARIAGE: "Mariage",
   PORTRAIT: "Portrait",

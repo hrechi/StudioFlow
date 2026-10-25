@@ -11,6 +11,8 @@ import {
   Plus,
   Upload,
   Loader2,
+  Sparkles,
+  Check,
 } from "lucide-react";
 import { SafeImage } from "@/components/shared/safe-image";
 import { toast } from "sonner";
@@ -30,6 +32,17 @@ type PropertiesPanelProps = {
   onDeleteBlock: (id: string) => void;
   onOpenPhotoPicker?: (blocId: string) => void;
   onRemoveElement?: (blocId: string, elementId: string) => void;
+  onGeneratePhotoText?: (elementId: string, kind: "caption" | "alt") => void;
+  onGenerateBio?: () => void;
+  onGenerateSeo?: () => void;
+  seoSuggestion?: { metaTitre: string; metaDescription: string } | null;
+  onApplySeoSuggestion?: () => void;
+  onDismissSeoSuggestion?: () => void;
+  onGenerateStory?: (blockId: string) => void;
+  storySuggestion?: { blockId: string; titre: string; texte: string } | null;
+  onApplyStorySuggestion?: () => void;
+  onDismissStorySuggestion?: () => void;
+  aiPending?: boolean;
   portfolioData?: {
     titre?: string;
     slogan?: string;
@@ -38,6 +51,7 @@ type PropertiesPanelProps = {
     specialites?: string[];
     theme?: string;
     couleurAccent?: string;
+    seo?: { metaTitre?: string; metaDescription?: string };
   };
   onUpdatePortfolioData?: (field: string, value: unknown) => void;
   portfolioSlug?: string;
@@ -56,6 +70,17 @@ export function PropertiesPanel({
   onDeleteBlock,
   onOpenPhotoPicker,
   onRemoveElement,
+  onGeneratePhotoText,
+  onGenerateBio,
+  onGenerateSeo,
+  seoSuggestion,
+  onApplySeoSuggestion,
+  onDismissSeoSuggestion,
+  onGenerateStory,
+  storySuggestion,
+  onApplyStorySuggestion,
+  onDismissStorySuggestion,
+  aiPending = false,
   portfolioData = {
     titre: "Aurélie Morales",
     slogan: "Photographe de mariage & portraits intimes",
@@ -86,7 +111,7 @@ export function PropertiesPanel({
   async function handleFileUpload(
     file: File,
     onDone: (url: string) => void,
-    setLoading: (b: boolean) => void
+    setLoading: (b: boolean) => void,
   ) {
     setLoading(true);
     try {
@@ -152,7 +177,7 @@ export function PropertiesPanel({
       </div>
 
       {/* Panel Scrollable Content */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-6">
+      <div className="flex-1 space-y-6 overflow-y-auto p-4">
         {activeTab === "block" && selectedBlock ? (
           /* TAB: BLOCK */
           <div className="space-y-5">
@@ -178,7 +203,9 @@ export function PropertiesPanel({
                 type="button"
                 role="switch"
                 aria-checked={selectedBlock.visible}
-                onClick={() => onUpdateBlock(selectedBlock.idBloc, { visible: !selectedBlock.visible })}
+                onClick={() =>
+                  onUpdateBlock(selectedBlock.idBloc, { visible: !selectedBlock.visible })
+                }
                 className={`sf-switch-toggle relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border p-0.5 transition-colors ${
                   selectedBlock.visible
                     ? "border-[#e8a34a]/40 bg-[#e8a34a]"
@@ -202,26 +229,28 @@ export function PropertiesPanel({
                   {editorFr.layout}
                 </div>
                 <div className="grid grid-cols-2 gap-1.5">
-                  {(["GRILLE", "MASONRY", "CARROUSEL", "PLEIN_ECRAN"] as MiseEnPage[]).map((mode) => (
-                    <button
-                      key={mode}
-                      type="button"
-                      onClick={() => onUpdateBlock(selectedBlock.idBloc, { miseEnPage: mode })}
-                      className={`rounded-[6px] border px-3 py-2 text-left text-xs font-medium transition-all ${
-                        selectedBlock.miseEnPage === mode
-                          ? "border-[#e8a34a] bg-[#e8a34a]/15 text-[#e8a34a]"
-                          : "border-white/[0.08] bg-white/[0.02] text-white/60 hover:bg-white/[0.05] hover:text-white"
-                      }`}
-                    >
-                      {editorFr.layouts[mode]}
-                    </button>
-                  ))}
+                  {(["GRILLE", "MASONRY", "CARROUSEL", "PLEIN_ECRAN"] as MiseEnPage[]).map(
+                    (mode) => (
+                      <button
+                        key={mode}
+                        type="button"
+                        onClick={() => onUpdateBlock(selectedBlock.idBloc, { miseEnPage: mode })}
+                        className={`rounded-[6px] border px-3 py-2 text-left text-xs font-medium transition-all ${
+                          selectedBlock.miseEnPage === mode
+                            ? "border-[#e8a34a] bg-[#e8a34a]/15 text-[#e8a34a]"
+                            : "border-white/[0.08] bg-white/[0.02] text-white/60 hover:bg-white/[0.05] hover:text-white"
+                        }`}
+                      >
+                        {editorFr.layouts[mode]}
+                      </button>
+                    ),
+                  )}
                 </div>
               </div>
             )}
 
             {/* 4. CONTENT FIELDS ADAPTED BY TYPE */}
-            <div className="border-t border-white/[0.08] pt-4 space-y-4">
+            <div className="space-y-4 border-t border-white/[0.08] pt-4">
               <div className="font-mono text-[9px] font-semibold tracking-[0.16em] text-[#6f655a] uppercase">
                 {editorFr.content}
               </div>
@@ -234,25 +263,35 @@ export function PropertiesPanel({
                     <input
                       type="text"
                       value={(conf.titre as string) || ""}
-                      onChange={(e) => onUpdateConfiguration(selectedBlock.idBloc, "titre", e.target.value)}
+                      onChange={(e) =>
+                        onUpdateConfiguration(selectedBlock.idBloc, "titre", e.target.value)
+                      }
                       className="mt-1 w-full rounded-[6px] border border-white/[0.08] bg-black/30 px-2.5 py-1.5 font-sans text-xs text-[#f3ebdd] focus:border-[#e8a34a] focus:outline-hidden"
                     />
                   </div>
                   <div>
-                    <label className="text-[11px] text-[#9a8f82]">{editorFr.fields.sousTitre}</label>
+                    <label className="text-[11px] text-[#9a8f82]">
+                      {editorFr.fields.sousTitre}
+                    </label>
                     <input
                       type="text"
                       value={(conf.sousTitre as string) || ""}
-                      onChange={(e) => onUpdateConfiguration(selectedBlock.idBloc, "sousTitre", e.target.value)}
+                      onChange={(e) =>
+                        onUpdateConfiguration(selectedBlock.idBloc, "sousTitre", e.target.value)
+                      }
                       className="mt-1 w-full rounded-[6px] border border-white/[0.08] bg-black/30 px-2.5 py-1.5 font-sans text-xs text-[#f3ebdd] focus:border-[#e8a34a] focus:outline-hidden"
                     />
                   </div>
                   <div>
-                    <label className="text-[11px] text-[#9a8f82]">{editorFr.fields.texteBouton}</label>
+                    <label className="text-[11px] text-[#9a8f82]">
+                      {editorFr.fields.texteBouton}
+                    </label>
                     <input
                       type="text"
                       value={(conf.texteBouton as string) || ""}
-                      onChange={(e) => onUpdateConfiguration(selectedBlock.idBloc, "texteBouton", e.target.value)}
+                      onChange={(e) =>
+                        onUpdateConfiguration(selectedBlock.idBloc, "texteBouton", e.target.value)
+                      }
                       className="mt-1 w-full rounded-[6px] border border-white/[0.08] bg-black/30 px-2.5 py-1.5 font-sans text-xs text-[#f3ebdd] focus:border-[#e8a34a] focus:outline-hidden"
                     />
                   </div>
@@ -261,13 +300,15 @@ export function PropertiesPanel({
                     <input
                       type="text"
                       value={(conf.tagline as string) || ""}
-                      onChange={(e) => onUpdateConfiguration(selectedBlock.idBloc, "tagline", e.target.value)}
+                      onChange={(e) =>
+                        onUpdateConfiguration(selectedBlock.idBloc, "tagline", e.target.value)
+                      }
                       className="mt-1 w-full rounded-[6px] border border-white/[0.08] bg-black/30 px-2.5 py-1.5 font-sans text-xs text-[#f3ebdd] focus:border-[#e8a34a] focus:outline-hidden"
                     />
                   </div>
 
                   {/* Cover Photo: URL + Upload */}
-                  <div className="rounded-[8px] border border-white/[0.06] bg-black/30 p-3 space-y-2">
+                  <div className="space-y-2 rounded-[8px] border border-white/[0.06] bg-black/30 p-3">
                     <div className="flex items-center justify-between">
                       <label className="text-[11px] font-medium text-[#f3ebdd]">
                         Photo de couverture (Cover photo)
@@ -302,8 +343,9 @@ export function PropertiesPanel({
                         if (file) {
                           handleFileUpload(
                             file,
-                            (url) => onUpdateConfiguration(selectedBlock.idBloc, "photoCouverture", url),
-                            setUploadingCover
+                            (url) =>
+                              onUpdateConfiguration(selectedBlock.idBloc, "photoCouverture", url),
+                            setUploadingCover,
                           );
                         }
                       }}
@@ -313,7 +355,13 @@ export function PropertiesPanel({
                       type="text"
                       placeholder="https://... ou chemin de l'image"
                       value={(conf.photoCouverture as string) || ""}
-                      onChange={(e) => onUpdateConfiguration(selectedBlock.idBloc, "photoCouverture", e.target.value)}
+                      onChange={(e) =>
+                        onUpdateConfiguration(
+                          selectedBlock.idBloc,
+                          "photoCouverture",
+                          e.target.value,
+                        )
+                      }
                       className="w-full rounded-[6px] border border-white/[0.08] bg-black/40 px-2.5 py-1.5 font-sans text-xs text-[#f3ebdd] focus:border-[#e8a34a] focus:outline-hidden"
                     />
 
@@ -331,7 +379,7 @@ export function PropertiesPanel({
                   </div>
 
                   {/* Social Networks in Hero */}
-                  <div className="rounded-[8px] border border-white/[0.06] bg-black/30 p-3 space-y-3">
+                  <div className="space-y-3 rounded-[8px] border border-white/[0.06] bg-black/30 p-3">
                     <label className="block text-[11px] font-medium text-[#f3ebdd]">
                       Réseaux sociaux (Social links)
                     </label>
@@ -339,38 +387,40 @@ export function PropertiesPanel({
                     {/* Current list */}
                     {Array.isArray(conf.liensSociaux) && conf.liensSociaux.length > 0 ? (
                       <div className="space-y-1.5">
-                        {(conf.liensSociaux as { reseau: string; url: string }[]).map((link, idx) => (
-                          <div
-                            key={idx}
-                            className="flex items-center justify-between gap-2 rounded border border-white/[0.06] bg-white/[0.02] px-2.5 py-1.5 text-xs text-white/90"
-                          >
-                            <span className="font-mono text-[10px] text-[#e8a34a]">
-                              {link.reseau}
-                            </span>
-                            <span className="truncate flex-1 text-[11px] text-white/60">
-                              {link.url}
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const next = (conf.liensSociaux as { reseau: string; url: string }[]).filter(
-                                  (_, i) => i !== idx
-                                );
-                                onUpdateConfiguration(selectedBlock.idBloc, "liensSociaux", next);
-                              }}
-                              className="text-white/40 hover:text-red-400"
+                        {(conf.liensSociaux as { reseau: string; url: string }[]).map(
+                          (link, idx) => (
+                            <div
+                              key={idx}
+                              className="flex items-center justify-between gap-2 rounded border border-white/[0.06] bg-white/[0.02] px-2.5 py-1.5 text-xs text-white/90"
                             >
-                              <X className="size-3.5" />
-                            </button>
-                          </div>
-                        ))}
+                              <span className="font-mono text-[10px] text-[#e8a34a]">
+                                {link.reseau}
+                              </span>
+                              <span className="flex-1 truncate text-[11px] text-white/60">
+                                {link.url}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const next = (
+                                    conf.liensSociaux as { reseau: string; url: string }[]
+                                  ).filter((_, i) => i !== idx);
+                                  onUpdateConfiguration(selectedBlock.idBloc, "liensSociaux", next);
+                                }}
+                                className="text-white/40 hover:text-red-400"
+                              >
+                                <X className="size-3.5" />
+                              </button>
+                            </div>
+                          ),
+                        )}
                       </div>
                     ) : (
                       <p className="text-[10px] text-[#9a8f82]">Aucun réseau social configuré.</p>
                     )}
 
                     {/* Add new social link */}
-                    <div className="pt-2 border-t border-white/[0.06] space-y-2">
+                    <div className="space-y-2 border-t border-white/[0.06] pt-2">
                       <div className="grid grid-cols-3 gap-1.5">
                         <select
                           value={newSocialReseau}
@@ -399,7 +449,10 @@ export function PropertiesPanel({
                             return;
                           }
                           const current = Array.isArray(conf.liensSociaux) ? conf.liensSociaux : [];
-                          const next = [...current, { reseau: newSocialReseau, url: newSocialUrl.trim() }];
+                          const next = [
+                            ...current,
+                            { reseau: newSocialReseau, url: newSocialUrl.trim() },
+                          ];
                           onUpdateConfiguration(selectedBlock.idBloc, "liensSociaux", next);
                           setNewSocialUrl("");
                           toast.success("Réseau social ajouté au Hero !");
@@ -422,7 +475,9 @@ export function PropertiesPanel({
                     <input
                       type="text"
                       value={(conf.titre as string) || ""}
-                      onChange={(e) => onUpdateConfiguration(selectedBlock.idBloc, "titre", e.target.value)}
+                      onChange={(e) =>
+                        onUpdateConfiguration(selectedBlock.idBloc, "titre", e.target.value)
+                      }
                       className="mt-1 w-full rounded-[6px] border border-white/[0.08] bg-black/30 px-2.5 py-1.5 font-sans text-xs text-[#f3ebdd] focus:border-[#e8a34a] focus:outline-hidden"
                     />
                   </div>
@@ -437,24 +492,34 @@ export function PropertiesPanel({
                       rows={4}
                       maxLength={600}
                       value={(conf.texte as string) || ""}
-                      onChange={(e) => onUpdateConfiguration(selectedBlock.idBloc, "texte", e.target.value)}
+                      onChange={(e) =>
+                        onUpdateConfiguration(selectedBlock.idBloc, "texte", e.target.value)
+                      }
                       className="mt-1 w-full rounded-[6px] border border-white/[0.08] bg-black/30 p-2 font-sans text-xs text-[#f3ebdd] focus:border-[#e8a34a] focus:outline-hidden"
                     />
                   </div>
                   <div>
-                    <label className="text-[11px] text-[#9a8f82]">{editorFr.fields.anneesExperience}</label>
+                    <label className="text-[11px] text-[#9a8f82]">
+                      {editorFr.fields.anneesExperience}
+                    </label>
                     <input
                       type="number"
                       min={0}
                       max={50}
                       value={Number(conf.anneesExperience ?? 0)}
-                      onChange={(e) => onUpdateConfiguration(selectedBlock.idBloc, "anneesExperience", Number(e.target.value))}
+                      onChange={(e) =>
+                        onUpdateConfiguration(
+                          selectedBlock.idBloc,
+                          "anneesExperience",
+                          Number(e.target.value),
+                        )
+                      }
                       className="mt-1 w-full rounded-[6px] border border-white/[0.08] bg-black/30 px-2.5 py-1.5 font-sans text-xs text-[#f3ebdd] focus:border-[#e8a34a] focus:outline-hidden"
                     />
                   </div>
 
                   {/* Profile / Portrait: URL + Upload */}
-                  <div className="rounded-[8px] border border-white/[0.06] bg-black/30 p-3 space-y-2">
+                  <div className="space-y-2 rounded-[8px] border border-white/[0.06] bg-black/30 p-3">
                     <div className="flex items-center justify-between">
                       <label className="text-[11px] font-medium text-[#f3ebdd]">
                         Photo de profil / portrait
@@ -489,8 +554,9 @@ export function PropertiesPanel({
                         if (file) {
                           handleFileUpload(
                             file,
-                            (url) => onUpdateConfiguration(selectedBlock.idBloc, "photoPortrait", url),
-                            setUploadingPortrait
+                            (url) =>
+                              onUpdateConfiguration(selectedBlock.idBloc, "photoPortrait", url),
+                            setUploadingPortrait,
                           );
                         }
                       }}
@@ -500,7 +566,9 @@ export function PropertiesPanel({
                       type="text"
                       placeholder="https://... ou chemin de l'image"
                       value={(conf.photoPortrait as string) || ""}
-                      onChange={(e) => onUpdateConfiguration(selectedBlock.idBloc, "photoPortrait", e.target.value)}
+                      onChange={(e) =>
+                        onUpdateConfiguration(selectedBlock.idBloc, "photoPortrait", e.target.value)
+                      }
                       className="w-full rounded-[6px] border border-white/[0.08] bg-black/40 px-2.5 py-1.5 font-sans text-xs text-[#f3ebdd] focus:border-[#e8a34a] focus:outline-hidden"
                     />
 
@@ -523,12 +591,16 @@ export function PropertiesPanel({
               {(selectedBlock.type === "GALERIE" || selectedBlock.type === "COLLECTION") && (
                 <div className="space-y-3">
                   <div>
-                    <label className="text-[11px] text-[#9a8f82]">{editorFr.fields.titre} (Heading)</label>
+                    <label className="text-[11px] text-[#9a8f82]">
+                      {editorFr.fields.titre} (Heading)
+                    </label>
                     <input
                       type="text"
                       placeholder={(conf.categorie as string) || "MARIAGE"}
                       value={(conf.titre as string) || ""}
-                      onChange={(e) => onUpdateConfiguration(selectedBlock.idBloc, "titre", e.target.value)}
+                      onChange={(e) =>
+                        onUpdateConfiguration(selectedBlock.idBloc, "titre", e.target.value)
+                      }
                       className="mt-1 w-full rounded-[6px] border border-white/[0.08] bg-black/30 px-2.5 py-1.5 font-sans text-xs text-[#f3ebdd] focus:border-[#e8a34a] focus:outline-hidden"
                     />
                   </div>
@@ -539,7 +611,9 @@ export function PropertiesPanel({
                         <button
                           key={col}
                           type="button"
-                          onClick={() => onUpdateConfiguration(selectedBlock.idBloc, "colonnes", col)}
+                          onClick={() =>
+                            onUpdateConfiguration(selectedBlock.idBloc, "colonnes", col)
+                          }
                           className={`rounded-[6px] border py-1.5 font-mono text-xs font-semibold ${
                             Number(conf.colonnes || 3) === col
                               ? "border-[#e8a34a] bg-[#e8a34a]/15 text-[#e8a34a]"
@@ -552,10 +626,14 @@ export function PropertiesPanel({
                     </div>
                   </div>
                   <div>
-                    <label className="text-[11px] text-[#9a8f82]">{editorFr.fields.categorie}</label>
+                    <label className="text-[11px] text-[#9a8f82]">
+                      {editorFr.fields.categorie}
+                    </label>
                     <select
                       value={(conf.categorie as string) || "MARIAGE"}
-                      onChange={(e) => onUpdateConfiguration(selectedBlock.idBloc, "categorie", e.target.value)}
+                      onChange={(e) =>
+                        onUpdateConfiguration(selectedBlock.idBloc, "categorie", e.target.value)
+                      }
                       className="mt-1 w-full rounded-[6px] border border-white/[0.08] bg-[#140d08] px-2.5 py-1.5 font-sans text-xs text-[#f3ebdd] focus:border-[#e8a34a] focus:outline-hidden"
                     >
                       <option value="MARIAGE">Mariage</option>
@@ -575,7 +653,9 @@ export function PropertiesPanel({
                     <input
                       type="text"
                       value={(conf.titre as string) || ""}
-                      onChange={(e) => onUpdateConfiguration(selectedBlock.idBloc, "titre", e.target.value)}
+                      onChange={(e) =>
+                        onUpdateConfiguration(selectedBlock.idBloc, "titre", e.target.value)
+                      }
                       className="mt-1 w-full rounded-[6px] border border-white/[0.08] bg-black/30 px-2.5 py-1.5 font-sans text-xs text-[#f3ebdd] focus:border-[#e8a34a] focus:outline-hidden"
                     />
                   </div>
@@ -585,7 +665,9 @@ export function PropertiesPanel({
                       <input
                         type="text"
                         value={(conf.date as string) || ""}
-                        onChange={(e) => onUpdateConfiguration(selectedBlock.idBloc, "date", e.target.value)}
+                        onChange={(e) =>
+                          onUpdateConfiguration(selectedBlock.idBloc, "date", e.target.value)
+                        }
                         className="mt-1 w-full rounded-[6px] border border-white/[0.08] bg-black/30 px-2.5 py-1.5 font-sans text-xs text-[#f3ebdd] focus:border-[#e8a34a] focus:outline-hidden"
                       />
                     </div>
@@ -594,7 +676,9 @@ export function PropertiesPanel({
                       <input
                         type="text"
                         value={(conf.lieu as string) || ""}
-                        onChange={(e) => onUpdateConfiguration(selectedBlock.idBloc, "lieu", e.target.value)}
+                        onChange={(e) =>
+                          onUpdateConfiguration(selectedBlock.idBloc, "lieu", e.target.value)
+                        }
                         className="mt-1 w-full rounded-[6px] border border-white/[0.08] bg-black/30 px-2.5 py-1.5 font-sans text-xs text-[#f3ebdd] focus:border-[#e8a34a] focus:outline-hidden"
                       />
                     </div>
@@ -604,10 +688,48 @@ export function PropertiesPanel({
                     <textarea
                       rows={3}
                       value={(conf.texte as string) || ""}
-                      onChange={(e) => onUpdateConfiguration(selectedBlock.idBloc, "texte", e.target.value)}
+                      onChange={(e) =>
+                        onUpdateConfiguration(selectedBlock.idBloc, "texte", e.target.value)
+                      }
                       className="mt-1 w-full rounded-[6px] border border-white/[0.08] bg-black/30 p-2 font-sans text-xs text-[#f3ebdd] focus:border-[#e8a34a] focus:outline-hidden"
                     />
                   </div>
+                  {onGenerateStory && (
+                    <button
+                      type="button"
+                      disabled={aiPending}
+                      onClick={() => onGenerateStory(selectedBlock.idBloc)}
+                      className="flex w-full items-center justify-center gap-2 rounded-md border border-violet-400/25 bg-violet-400/[0.08] px-3 py-2 text-xs font-semibold text-violet-100 hover:bg-violet-400/[0.14] disabled:opacity-50"
+                    >
+                      <Sparkles className="size-3.5" aria-hidden="true" />
+                      Suggérer un récit avec l’IA
+                    </button>
+                  )}
+                  {storySuggestion?.blockId === selectedBlock.idBloc && (
+                    <div className="space-y-2 rounded-md border border-violet-400/20 bg-violet-400/[0.05] p-3 text-xs">
+                      <p className="font-semibold text-violet-100">
+                        Suggestion IA — vérifie les faits
+                      </p>
+                      <p className="font-medium">{storySuggestion.titre}</p>
+                      <p className="whitespace-pre-wrap text-white/60">{storySuggestion.texte}</p>
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={onApplyStorySuggestion}
+                          className="flex items-center gap-1 rounded bg-violet-300/15 px-2.5 py-1.5 font-semibold text-violet-100 hover:bg-violet-300/25"
+                        >
+                          <Check className="size-3" aria-hidden="true" /> Appliquer
+                        </button>
+                        <button
+                          type="button"
+                          onClick={onDismissStorySuggestion}
+                          className="rounded px-2.5 py-1.5 text-white/55 hover:bg-white/5 hover:text-white"
+                        >
+                          Ignorer
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -619,7 +741,9 @@ export function PropertiesPanel({
                     <input
                       type="text"
                       value={(conf.titre as string) || ""}
-                      onChange={(e) => onUpdateConfiguration(selectedBlock.idBloc, "titre", e.target.value)}
+                      onChange={(e) =>
+                        onUpdateConfiguration(selectedBlock.idBloc, "titre", e.target.value)
+                      }
                       className="mt-1 w-full rounded-[6px] border border-white/[0.08] bg-black/30 px-2.5 py-1.5 font-sans text-xs text-[#f3ebdd] focus:border-[#e8a34a] focus:outline-hidden"
                     />
                   </div>
@@ -628,7 +752,9 @@ export function PropertiesPanel({
                     <input
                       type="text"
                       value={(conf.description as string) || ""}
-                      onChange={(e) => onUpdateConfiguration(selectedBlock.idBloc, "description", e.target.value)}
+                      onChange={(e) =>
+                        onUpdateConfiguration(selectedBlock.idBloc, "description", e.target.value)
+                      }
                       className="mt-1 w-full rounded-[6px] border border-white/[0.08] bg-black/30 px-2.5 py-1.5 font-sans text-xs text-[#f3ebdd] focus:border-[#e8a34a] focus:outline-hidden"
                     />
                   </div>
@@ -637,7 +763,9 @@ export function PropertiesPanel({
                     <input
                       type="text"
                       value={(conf.photoAvant as string) || ""}
-                      onChange={(e) => onUpdateConfiguration(selectedBlock.idBloc, "photoAvant", e.target.value)}
+                      onChange={(e) =>
+                        onUpdateConfiguration(selectedBlock.idBloc, "photoAvant", e.target.value)
+                      }
                       className="mt-1 w-full rounded-[6px] border border-white/[0.08] bg-black/30 px-2.5 py-1.5 font-sans text-xs text-[#f3ebdd] focus:border-[#e8a34a] focus:outline-hidden"
                     />
                   </div>
@@ -646,7 +774,9 @@ export function PropertiesPanel({
                     <input
                       type="text"
                       value={(conf.photoApres as string) || ""}
-                      onChange={(e) => onUpdateConfiguration(selectedBlock.idBloc, "photoApres", e.target.value)}
+                      onChange={(e) =>
+                        onUpdateConfiguration(selectedBlock.idBloc, "photoApres", e.target.value)
+                      }
                       className="mt-1 w-full rounded-[6px] border border-white/[0.08] bg-black/30 px-2.5 py-1.5 font-sans text-xs text-[#f3ebdd] focus:border-[#e8a34a] focus:outline-hidden"
                     />
                   </div>
@@ -674,21 +804,35 @@ export function PropertiesPanel({
               {/* STATISTIQUES */}
               {selectedBlock.type === "STATISTIQUES" && (
                 <div className="space-y-3">
-                  {(["1","2","3"] as const).map((n) => (
+                  {(["1", "2", "3"] as const).map((n) => (
                     <div key={n} className="grid grid-cols-2 gap-2">
                       <div>
                         <label className="text-[11px] text-[#9a8f82]">Stat {n} — Valeur</label>
-                        <input type="text"
+                        <input
+                          type="text"
                           value={(conf[`stat${n}_valeur`] as string) || ""}
-                          onChange={(e) => onUpdateConfiguration(selectedBlock.idBloc, `stat${n}_valeur`, e.target.value)}
+                          onChange={(e) =>
+                            onUpdateConfiguration(
+                              selectedBlock.idBloc,
+                              `stat${n}_valeur`,
+                              e.target.value,
+                            )
+                          }
                           className="mt-1 w-full rounded-[6px] border border-white/[0.08] bg-black/30 px-2.5 py-1.5 font-sans text-xs text-[#f3ebdd] focus:border-[#e8a34a] focus:outline-hidden"
                         />
                       </div>
                       <div>
                         <label className="text-[11px] text-[#9a8f82]">Stat {n} — Label</label>
-                        <input type="text"
+                        <input
+                          type="text"
                           value={(conf[`stat${n}_label`] as string) || ""}
-                          onChange={(e) => onUpdateConfiguration(selectedBlock.idBloc, `stat${n}_label`, e.target.value)}
+                          onChange={(e) =>
+                            onUpdateConfiguration(
+                              selectedBlock.idBloc,
+                              `stat${n}_label`,
+                              e.target.value,
+                            )
+                          }
                           className="mt-1 w-full rounded-[6px] border border-white/[0.08] bg-black/30 px-2.5 py-1.5 font-sans text-xs text-[#f3ebdd] focus:border-[#e8a34a] focus:outline-hidden"
                         />
                       </div>
@@ -705,7 +849,9 @@ export function PropertiesPanel({
                     <input
                       type="text"
                       value={(conf.titre as string) || ""}
-                      onChange={(e) => onUpdateConfiguration(selectedBlock.idBloc, "titre", e.target.value)}
+                      onChange={(e) =>
+                        onUpdateConfiguration(selectedBlock.idBloc, "titre", e.target.value)
+                      }
                       className="mt-1 w-full rounded-[6px] border border-white/[0.08] bg-black/30 px-2.5 py-1.5 font-sans text-xs text-[#f3ebdd] focus:border-[#e8a34a] focus:outline-hidden"
                     />
                   </div>
@@ -741,16 +887,22 @@ export function PropertiesPanel({
                     <input
                       type="text"
                       value={(conf.titre as string) || ""}
-                      onChange={(e) => onUpdateConfiguration(selectedBlock.idBloc, "titre", e.target.value)}
+                      onChange={(e) =>
+                        onUpdateConfiguration(selectedBlock.idBloc, "titre", e.target.value)
+                      }
                       className="mt-1 w-full rounded-[6px] border border-white/[0.08] bg-black/30 px-2.5 py-1.5 font-sans text-xs text-[#f3ebdd] focus:border-[#e8a34a] focus:outline-hidden"
                     />
                   </div>
                   <div>
-                    <label className="text-[11px] text-[#9a8f82]">{editorFr.fields.texteIntro}</label>
+                    <label className="text-[11px] text-[#9a8f82]">
+                      {editorFr.fields.texteIntro}
+                    </label>
                     <textarea
                       rows={3}
                       value={(conf.texteIntro as string) || ""}
-                      onChange={(e) => onUpdateConfiguration(selectedBlock.idBloc, "texteIntro", e.target.value)}
+                      onChange={(e) =>
+                        onUpdateConfiguration(selectedBlock.idBloc, "texteIntro", e.target.value)
+                      }
                       className="mt-1 w-full rounded-[6px] border border-white/[0.08] bg-black/30 p-2 font-sans text-xs text-[#f3ebdd] focus:border-[#e8a34a] focus:outline-hidden"
                     />
                   </div>
@@ -763,7 +915,7 @@ export function PropertiesPanel({
               selectedBlock.type === "COLLECTION" ||
               selectedBlock.type === "CASE_STUDY" ||
               selectedBlock.type === "AVANT_APRES") && (
-              <div className="border-t border-white/[0.08] pt-4 space-y-3">
+              <div className="space-y-3 border-t border-white/[0.08] pt-4">
                 <div className="flex items-center justify-between">
                   <span className="font-mono text-[9px] font-semibold tracking-[0.16em] text-[#6f655a] uppercase">
                     {editorFr.photos} ({selectedBlock.elements?.length || 0})
@@ -801,7 +953,7 @@ export function PropertiesPanel({
                             {elem.titre || "Photograph"}
                           </p>
                           <span
-                            className={`inline-block rounded-full px-1.5 py-0.2 font-mono text-[8px] uppercase ${
+                            className={`py-0.2 inline-block rounded-full px-1.5 font-mono text-[8px] uppercase ${
                               elem.statutConsentement === "ACCORDE"
                                 ? "bg-emerald-500/15 text-emerald-400"
                                 : elem.statutConsentement === "EN_ATTENTE"
@@ -816,11 +968,31 @@ export function PropertiesPanel({
                                 : "Refusé"}
                           </span>
                         </div>
+                        <div className="flex shrink-0 flex-col gap-1">
+                          <button
+                            type="button"
+                            disabled={aiPending || !onGeneratePhotoText}
+                            onClick={() => onGeneratePhotoText?.(elem.idElement, "caption")}
+                            className="rounded border border-violet-300/20 px-1.5 py-1 text-[9px] font-medium text-violet-100 hover:bg-violet-300/10 disabled:opacity-50"
+                            title="Générer une légende avec Gemini"
+                          >
+                            ✨ Légende
+                          </button>
+                          <button
+                            type="button"
+                            disabled={aiPending || !onGeneratePhotoText}
+                            onClick={() => onGeneratePhotoText?.(elem.idElement, "alt")}
+                            className="rounded border border-violet-300/20 px-1.5 py-1 text-[9px] font-medium text-violet-100 hover:bg-violet-300/10 disabled:opacity-50"
+                            title="Générer un texte alternatif avec Gemini"
+                          >
+                            ✨ Texte alt
+                          </button>
+                        </div>
                         <button
                           type="button"
                           onClick={() => onRemoveElement?.(selectedBlock.idBloc, elem.idElement)}
                           aria-label="Retirer la photo"
-                          className="flex size-6 shrink-0 items-center justify-center rounded text-white/30 hover:text-red-400 hover:bg-red-950/40"
+                          className="flex size-6 shrink-0 items-center justify-center rounded text-white/30 hover:bg-red-950/40 hover:text-red-400"
                         >
                           <X className="size-3.5" />
                         </button>
@@ -832,7 +1004,7 @@ export function PropertiesPanel({
             )}
 
             {/* 6. DANGER ACTIONS */}
-            <div className="border-t border-white/[0.08] pt-4 space-y-2">
+            <div className="space-y-2 border-t border-white/[0.08] pt-4">
               <button
                 type="button"
                 onClick={() => onDuplicateBlock(selectedBlock.idBloc)}
@@ -901,12 +1073,95 @@ export function PropertiesPanel({
                     onChange={(e) => onUpdatePortfolioData?.("bio", e.target.value)}
                     className="mt-1 w-full rounded-[6px] border border-white/[0.08] bg-black/30 p-2 font-sans text-xs text-[#f3ebdd] focus:border-[#e8a34a] focus:outline-hidden"
                   />
+                  {onGenerateBio && (
+                    <button
+                      type="button"
+                      disabled={aiPending}
+                      onClick={onGenerateBio}
+                      className="flex w-full items-center justify-center gap-2 rounded-md border border-violet-400/25 bg-violet-400/[0.08] px-3 py-2 text-xs font-semibold text-violet-100 hover:bg-violet-400/[0.14] disabled:opacity-50"
+                    >
+                      <Sparkles className="size-3.5" aria-hidden="true" />
+                      Suggérer une biographie avec l’IA
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
 
+            {/* SEO */}
+            <div className="space-y-3 border-t border-white/[0.08] pt-4">
+              <div className="font-mono text-[9px] font-semibold tracking-[0.16em] text-[#6f655a] uppercase">
+                Référencement SEO
+              </div>
+              {onGenerateSeo && (
+                <button
+                  type="button"
+                  disabled={aiPending}
+                  onClick={onGenerateSeo}
+                  className="flex w-full items-center justify-center gap-2 rounded-md border border-violet-400/25 bg-violet-400/[0.08] px-3 py-2 text-xs font-semibold text-violet-100 hover:bg-violet-400/[0.14] disabled:opacity-50"
+                >
+                  <Sparkles className="size-3.5" aria-hidden="true" />
+                  Suggérer les métadonnées SEO
+                </button>
+              )}
+              {seoSuggestion && (
+                <div className="space-y-2 rounded-md border border-violet-400/20 bg-violet-400/[0.05] p-3 text-xs">
+                  <p className="font-semibold text-violet-100">
+                    Suggestion Gemini — relis avant application
+                  </p>
+                  <p className="font-medium">{seoSuggestion.metaTitre}</p>
+                  <p className="text-white/60">{seoSuggestion.metaDescription}</p>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={onApplySeoSuggestion}
+                      className="flex items-center gap-1 rounded bg-violet-300/15 px-2.5 py-1.5 font-semibold text-violet-100 hover:bg-violet-300/25"
+                    >
+                      <Check className="size-3" aria-hidden="true" /> Appliquer
+                    </button>
+                    <button
+                      type="button"
+                      onClick={onDismissSeoSuggestion}
+                      className="rounded px-2.5 py-1.5 text-white/55 hover:bg-white/5 hover:text-white"
+                    >
+                      Ignorer
+                    </button>
+                  </div>
+                </div>
+              )}
+              <label className="block text-[11px] text-[#9a8f82]">
+                Titre SEO
+                <input
+                  value={portfolioData.seo?.metaTitre ?? ""}
+                  maxLength={160}
+                  onChange={(event) =>
+                    onUpdatePortfolioData?.("seo", {
+                      ...portfolioData.seo,
+                      metaTitre: event.target.value,
+                    })
+                  }
+                  className="mt-1 w-full rounded-[6px] border border-white/[0.08] bg-black/30 px-2.5 py-1.5 font-sans text-xs text-[#f3ebdd] focus:border-[#e8a34a] focus:outline-hidden"
+                />
+              </label>
+              <label className="block text-[11px] text-[#9a8f82]">
+                Description SEO
+                <textarea
+                  value={portfolioData.seo?.metaDescription ?? ""}
+                  maxLength={320}
+                  rows={3}
+                  onChange={(event) =>
+                    onUpdatePortfolioData?.("seo", {
+                      ...portfolioData.seo,
+                      metaDescription: event.target.value,
+                    })
+                  }
+                  className="mt-1 w-full rounded-[6px] border border-white/[0.08] bg-black/30 p-2 font-sans text-xs text-[#f3ebdd] focus:border-[#e8a34a] focus:outline-hidden"
+                />
+              </label>
+            </div>
+
             {/* Specialities */}
-            <div className="border-t border-white/[0.08] pt-4 space-y-2">
+            <div className="space-y-2 border-t border-white/[0.08] pt-4">
               <div className="font-mono text-[9px] font-semibold tracking-[0.16em] text-[#6f655a] uppercase">
                 {editorFr.pageSections.specialities}
               </div>
@@ -938,7 +1193,7 @@ export function PropertiesPanel({
             </div>
 
             {/* Theme */}
-            <div className="border-t border-white/[0.08] pt-4 space-y-2.5">
+            <div className="space-y-2.5 border-t border-white/[0.08] pt-4">
               <div className="font-mono text-[9px] font-semibold tracking-[0.16em] text-[#6f655a] uppercase">
                 {editorFr.pageSections.theme}
               </div>
@@ -985,11 +1240,11 @@ export function PropertiesPanel({
             </div>
 
             {/* Publication details */}
-            <div className="border-t border-white/[0.08] pt-4 space-y-3">
+            <div className="space-y-3 border-t border-white/[0.08] pt-4">
               <div className="font-mono text-[9px] font-semibold tracking-[0.16em] text-[#6f655a] uppercase">
                 {editorFr.pageSections.publication}
               </div>
-              <div className="rounded-[8px] border border-white/[0.06] bg-black/40 p-3 space-y-2">
+              <div className="space-y-2 rounded-[8px] border border-white/[0.06] bg-black/40 p-3">
                 <div className="flex items-center justify-between">
                   <span className="font-mono text-[10px] text-white/40">URL PUBLIQUE</span>
                   <ExternalLink className="size-3 text-white/30" />
@@ -999,12 +1254,13 @@ export function PropertiesPanel({
                 </div>
               </div>
               <p className="text-[10px] leading-relaxed text-[#9a8f82]">
-                La page publique ne lit que la version publiée. Les brouillons ne sont jamais visibles.
+                La page publique ne lit que la version publiée. Les brouillons ne sont jamais
+                visibles.
               </p>
             </div>
 
             {/* Danger Zone: Delete / Reset Portfolio */}
-            <div className="border-t border-red-500/20 pt-4 space-y-3">
+            <div className="space-y-3 border-t border-red-500/20 pt-4">
               <div className="font-mono text-[9px] font-semibold tracking-[0.16em] text-red-400 uppercase">
                 Zone de danger
               </div>
@@ -1030,8 +1286,9 @@ export function PropertiesPanel({
                   </button>
                 )}
               </div>
-              <p className="text-[10px] text-white/40 leading-relaxed">
-                La suppression effacera définitivement ce portfolio et ses données de la base de données.
+              <p className="text-[10px] leading-relaxed text-white/40">
+                La suppression effacera définitivement ce portfolio et ses données de la base de
+                données.
               </p>
             </div>
           </div>
@@ -1061,8 +1318,7 @@ function TestimonialsPanel({
   const [newNote, setNewNote] = useState(5);
   const [newTexte, setNewTexte] = useState("");
 
-  const save = (next: Testimonial[]) =>
-    onUpdateConfiguration(blocId, "temoignages", next);
+  const save = (next: Testimonial[]) => onUpdateConfiguration(blocId, "temoignages", next);
 
   const add = () => {
     if (!newAuteur.trim() || !newTexte.trim()) return;
@@ -1076,21 +1332,22 @@ function TestimonialsPanel({
         texte: newTexte.trim(),
       },
     ]);
-    setNewAuteur(""); setNewRole(""); setNewNote(5); setNewTexte("");
+    setNewAuteur("");
+    setNewRole("");
+    setNewNote(5);
+    setNewTexte("");
   };
 
   return (
     <div className="space-y-4">
       {list.length === 0 ? (
-        <p className="text-[10px] text-[#9a8f82]">
-          Aucun témoignage. Ajoutez-en un ci-dessous.
-        </p>
+        <p className="text-[10px] text-[#9a8f82]">Aucun témoignage. Ajoutez-en un ci-dessous.</p>
       ) : (
         <div className="space-y-2">
           {list.map((t, idx) => (
             <div
               key={t.id}
-              className="rounded-[6px] border border-white/[0.06] bg-white/[0.02] p-2.5 space-y-1"
+              className="space-y-1 rounded-[6px] border border-white/[0.06] bg-white/[0.02] p-2.5"
             >
               <div className="flex items-center justify-between">
                 <span className="text-[11px] font-semibold text-white/90">{t.auteur}</span>
@@ -1105,7 +1362,7 @@ function TestimonialsPanel({
               <p className="text-[10px] text-[#9a8f82]">
                 {t.role} · {"★".repeat(t.note)}
               </p>
-              <p className="text-[11px] italic leading-relaxed text-white/70 line-clamp-2">
+              <p className="line-clamp-2 text-[11px] leading-relaxed text-white/70 italic">
                 «&nbsp;{t.texte}&nbsp;»
               </p>
             </div>
@@ -1114,8 +1371,8 @@ function TestimonialsPanel({
       )}
 
       {/* Add new testimonial */}
-      <div className="rounded-[8px] border border-white/[0.08] bg-black/30 p-3 space-y-2">
-        <p className="text-[10px] font-semibold text-[#e8a34a] uppercase tracking-[0.14em]">
+      <div className="space-y-2 rounded-[8px] border border-white/[0.08] bg-black/30 p-3">
+        <p className="text-[10px] font-semibold tracking-[0.14em] text-[#e8a34a] uppercase">
           Nouveau témoignage
         </p>
         <input
@@ -1133,7 +1390,7 @@ function TestimonialsPanel({
           className="w-full rounded-[6px] border border-white/[0.08] bg-black/40 px-2.5 py-1.5 font-sans text-xs text-[#f3ebdd] focus:border-[#e8a34a] focus:outline-hidden"
         />
         <div className="flex items-center gap-2">
-          <label className="text-[10px] text-[#9a8f82] whitespace-nowrap">Note :</label>
+          <label className="text-[10px] whitespace-nowrap text-[#9a8f82]">Note :</label>
           {[1, 2, 3, 4, 5].map((n) => (
             <button
               key={n}
@@ -1192,8 +1449,7 @@ function ServicesPanel({
   const [newDuree, setNewDuree] = useState("");
   const [newDesc, setNewDesc] = useState("");
 
-  const save = (next: ServicePackage[]) =>
-    onUpdateConfiguration(blocId, "forfaits", next);
+  const save = (next: ServicePackage[]) => onUpdateConfiguration(blocId, "forfaits", next);
 
   const add = () => {
     if (!newNom.trim()) return;
@@ -1207,21 +1463,22 @@ function ServicesPanel({
         description: newDesc.trim(),
       },
     ]);
-    setNewNom(""); setNewPrix(0); setNewDuree(""); setNewDesc("");
+    setNewNom("");
+    setNewPrix(0);
+    setNewDuree("");
+    setNewDesc("");
   };
 
   return (
     <div className="space-y-4">
       {list.length === 0 ? (
-        <p className="text-[10px] text-[#9a8f82]">
-          Aucun forfait. Ajoutez-en un ci-dessous.
-        </p>
+        <p className="text-[10px] text-[#9a8f82]">Aucun forfait. Ajoutez-en un ci-dessous.</p>
       ) : (
         <div className="space-y-2">
           {list.map((pkg, idx) => (
             <div
               key={pkg.id}
-              className="rounded-[6px] border border-white/[0.06] bg-white/[0.02] p-2.5 space-y-0.5"
+              className="space-y-0.5 rounded-[6px] border border-white/[0.06] bg-white/[0.02] p-2.5"
             >
               <div className="flex items-center justify-between">
                 <span className="text-[11px] font-semibold text-white/90">{pkg.nom}</span>
@@ -1237,7 +1494,7 @@ function ServicesPanel({
                 À partir de {pkg.prixAPartirDe} €{pkg.duree ? ` · ${pkg.duree}` : ""}
               </p>
               {pkg.description && (
-                <p className="text-[10px] text-white/50 line-clamp-1">{pkg.description}</p>
+                <p className="line-clamp-1 text-[10px] text-white/50">{pkg.description}</p>
               )}
             </div>
           ))}
@@ -1245,8 +1502,8 @@ function ServicesPanel({
       )}
 
       {/* Add new package */}
-      <div className="rounded-[8px] border border-white/[0.08] bg-black/30 p-3 space-y-2">
-        <p className="text-[10px] font-semibold text-[#e8a34a] uppercase tracking-[0.14em]">
+      <div className="space-y-2 rounded-[8px] border border-white/[0.08] bg-black/30 p-3">
+        <p className="text-[10px] font-semibold tracking-[0.14em] text-[#e8a34a] uppercase">
           Nouveau forfait
         </p>
         <input

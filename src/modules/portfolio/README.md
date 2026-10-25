@@ -10,7 +10,7 @@ The portfolio module stores one portfolio per photographer. It manages draft blo
 - `portfolio.actions.ts`: authenticated Server Actions with Zod validation and owner checks.
 - `integrations/`: contracts and mocks for the shared users, photos, reviews, sessions and notifications modules.
 - `components/`: block editor, public block renderer, photo consent, contact and portfolio statistics.
-- `ia.service.ts`: mock suggestions. A shared `lib/ai` client is not present in this repository; real AI calls return a clear unavailable result until that service is provided.
+- `ia.service.ts`: direct, server-only Gemini calls for portfolio audit guidance and photo vision checks.
 
 ## Configuration
 
@@ -20,9 +20,11 @@ PORTFOLIO_BASE_URL=http://localhost:3000
 CLOUDINARY_CLOUD_NAME=
 CLOUDINARY_API_KEY=
 CLOUDINARY_API_SECRET=
+GEMINI_API_KEY=
+GEMINI_MODEL=gemini-3.5-flash-lite
 ```
 
-`USE_MOCKS=true` selects integration mocks for local development. With mocks disabled, the current gallery service does not expose photographer ownership and client-consent metadata, so portfolio photo selection fails closed and returns no photos. Reviews and sessions remain mock integrations until their service contracts are wired.
+`GEMINI_API_KEY` is used only by server code and is never sent to the browser. The default `gemini-3.5-flash-lite` model supports multimodal input and is optimized for low latency. Portfolio audit sends text and structural summaries, not image bytes. Photo verification analyzes up to six of the photographer's newest matching gallery photos directly with Gemini; images are resized before upload and scores are saved to photo records. Captions and alternative text also use the selected photo bytes. The editor asks before sending images. Bio, SEO, case study, layout, and aggregated-statistics suggestions use only the portfolio facts supplied to them. Configure a Gemini API key before using these actions. `USE_MOCKS=true` still selects integration mocks for users, reviews, sessions, and notifications.
 
 Cloudinary credentials are required for personal photo uploads. They are used only by `POST /api/portfolio/upload` and never sent to the browser. The endpoint accepts JPG, PNG and WebP images up to 20 MB. Public contact, view, like and upload limits currently use a per-process memory store; a shared limiter should replace it for multi-instance deployment.
 
