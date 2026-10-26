@@ -49,7 +49,7 @@ export default async function ReservationsPage() {
           />
         }
       />
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]">
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]">
         <ReservationsBoard
           reservations={reservations}
           currentUser={{ id: user.id, role: user.role }}

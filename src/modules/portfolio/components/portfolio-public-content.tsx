@@ -224,7 +224,7 @@ async function PublicBlockSection({
           className="container mx-auto max-w-5xl border-t px-4 py-16 sm:px-6 sm:py-24"
           style={{ borderColor: "var(--portfolio-border)" }}
         >
-          <div className="grid gap-12 md:grid-cols-[1.25fr_0.75fr] md:items-center">
+          <div className="grid grid-cols-1 gap-12 md:grid-cols-[1.25fr_0.75fr] md:items-center">
             {/* Left Column: Stamp + Name + Bio + Experience Stat */}
             <div className="space-y-6">
               <span

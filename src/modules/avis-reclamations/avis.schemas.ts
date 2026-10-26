@@ -30,6 +30,25 @@ export const createReclamationSchema = z.object({
 });
 export type CreateReclamationInput = z.infer<typeof createReclamationSchema>;
 
+/** The author edits their own review (it goes back to moderation). */
+export const updateOwnAvisSchema = z.object({
+  id: z.string().min(1),
+  note: z.coerce.number().int().min(1).max(5),
+  commentaire: text(3000, "Review"),
+});
+export type UpdateOwnAvisInput = z.infer<typeof updateOwnAvisSchema>;
+
+/** The author edits their own complaint (only while it is still open). */
+export const updateOwnReclamationSchema = z.object({
+  id: z.string().min(1),
+  objet: text(180, "Subject"),
+  description: text(5000, "Description"),
+  categorie: z.enum(CATEGORIES_RECLAMATION),
+});
+export type UpdateOwnReclamationInput = z.infer<typeof updateOwnReclamationSchema>;
+
+export const feedbackIdSchema = z.object({ id: z.string().min(1) });
+
 export const moderateAvisSchema = z.object({
   id: z.string().min(1),
   statut: z.enum(STATUTS_AVIS),

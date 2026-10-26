@@ -7,6 +7,24 @@ const nextConfig: NextConfig = {
   // Cache Components is intentionally off: every page here reads the session or
   // MongoDB, so the classic dynamic rendering model is simpler for every developer.
   // See README > "Next.js notes" before turning it on.
+  // PWA offline mode: navigations and Server Actions started without a connection wait and
+  // retry once it is back; useOffline() (components/pwa/offline-banner.tsx) shows the state.
+  experimental: {
+    useOffline: true,
+  },
+  async headers() {
+    return [
+      {
+        // The service worker must never be cached, so new versions reach users right away.
+        source: "/sw.js",
+        headers: [
+          { key: "Content-Type", value: "application/javascript; charset=utf-8" },
+          { key: "Cache-Control", value: "no-cache, no-store, must-revalidate" },
+          { key: "Content-Security-Policy", value: "default-src 'self'; script-src 'self'" },
+        ],
+      },
+    ];
+  },
   images: {
     remotePatterns: [{ protocol: "https", hostname: "images.unsplash.com" }],
   },

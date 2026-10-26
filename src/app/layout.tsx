@@ -1,4 +1,7 @@
 import type { Metadata, Viewport } from "next";
+import { Suspense } from "react";
+import { OfflineBanner } from "@/components/pwa/offline-banner";
+import { PwaRegister } from "@/components/pwa/pwa-register";
 import { ThemeScript } from "@/components/theme/theme";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -26,9 +29,15 @@ export const metadata: Metadata = {
     locale: "en_GB",
   },
   twitter: { card: "summary_large_image", title: "ReFrame — Photography studio" },
+  // PWA: the manifest (app/manifest.ts) is linked automatically; this covers iOS "Add to Home Screen".
+  appleWebApp: { capable: true, title: "ReFrame", statusBarStyle: "black" },
+  formatDetection: { telephone: false },
 };
 
 export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover", // lets layouts use env(safe-area-inset-*) on notched phones
   themeColor: "#0a0a0a", // updated by ThemeScript / setTheme in light mode
   colorScheme: "dark light",
 };
@@ -48,6 +57,11 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body className="flex min-h-full flex-col">
         <TooltipProvider delayDuration={200}>{children}</TooltipProvider>
         <Toaster position="top-right" richColors={false} closeButton />
+        <OfflineBanner />
+        {/* useSearchParams: kept out of the static render of every page */}
+        <Suspense fallback={null}>
+          <PwaRegister />
+        </Suspense>
       </body>
     </html>
   );

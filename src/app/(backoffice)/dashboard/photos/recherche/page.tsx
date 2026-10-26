@@ -10,17 +10,20 @@ export const metadata: Metadata = { title: "AI Search" };
 
 const EXEMPLE_RECHERCHE = "the bride laughing outdoors at sunset";
 
-export default async function RechercheIAPage() {
+export default async function RechercheIAPage({
+  searchParams,
+}: PageProps<"/dashboard/photos/recherche">) {
   await requireArea("photos-galeries");
-  const photos = await listRecentPhotos();
+  const [photos, { q }] = await Promise.all([listRecentPhotos(), searchParams]);
+  const initialQuery = typeof q === "string" ? q.slice(0, 300) : undefined;
   return (
     <div className="space-y-6">
       <PageHeader
         eyebrow={<AIBadge label="Natural-language search" />}
         title="AI Search"
-        description="Describe the photo you are looking for: the AI finds images from their tags and content."
+        description="Describe the photo you are looking for: Claude finds it from what the AI saw in each photo."
       />
-      <AISearch photos={photos} exemple={EXEMPLE_RECHERCHE} />
+      <AISearch photos={photos} exemple={EXEMPLE_RECHERCHE} initialQuery={initialQuery} />
     </div>
   );
 }

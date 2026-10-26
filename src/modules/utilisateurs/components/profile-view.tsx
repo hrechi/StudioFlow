@@ -18,7 +18,7 @@ export function ProfileView({ user, isLastAdmin }: { user: UtilisateurDTO; isLas
       : user.specialite || roleConfig[user.role].label;
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[18rem_minmax(0,1fr)] xl:grid-cols-[20rem_minmax(0,1fr)]">
+    <div className="grid grid-cols-1 gap-6 lg:grid-cols-[18rem_minmax(0,1fr)] xl:grid-cols-[20rem_minmax(0,1fr)]">
       <aside className="space-y-6">
         <Card>
           <CardContent className="flex flex-col items-center gap-3 pt-2 text-center">

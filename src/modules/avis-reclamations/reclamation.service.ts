@@ -7,7 +7,7 @@ import { createNotification } from "@/modules/utilisateurs/notification.service"
 import { findUtilisateurRefs, listAdminRefs } from "@/modules/utilisateurs/utilisateur.service";
 import { analyzeComplaint, containsProfanity } from "./ai.service";
 import { Reclamation, type IReclamation } from "./reclamation.model";
-import type { CreateReclamationInput } from "./avis.schemas";
+import type { CreateReclamationInput, UpdateOwnReclamationInput } from "./avis.schemas";
 import type {
   CategorieReclamation,
   Priorite,
@@ -104,6 +104,69 @@ export async function createReclamation(
   const fresh = await Reclamation.findById(doc._id).lean<ReclamationLean>();
   if (!fresh) throw new ServiceError("Complaint could not be saved.");
   return (await toDTOs([fresh]))[0];
+}
+
+/**
+ * The author edits their own complaint, only while it is still open: once the studio is
+ * handling it (or has answered), the content is frozen so it matches the studio's reply.
+ */
+export async function updateOwnReclamation(
+  auteurId: string,
+  input: UpdateOwnReclamationInput,
+): Promise<void> {
+  await connectDB();
+  const complaint = await Reclamation.findOne({
+    _id: objectId(input.id),
+    auteur: objectId(auteurId),
+  }).lean<ReclamationLean>();
+  if (!complaint) throw new ServiceError("Complaint not found.");
+  if (complaint.statut !== "OUVERTE") {
+    throw new ServiceError(
+      "The studio is already handling this complaint: it can no longer be edited.",
+    );
+  }
+  const [subjectProfane, descriptionProfane] = await Promise.all([
+    containsProfanity(input.objet),
+    containsProfanity(input.description),
+  ]);
+  if (subjectProfane) {
+    throw new ServiceError(
+      "The complaint subject contains insulting or inappropriate language. Please edit it before sending.",
+      "objet",
+    );
+  }
+  if (descriptionProfane) {
+    throw new ServiceError(
+      "The complaint description contains insulting or inappropriate language. Please edit it before sending.",
+      "description",
+    );
+  }
+  const update: Record<string, unknown> = {
+    objet: input.objet,
+    description: input.description,
+    categorie: input.categorie,
+    categorieIA: input.categorie,
+  };
+  try {
+    const analysis = await analyzeComplaint(input.objet, input.description);
+    update.categorieIA = analysis.category;
+    update.priorite = analysis.priority;
+  } catch {
+    // Keeps the previous AI priority when the optional AI provider is unavailable.
+  }
+  await Reclamation.updateOne({ _id: complaint._id, statut: "OUVERTE" }, { $set: update });
+  await notifyAdmins(
+    "Complaint edited",
+    `A client edited their complaint: ${input.objet}`,
+    "/dashboard/reclamations",
+  );
+}
+
+/** The author deletes their own complaint (whatever its status). */
+export async function deleteOwnReclamation(auteurId: string, id: string): Promise<void> {
+  await connectDB();
+  const result = await Reclamation.deleteOne({ _id: objectId(id), auteur: objectId(auteurId) });
+  if (!result.deletedCount) throw new ServiceError("Complaint not found.");
 }
 
 export async function listReclamations({

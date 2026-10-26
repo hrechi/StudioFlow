@@ -29,42 +29,89 @@ export class LlmUnavailableError extends Error {
 }
 
 const DEFAULT_MODEL = "gemini-3.5-flash";
+/** Tried after the configured model when it is rate-limited or unavailable (free tier: own quota). */
+const FALLBACK_MODELS = ["gemini-3.5-flash-lite"];
+/** Statuses that mean "try another key / model": quota or rate limit, overload, model gone. */
+const RETRYABLE = new Set([404, 429, 500, 503]);
+/** A key+model that hit its quota is skipped for this long (free quotas reset daily or per minute). */
+const COOLDOWN_MS = 10 * 60_000;
+const cooldownUntil = new Map<string, number>();
+
+/** GEMINI_API_KEY first, then the spare keys of GEMINI_API_KEYS (comma-separated). */
+function apiKeys(): string[] {
+  const keys = [process.env.GEMINI_API_KEY, ...(process.env.GEMINI_API_KEYS ?? "").split(",")]
+    .map((k) => k?.trim())
+    .filter((k): k is string => !!k);
+  return [...new Set(keys)];
+}
+
+function models(preferred?: string): string[] {
+  return [...new Set([preferred, process.env.GEMINI_MODEL, DEFAULT_MODEL, ...FALLBACK_MODELS])]
+    .map((m) => m?.trim())
+    .filter((m): m is string => !!m);
+}
+
+/**
+ * Exported so other modules (e.g. the portfolio AI) share the same key / model fallback.
+ * POSTs to generateContent, falling back to the next model and then the next key on
+ * quota / overload errors, so one exhausted free key does not take the AI features down.
+ */
+export async function callGemini(
+  body: unknown,
+  timeoutMs: number,
+  preferredModel?: string,
+): Promise<Response> {
+  const keys = apiKeys();
+  if (!keys.length) throw new LlmUnavailableError("GEMINI_API_KEY is not configured.");
+  const attempts = keys.flatMap((key, k) =>
+    models(preferredModel).map((model) => ({ key, k, model })),
+  );
+  const now = Date.now();
+  const fresh = attempts.filter((a) => (cooldownUntil.get(`${a.k}:${a.model}`) ?? 0) <= now);
+  let lastStatus: number | undefined;
+  for (const { key, k, model } of fresh.length ? fresh : attempts) {
+    let res: Response;
+    try {
+      res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-goog-api-key": key },
+          body: JSON.stringify(body),
+          signal: AbortSignal.timeout(timeoutMs),
+        },
+      );
+    } catch {
+      throw new LlmUnavailableError("The AI service did not answer in time.");
+    }
+    if (res.ok) return res;
+    lastStatus = res.status;
+    // Dev only: log the provider's message (never sent to the visitor).
+    if (process.env.NODE_ENV === "development") {
+      const text = await res.text().catch(() => "");
+      console.warn(`[llm-gemini] key #${k + 1} · ${model} → ${res.status}`, text.slice(0, 200));
+    }
+    if (!RETRYABLE.has(res.status)) break;
+    if (res.status === 429 || res.status === 404)
+      cooldownUntil.set(`${k}:${model}`, Date.now() + COOLDOWN_MS);
+  }
+  throw new LlmUnavailableError(`Gemini error ${lastStatus ?? "unknown"}`, lastStatus);
+}
 
 export async function generate(input: {
   system: string;
   contents: GeminiContent[];
   tools: GeminiToolDeclaration[];
 }): Promise<GeminiContent> {
-  const key = process.env.GEMINI_API_KEY;
-  if (!key) throw new LlmUnavailableError("GEMINI_API_KEY is not configured.");
-  const model = process.env.GEMINI_MODEL || DEFAULT_MODEL;
-
-  let res: Response;
-  try {
-    res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "x-goog-api-key": key },
-        body: JSON.stringify({
-          systemInstruction: { parts: [{ text: input.system }] },
-          contents: input.contents,
-          tools: [{ functionDeclarations: input.tools }],
-          generationConfig: { temperature: 0.3, maxOutputTokens: 800 },
-        }),
-        signal: AbortSignal.timeout(20_000),
-      },
-    );
-  } catch {
-    throw new LlmUnavailableError("The AI service did not answer in time.");
-  }
-  if (!res.ok) {
-    // En dev, on log le corps pour faciliter le diagnostic
-    const body = process.env.NODE_ENV === "development" ? await res.text().catch(() => "") : "";
-    if (body) console.warn("[llm-gemini] error body:", body.slice(0, 300));
-    // 429 = free quota exhausted; never leak the provider's body to the visitor.
-    throw new LlmUnavailableError(`Gemini error ${res.status}`, res.status);
-  }
+  const res = await callGemini(
+    {
+      systemInstruction: { parts: [{ text: input.system }] },
+      contents: input.contents,
+      tools: [{ functionDeclarations: input.tools }],
+      generationConfig: { temperature: 0.3, maxOutputTokens: 800 },
+    },
+    20_000,
+  );
   const data = (await res.json()) as { candidates?: { content?: GeminiContent }[] };
   const content = data.candidates?.[0]?.content;
   if (!content?.parts?.length) throw new LlmUnavailableError("Empty answer from the model.");
@@ -81,45 +128,36 @@ export async function generateJson<T>(input: {
   files?: { mimeType: string; data: Buffer }[];
   schema: Record<string, unknown>;
   timeoutMs?: number;
-  /** Optional model for this call; otherwise GEMINI_MODEL, then the default. */
+  /** Optional model tried first for this call; then GEMINI_MODEL, the default and the fallbacks. */
   model?: string;
 }): Promise<T> {
-  const key = process.env.GEMINI_API_KEY;
-  if (!key) throw new LlmUnavailableError("GEMINI_API_KEY is not configured.");
-  const model = input.model || process.env.GEMINI_MODEL || DEFAULT_MODEL;
-
-  let res: Response;
-  try {
-    res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "x-goog-api-key": key },
-      body: JSON.stringify({
-        systemInstruction: { parts: [{ text: input.system }] },
-        contents: [{
+  const res = await callGemini(
+    {
+      systemInstruction: { parts: [{ text: input.system }] },
+      contents: [
+        {
           role: "user",
           parts: [
-            ...(input.files ?? []).map((f) => ({ inlineData: { mimeType: f.mimeType, data: f.data.toString("base64") } })),
+            ...(input.files ?? []).map((f) => ({
+              inlineData: { mimeType: f.mimeType, data: f.data.toString("base64") },
+            })),
             { text: input.prompt },
           ],
-        }],
-        generationConfig: {
-          temperature: 0,
-          maxOutputTokens: 1200,
-          responseMimeType: "application/json",
-          responseSchema: input.schema,
         },
-      }),
-      signal: AbortSignal.timeout(input.timeoutMs ?? 45_000),
-    });
-  } catch {
-    throw new LlmUnavailableError("The AI service did not answer in time.");
-  }
-  if (!res.ok) {
-    const body = process.env.NODE_ENV === "development" ? await res.text().catch(() => "") : "";
-    if (body) console.warn("[llm-gemini] error body:", body.slice(0, 300));
-    throw new LlmUnavailableError(`Gemini error ${res.status}`, res.status);
-  }
-  const data = (await res.json()) as { candidates?: { content?: { parts?: { text?: string }[] } }[] };
+      ],
+      generationConfig: {
+        temperature: 0,
+        maxOutputTokens: 1200,
+        responseMimeType: "application/json",
+        responseSchema: input.schema,
+      },
+    },
+    input.timeoutMs ?? 45_000,
+    input.model,
+  );
+  const data = (await res.json()) as {
+    candidates?: { content?: { parts?: { text?: string }[] } }[];
+  };
   const text = data.candidates?.[0]?.content?.parts?.map((p) => p.text ?? "").join("") ?? "";
   try {
     return JSON.parse(text) as T;

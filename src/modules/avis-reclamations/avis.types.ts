@@ -125,6 +125,13 @@ export type AvisInsightRow = {
 
 export type AvisInsights = { months: string[]; rows: AvisInsightRow[] };
 
+/** Moderation status of a review, as shown to its author. */
+export const statutAvisConfig: StatusConfig<StatutAvis> = {
+  EN_ATTENTE: { label: "Awaiting moderation", tone: "warning" },
+  PUBLIE: { label: "Published", tone: "success" },
+  REJETE: { label: "Not published", tone: "neutral" },
+};
+
 export const statutReclamationConfig: StatusConfig<StatutReclamation> = {
   OUVERTE: { label: "Open", tone: "warning" },
   EN_COURS: { label: "In progress", tone: "info" },

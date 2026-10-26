@@ -28,9 +28,11 @@ export type Photo = {
   datePrise?: string;
   scoreQualite: number; // 0–100 (AI)
   estFloue: boolean; // AI
-  yeuxFermes?: boolean; // proposé (AI culling: closed eyes)
-  groupeDoublon?: string; // proposé (AI duplicate group id)
+  yeuxFermes?: boolean; // AI culling: closed eyes
+  groupeDoublon?: string; // AI culling: near-duplicate group id
   tagsIA: string[];
+  descriptionIA?: string; // AI: one-sentence description
+  statutAnalyseIA?: "EN_ATTENTE" | "TERMINEE" | "ECHOUEE";
   statutCulling: StatutCulling;
   estFavori: boolean;
   estSelectionnee?: boolean; // proposé (client final selection ≠ favorite)
@@ -69,7 +71,7 @@ export const statutGalerieConfig: StatusConfig<StatutGalerie> = {
   EN_TRI: { label: "Culling", tone: "warning" },
   PARTAGEE: { label: "Shared", tone: "info" },
   VALIDEE: { label: "Approved", tone: "success" },
-  LIVREE: { label: "Delivered", tone: "dark" },
+  LIVREE: { label: "Delivered", tone: "ai" },
 };
 
 export const statutCullingConfig: StatusConfig<StatutCulling> = {

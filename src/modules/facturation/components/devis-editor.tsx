@@ -178,7 +178,7 @@ export function DevisEditor({
 
   return (
     <form
-      className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]"
+      className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]"
       onSubmit={(e) => {
         e.preventDefault();
         save(true);

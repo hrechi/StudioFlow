@@ -4,8 +4,15 @@ import { connectDB } from "@/lib/db";
 import { Photo } from "@/modules/photos-galeries/photo.model";
 import { createNotification } from "@/modules/utilisateurs/notification.service";
 import { findUtilisateurById, listUtilisateurs } from "@/modules/utilisateurs/utilisateur.service";
-import { mockAvisService, mockNotificationsService, mockPhotosService, mockSeancesService, mockUtilisateursService } from "./portfolio-integrations.mock";
+import {
+  mockAvisService,
+  mockNotificationsService,
+  mockPhotosService,
+  mockSeancesService,
+  mockUtilisateursService,
+} from "./portfolio-integrations.mock";
 import type { PortfolioIntegrations } from "./portfolio-integrations.types";
+import { photoLibraryFilter } from "../photo-library";
 
 const mocks: PortfolioIntegrations = {
   utilisateursService: mockUtilisateursService,
@@ -19,18 +26,26 @@ const realIntegrations: PortfolioIntegrations = {
   utilisateursService: {
     async getUtilisateur(id) {
       const user = await findUtilisateurById(id);
-      return user?.statut === "ACTIF" ? { id: user.id, nom: user.nom, prenom: user.prenom, role: user.role, statut: user.statut } : null;
+      return user?.statut === "ACTIF"
+        ? { id: user.id, nom: user.nom, prenom: user.prenom, role: user.role, statut: user.statut }
+        : null;
     },
     async verifierRole(userId, roles) {
       const user = await findUtilisateurById(userId);
-      return !!user && user.statut === "ACTIF" && roles.includes(user.role as "PHOTOGRAPHE" | "RETOUCHEUR" | "ADMIN");
+      return (
+        !!user &&
+        user.statut === "ACTIF" &&
+        roles.includes(user.role as "PHOTOGRAPHE" | "RETOUCHEUR" | "ADMIN")
+      );
     },
     async listerAdmins() {
       const first = await listUtilisateurs({ q: "", role: "ADMIN", statut: "ACTIF", page: 1 });
       if (first.pageCount === 1) return first.items.map((admin) => admin.id);
-      const remaining = await Promise.all(Array.from({ length: first.pageCount - 1 }, (_, index) =>
-        listUtilisateurs({ q: "", role: "ADMIN", statut: "ACTIF", page: index + 2 }),
-      ));
+      const remaining = await Promise.all(
+        Array.from({ length: first.pageCount - 1 }, (_, index) =>
+          listUtilisateurs({ q: "", role: "ADMIN", statut: "ACTIF", page: index + 2 }),
+        ),
+      );
       return [...first.items, ...remaining.flatMap((page) => page.items)].map((admin) => admin.id);
     },
   },
@@ -48,14 +63,10 @@ const realIntegrations: PortfolioIntegrations = {
       };
     },
     async listerPhotosDuPhotographe(photographeId) {
+      const library = await photoLibraryFilter(photographeId);
+      if (!library) return [];
       await connectDB();
-      if (!Types.ObjectId.isValid(photographeId)) return [];
-      const userObjectId = new Types.ObjectId(photographeId);
-      const photos = await Photo.find({
-        $or: [{ uploadePar: userObjectId }, { uploadePar: photographeId }],
-      })
-        .sort({ createdAt: -1 })
-        .lean();
+      const photos = await Photo.find(library).sort({ createdAt: -1 }).lean();
       return photos.map((p) => ({
         id: p._id.toString(),
         url: `/api/photos/${p._id}/file`,
@@ -64,12 +75,10 @@ const realIntegrations: PortfolioIntegrations = {
       }));
     },
     async listerMeilleuresPhotos(photographeId, _categorie, limite = 12) {
+      const library = await photoLibraryFilter(photographeId);
+      if (!library) return [];
       await connectDB();
-      if (!Types.ObjectId.isValid(photographeId)) return [];
-      const userObjectId = new Types.ObjectId(photographeId);
-      const photos = await Photo.find({
-        $or: [{ uploadePar: userObjectId }, { uploadePar: photographeId }],
-      })
+      const photos = await Photo.find(library)
         .sort({ scoreQualite: -1, createdAt: -1 })
         .limit(limite)
         .lean();

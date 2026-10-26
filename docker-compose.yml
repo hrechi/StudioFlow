@@ -30,6 +30,7 @@ services:
       MONGODB_URI: *mongo-uri
       ADMIN_EMAIL: ${ADMIN_EMAIL:?Set ADMIN_EMAIL in .env}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:?Set ADMIN_PASSWORD in .env}
+      SEED_CLIENT_PASSWORD: ${SEED_CLIENT_PASSWORD:-} # docker compose run --rm seed npx tsx scripts/seed-facturation.ts
     depends_on:
       mongo:
         condition: service_healthy
@@ -50,8 +51,13 @@ services:
       KONNECT_API_KEY: ${KONNECT_API_KEY:-}
       KONNECT_WALLET_ID: ${KONNECT_WALLET_ID:-}
       KONNECT_API_URL: ${KONNECT_API_URL:-https://api.sandbox.konnect.network/api/v2}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-} # Claude Haiku: photo analysis, culling, story order, AI search
+      CLAUDE_MODEL: ${CLAUDE_MODEL:-}
       GEMINI_API_KEY: ${GEMINI_API_KEY:-} # chatbot, AI payment proof checker, portfolio AI
+      GEMINI_API_KEYS: ${GEMINI_API_KEYS:-} # spare keys, tried on quota errors
       GEMINI_MODEL: ${GEMINI_MODEL:-}
+      STUDIO_CONTACT_EMAIL: ${STUDIO_CONTACT_EMAIL:-} # given by the chatbot
+      STUDIO_CONTACT_PHONE: ${STUDIO_CONTACT_PHONE:-}
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
       STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
       STRIPE_TND_EUR_RATE: ${STRIPE_TND_EUR_RATE:-0.3}

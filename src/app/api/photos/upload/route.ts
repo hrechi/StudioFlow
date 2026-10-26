@@ -1,10 +1,11 @@
 /* Module : Gestion des Photos & Galeries · Responsable : Louay Herichi */
 import { revalidatePath } from "next/cache";
-import { NextResponse, type NextRequest } from "next/server";
+import { after, NextResponse, type NextRequest } from "next/server";
 import { failure, success, toFailure } from "@/lib/action-result";
 import { getCurrentUser } from "@/lib/guards";
 import { can } from "@/lib/rbac";
 import { uploadPhoto } from "@/modules/photos-galeries/photo.service";
+import { analysePhoto } from "@/modules/photos-galeries/photo-ai.service";
 
 /**
  * POST multipart/form-data { galerieId, file } — one photo per request so the
@@ -43,6 +44,8 @@ export async function POST(request: NextRequest) {
     );
     revalidatePath("/dashboard/photos", "layout");
     revalidatePath("/dashboard/galeries", "layout");
+    // AI analysis (Claude Haiku) once the response is sent: the upload never waits for it.
+    after(() => analysePhoto(photo.id));
     return NextResponse.json(success({ id: photo.id }), { status: 201 });
   } catch (error) {
     return NextResponse.json(toFailure(error), { status: 400 });

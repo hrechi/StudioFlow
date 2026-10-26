@@ -11,25 +11,102 @@ import {
 import { requireRole, requireUser } from "@/lib/guards";
 import {
   createAvis,
+  deleteOwnAvis,
   getAvisReplyContext,
   moderateAvis,
   retryAvisAnalysis,
   saveAvisReply,
+  updateOwnAvis,
 } from "./avis.service";
 import {
   createAvisSchema,
   createReclamationSchema,
+  feedbackIdSchema,
   generateReplySchema,
   moderateAvisSchema,
   repondreAvisSchema,
+  updateOwnAvisSchema,
+  updateOwnReclamationSchema,
   updateReclamationSchema,
 } from "./avis.schemas";
 import { generateReply } from "./ai.service";
-import { createReclamation, updateReclamation } from "./reclamation.service";
+import {
+  createReclamation,
+  deleteOwnReclamation,
+  updateOwnReclamation,
+  updateReclamation,
+} from "./reclamation.service";
 import { getReclamationReplyContext } from "./reclamation.service";
 
 const AVIS_PATH = "/dashboard/avis";
 const RECLAMATIONS_PATH = "/dashboard/reclamations";
+const CLIENT_PATH = "/espace-client/avis";
+
+/** Pages that show reviews (client area, admin board, public website). */
+function revalidateReviews() {
+  revalidatePath(CLIENT_PATH);
+  revalidatePath(AVIS_PATH);
+  revalidatePath("/", "page");
+}
+
+function revalidateComplaints() {
+  revalidatePath(CLIENT_PATH);
+  revalidatePath(RECLAMATIONS_PATH);
+}
+
+// ── The author's own reviews and complaints (edit / delete) ─────────────────
+
+export async function updateMyAvisAction(input: unknown): Promise<ActionResult> {
+  const user = await requireRole("CLIENT", "PHOTOGRAPHE");
+  const parsed = updateOwnAvisSchema.safeParse(input);
+  if (!parsed.success) return validationFailure(parsed.error);
+  try {
+    await updateOwnAvis(user.id, parsed.data);
+    revalidateReviews();
+    return success();
+  } catch (error) {
+    return toFailure(error);
+  }
+}
+
+export async function deleteMyAvisAction(input: unknown): Promise<ActionResult> {
+  const user = await requireRole("CLIENT", "PHOTOGRAPHE");
+  const parsed = feedbackIdSchema.safeParse(input);
+  if (!parsed.success) return validationFailure(parsed.error);
+  try {
+    await deleteOwnAvis(user.id, parsed.data.id);
+    revalidateReviews();
+    return success();
+  } catch (error) {
+    return toFailure(error);
+  }
+}
+
+export async function updateMyReclamationAction(input: unknown): Promise<ActionResult> {
+  const user = await requireRole("CLIENT", "PHOTOGRAPHE");
+  const parsed = updateOwnReclamationSchema.safeParse(input);
+  if (!parsed.success) return validationFailure(parsed.error);
+  try {
+    await updateOwnReclamation(user.id, parsed.data);
+    revalidateComplaints();
+    return success();
+  } catch (error) {
+    return toFailure(error);
+  }
+}
+
+export async function deleteMyReclamationAction(input: unknown): Promise<ActionResult> {
+  const user = await requireRole("CLIENT", "PHOTOGRAPHE");
+  const parsed = feedbackIdSchema.safeParse(input);
+  if (!parsed.success) return validationFailure(parsed.error);
+  try {
+    await deleteOwnReclamation(user.id, parsed.data.id);
+    revalidateComplaints();
+    return success();
+  } catch (error) {
+    return toFailure(error);
+  }
+}
 
 export async function createAvisAction(input: unknown): Promise<ActionResult<{ id: string }>> {
   const user = await requireRole("CLIENT", "PHOTOGRAPHE");

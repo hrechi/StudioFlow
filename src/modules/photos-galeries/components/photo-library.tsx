@@ -153,7 +153,7 @@ export function PhotoLibrary({
         ))}
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-[15rem_minmax(0,1fr)] 2xl:grid-cols-[15rem_minmax(0,1fr)_20rem]">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[15rem_minmax(0,1fr)] 2xl:grid-cols-[15rem_minmax(0,1fr)_20rem]">
         {/* Galleries + tags */}
         <Card className="hidden gap-0 self-start py-0 lg:flex">
           <div className="border-b p-4">

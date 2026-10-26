@@ -2,6 +2,7 @@ import "server-only";
 import { z } from "zod";
 import sharp from "sharp";
 import { ServiceError } from "@/lib/action-result";
+import { callGemini, LlmUnavailableError } from "@/lib/llm-gemini";
 import type {
   BlocPortfolio,
   ElementBlocPortfolio,
@@ -15,14 +16,13 @@ import {
 } from "./portfolio.types";
 import { portfolioIntegrations } from "./integrations";
 
-const GEMINI_API_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
 const GEMINI_DEFAULT_MODEL = "gemini-3.5-flash-lite";
 
 type GeminiImage = { data: Buffer; mimeType: "image/jpeg" | "image/png" | "image/webp" };
 
 async function genererJsonGemini(prompt: string, images: GeminiImage[] = []): Promise<unknown> {
-  const apiKey = process.env.GEMINI_API_KEY?.trim();
-  if (!apiKey) throw new ServiceError("La clé GEMINI_API_KEY n’est pas configurée sur le serveur.");
+  // Shared client (src/lib/llm-gemini.ts): on quota / overload errors it falls back to
+  // another model, then to the spare keys of GEMINI_API_KEYS.
   const model = process.env.GEMINI_MODEL?.trim() || GEMINI_DEFAULT_MODEL;
   const parts = [
     { text: prompt },
@@ -32,42 +32,33 @@ async function genererJsonGemini(prompt: string, images: GeminiImage[] = []): Pr
   ];
   let response: Response;
   try {
-    response = await fetch(`${GEMINI_API_BASE}/${encodeURIComponent(model)}:generateContent`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
-      body: JSON.stringify({
+    response = await callGemini(
+      {
         contents: [{ role: "user", parts }],
         generationConfig: { temperature: 0.2, responseMimeType: "application/json" },
-      }),
-      signal: AbortSignal.timeout(25_000),
-      cache: "no-store",
-    });
+      },
+      25_000,
+      model,
+    );
   } catch (error) {
-    if (error instanceof Error && error.name === "TimeoutError") {
+    if (!(error instanceof LlmUnavailableError)) throw error;
+    console.error(`[portfolio-gemini] ${error.message}`);
+    if (error.status === undefined && /not configured/i.test(error.message))
+      throw new ServiceError("La clé GEMINI_API_KEY n’est pas configurée sur le serveur.");
+    if (error.status === undefined)
       throw new ServiceError(
-        "Gemini n’a pas répondu à temps. Vérifiez l’accès Internet du conteneur app et réessayez.",
+        "Gemini n’a pas répondu à temps. Vérifiez l’accès Internet du serveur et réessayez.",
       );
-    }
-    if (error instanceof TypeError && /fetch|network/i.test(error.message)) {
+    if (error.status === 429)
       throw new ServiceError(
-        "Le conteneur app ne peut pas joindre Gemini. Vérifiez la connexion réseau Docker.",
+        "Toutes les clés Gemini ont atteint leur limite de requêtes. Réessayez dans quelques minutes.",
       );
-    }
-    throw error;
-  }
-  if (!response.ok) {
-    const details = (await response.text()).slice(0, 500);
-    console.error(`[portfolio-gemini] Request failed (${response.status}): ${details}`);
-    if (response.status === 429)
-      throw new ServiceError(
-        "Gemini a atteint sa limite de requêtes. Réessayez dans quelques instants.",
-      );
-    if (response.status === 401 || response.status === 403)
+    if (error.status === 401 || error.status === 403)
       throw new ServiceError(
         "Gemini refuse la clé API. Vérifiez GEMINI_API_KEY et ses autorisations.",
       );
     throw new ServiceError(
-      `Gemini a refusé l’analyse (HTTP ${response.status}). Consultez les logs du serveur.`,
+      `Gemini a refusé l’analyse (HTTP ${error.status}). Consultez les logs du serveur.`,
     );
   }
   const payload = (await response.json()) as {

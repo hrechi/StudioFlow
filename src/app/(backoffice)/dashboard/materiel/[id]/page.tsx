@@ -56,7 +56,7 @@ export default async function MaterielDetailPage({
         <ArrowLeft className="size-4" aria-hidden />
         Inventory
       </Link>
-      <div className="grid gap-6 lg:grid-cols-[22rem_minmax(0,1fr)]">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[22rem_minmax(0,1fr)]">
         <Card className="gap-0 self-start overflow-hidden py-0">
           <div className="relative aspect-[4/3] bg-muted">
             <MaterielPhoto

@@ -20,7 +20,6 @@ import { useRouter } from "next/navigation";
 import { useState, useSyncExternalStore, useTransition } from "react";
 import { toast } from "sonner";
 import { AIPanel } from "@/components/shared/ai-panel";
-import { comingSoon } from "@/components/shared/coming-soon-button";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { EmptyState } from "@/components/shared/empty-state";
 import { FormField, PasswordInput } from "@/components/shared/form-field";
@@ -41,6 +40,7 @@ import {
   type StatutCulling,
 } from "../galerie.types";
 import { deletePhotosAction, setCullingAction } from "../photo.actions";
+import { autoCullGalerieAction, storyOrderAction } from "../photo-ai.actions";
 import { AILabels } from "./photo-thumb";
 
 const TABS: { value: StatutCulling | "TOUTES"; label: string }[] = [
@@ -56,6 +56,53 @@ export function GalerieManager({ galerie, photos }: { galerie: Galerie; photos: 
   const [culling, setCulling] = useState(() => new Map(photos.map((p) => [p.id, p.statutCulling])));
   const [toDelete, setToDelete] = useState<Photo | null>(null);
   const [pending, startTransition] = useTransition();
+  const [aiTask, setAiTask] = useState<"cull" | "story" | null>(null);
+  const [storySummary, setStorySummary] = useState<string | null>(null);
+
+  // AI (Claude Haiku): auto-culling of the pending photos, then the story order of the kept ones.
+  const runAutoCull = () => {
+    setAiTask("cull");
+    startTransition(async () => {
+      const result = await autoCullGalerieAction({ id: galerie.id });
+      setAiTask(null);
+      if (!result.ok) {
+        toast.error("Auto-culling failed", { description: result.error });
+        return;
+      }
+      const { kept, rejected, duplicates } = result.data;
+      toast.success(
+        kept + rejected === 0
+          ? "Nothing left to cull"
+          : `AI culling: ${kept} kept, ${rejected} rejected`,
+        {
+          description:
+            kept + rejected === 0
+              ? "Every photo already has a decision. Set a photo back to pending to cull it again."
+              : duplicates
+                ? `${duplicates} near-duplicate shot(s) rejected in favour of the best one.`
+                : "Blurry shots, closed eyes and weak frames were rejected.",
+        },
+      );
+      router.refresh();
+    });
+  };
+
+  const runStoryOrder = () => {
+    setAiTask("story");
+    startTransition(async () => {
+      const result = await storyOrderAction({ id: galerie.id });
+      setAiTask(null);
+      if (!result.ok) {
+        toast.error("Story order failed", { description: result.error });
+        return;
+      }
+      setStorySummary(result.data.summary);
+      toast.success(`Story order applied to ${result.data.ordered} photos`, {
+        description: "The gallery now opens in this order, for you and the client.",
+      });
+      router.refresh();
+    });
+  };
 
   // Photos change after an import / delete (router.refresh): resync the local culling map.
   const [syncedPhotos, setSyncedPhotos] = useState(photos);
@@ -106,7 +153,7 @@ export function GalerieManager({ galerie, photos }: { galerie: Galerie; photos: 
   const commentaires = photos.filter((p) => p.commentaireClient);
 
   return (
-    <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_21rem]">
+    <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_21rem]">
       <Card className="min-w-0 gap-0 py-0">
         <Tabs defaultValue="TOUTES" className="gap-0">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b px-4 pt-2">
@@ -124,10 +171,15 @@ export function GalerieManager({ galerie, photos }: { galerie: Galerie; photos: 
               size="sm"
               variant="ai-soft"
               className="mb-2"
-              onClick={() => comingSoon("AI auto-culling")}
+              onClick={runAutoCull}
+              disabled={pending || photos.length === 0}
             >
-              <Sparkles aria-hidden />
-              Auto-cull
+              {aiTask === "cull" ? (
+                <Loader2 className="animate-spin" aria-hidden />
+              ) : (
+                <Sparkles aria-hidden />
+              )}
+              {aiTask === "cull" ? "Culling…" : "Auto-cull"}
             </Button>
           </div>
           {TABS.map((tab) => {
@@ -291,11 +343,17 @@ export function GalerieManager({ galerie, photos }: { galerie: Galerie; photos: 
           <Button
             variant="ai"
             className="w-full"
-            onClick={() => comingSoon("Generate the AI story order")}
+            onClick={runStoryOrder}
+            disabled={pending || photos.length < 2}
           >
-            <Wand2 aria-hidden />
-            Generate AI order
+            {aiTask === "story" ? (
+              <Loader2 className="animate-spin" aria-hidden />
+            ) : (
+              <Wand2 aria-hidden />
+            )}
+            {aiTask === "story" ? "Building the story…" : "Generate AI order"}
           </Button>
+          {storySummary && <p className="mt-3 text-xs text-muted-foreground">{storySummary}</p>}
         </AIPanel>
       </aside>
 

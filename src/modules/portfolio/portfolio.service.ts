@@ -32,6 +32,7 @@ import {
 } from "./portfolio.types";
 import { portfolioIntegrations } from "./integrations";
 import { analyserPhotoAvecGemini, type GeminiPhotoAnalysis } from "./ia.service";
+import { photoLibraryFilter } from "./photo-library";
 import { INITIAL_DEMO_BLOCKS } from "./components/editor/demoData";
 
 type PortfolioLean = PortfolioDocument & { _id: Types.ObjectId };
@@ -1409,12 +1410,13 @@ export async function chargerImagePhotoPourGemini(
 ): Promise<{ data: Buffer; mimeType: GeminiSupportedImageMime }> {
   const maxBytes = 20 * 1024 * 1024;
   if (element.photoId && Types.ObjectId.isValid(element.photoId)) {
+    const library = await photoLibraryFilter(userId);
     await connectDB();
-    const owner = new Types.ObjectId(userId);
-    const photo = await Photo.findOne({
-      _id: new Types.ObjectId(element.photoId),
-      $or: [{ uploadePar: owner }, { uploadePar: userId }],
-    }).select("fichier format taille");
+    const photo = library
+      ? await Photo.findOne({ ...library, _id: new Types.ObjectId(element.photoId) }).select(
+          "fichier format taille",
+        )
+      : null;
     if (!photo) throw new ServiceError("Cette photo n’appartient pas à votre bibliothèque.");
     if (photo.taille > maxBytes)
       throw new ServiceError("La photo dépasse la taille maximale de 20 Mo.");
@@ -1474,10 +1476,11 @@ export async function analyserQualitePhotosPhotographe(
   if (!Types.ObjectId.isValid(userId)) throw new ServiceError("Photographe invalide.");
   const galleryIds = categorie ? await Galerie.find({ categorie }).distinct("_id") : undefined;
   if (categorie && !galleryIds?.length) return [];
-  const query: Record<string, unknown> = {
-    $or: [{ uploadePar: new Types.ObjectId(userId) }, { uploadePar: userId }],
-  };
-  if (galleryIds) query.galerie = { $in: galleryIds };
+  const library = await photoLibraryFilter(userId);
+  if (!library) return [];
+  const query: Record<string, unknown> = galleryIds
+    ? { $and: [library, { galerie: { $in: galleryIds } }] }
+    : library;
   const photos = await Photo.find(query)
     .select("_id fichier format taille")
     .sort({ createdAt: -1 })
@@ -1497,7 +1500,7 @@ export async function analyserQualitePhotosPhotographe(
         const buffer = Buffer.from(await new Response(file.stream).arrayBuffer());
         const analysis = await analyserPhotoAvecGemini(buffer, photo.format || file.contentType);
         await Photo.updateOne(
-          { _id: photo._id, uploadePar: new Types.ObjectId(userId) },
+          { _id: photo._id },
           {
             $set: {
               scoreQualite: analysis.score,
@@ -1515,20 +1518,19 @@ export async function analyserQualitePhotosPhotographe(
 }
 
 /**
- * Charge uniquement les photos appartenant au photographe connecté
- * depuis la base de données MongoDB (collection `photos`, uploadePar = userId).
+ * Photos offered in the portfolio editor's picker: the user's library from the Photos &
+ * Galleries module (see photo-library.ts: every photo for an ADMIN; for a PHOTOGRAPHE the
+ * photos they uploaded and those of the galleries of their sessions).
  */
 export async function listerPhotosPhotographePourPortfolio(
   userId: string,
 ): Promise<PhotoPourSelecteur[]> {
+  const library = await photoLibraryFilter(userId);
+  if (!library) return [];
   await connectDB();
-  if (!Types.ObjectId.isValid(userId)) return [];
-  const userObjectId = new Types.ObjectId(userId);
 
   try {
-    const photos = await Photo.find({
-      $or: [{ uploadePar: userObjectId }, { uploadePar: userId }],
-    })
+    const photos = await Photo.find(library)
       .sort({ createdAt: -1 })
       .populate({
         path: "galerie",

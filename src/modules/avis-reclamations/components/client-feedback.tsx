@@ -4,7 +4,7 @@ import { CheckCircle2, Circle, CircleDot, MessageSquareWarning, Send, Star } fro
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { FormField } from "@/components/shared/form-field";
-import { RatingInput, RatingStars } from "@/components/shared/rating-stars";
+import { RatingInput } from "@/components/shared/rating-stars";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,7 +17,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { cn, formatDate } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import { createAvisAction, createReclamationAction } from "../avis.actions";
 import {
   CATEGORIES_RECLAMATION,
@@ -27,10 +27,14 @@ import {
   type Reclamation,
   type StatutReclamation,
 } from "../avis.types";
+import { MyComplaintItem, MyReviewItem } from "./my-feedback-items";
 
 const STEPS: StatutReclamation[] = ["OUVERTE", "EN_COURS", "RESOLUE"];
 
-/** /espace-client/avis — rate a completed séance, file a complaint, follow its status. */
+/**
+ * /espace-client/avis — rate a completed séance, file a complaint, follow its status,
+ * and edit or delete one's own reviews and complaints (my-feedback-items.tsx).
+ */
 export function ClientFeedback({
   seancesANoter,
   mesAvis,
@@ -233,50 +237,43 @@ export function ClientFeedback({
               {mesReclamations.map((r) => {
                 const current = STEPS.indexOf(r.statut);
                 return (
-                  <li key={r.id} className="flex flex-col gap-3 py-4 md:flex-row md:items-center">
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <p className="font-semibold text-foreground">{r.objet}</p>
+                  <MyComplaintItem
+                    key={r.id}
+                    reclamation={r}
+                    progress={
+                      <>
                         <StatusBadge value={r.statut} config={statutReclamationConfig} />
-                      </div>
-                      <p className="text-xs text-muted-foreground">
-                        {r.seance.titre} · sent {formatDate(r.dateCreation)}
-                      </p>
-                      {r.reponse && (
-                        <p className="mt-2 rounded-lg bg-surface p-2.5 text-sm text-slate">
-                          Studio: {r.reponse}
-                        </p>
-                      )}
-                    </div>
-                    {r.statut !== "REJETEE" && (
-                      <ol className="flex items-center gap-1.5 text-xs" aria-label="Progress">
-                        {STEPS.map((step, index) => (
-                          <li key={step} className="flex items-center gap-1.5">
-                            <span
-                              className={cn(
-                                "flex items-center gap-1",
-                                index <= current
-                                  ? "font-semibold text-foreground"
-                                  : "text-muted-foreground",
-                              )}
-                            >
-                              {index < current || r.statut === "RESOLUE" ? (
-                                <CheckCircle2 className="size-4 text-success" aria-hidden />
-                              ) : index === current ? (
-                                <CircleDot className="size-4 text-primary" aria-hidden />
-                              ) : (
-                                <Circle className="size-4 text-light-gray" aria-hidden />
-                              )}
-                              {statutReclamationConfig[step].label}
-                            </span>
-                            {index < STEPS.length - 1 && (
-                              <span className="h-px w-4 bg-light-gray" aria-hidden />
-                            )}
-                          </li>
-                        ))}
-                      </ol>
-                    )}
-                  </li>
+                        {r.statut !== "REJETEE" && (
+                          <ol className="flex items-center gap-1.5 text-xs" aria-label="Progress">
+                            {STEPS.map((step, index) => (
+                              <li key={step} className="flex items-center gap-1.5">
+                                <span
+                                  className={cn(
+                                    "flex items-center gap-1",
+                                    index <= current
+                                      ? "font-semibold text-foreground"
+                                      : "text-muted-foreground",
+                                  )}
+                                >
+                                  {index < current || r.statut === "RESOLUE" ? (
+                                    <CheckCircle2 className="size-4 text-success" aria-hidden />
+                                  ) : index === current ? (
+                                    <CircleDot className="size-4 text-primary" aria-hidden />
+                                  ) : (
+                                    <Circle className="size-4 text-light-gray" aria-hidden />
+                                  )}
+                                  {statutReclamationConfig[step].label}
+                                </span>
+                                {index < STEPS.length - 1 && (
+                                  <span className="h-px w-4 bg-light-gray" aria-hidden />
+                                )}
+                              </li>
+                            ))}
+                          </ol>
+                        )}
+                      </>
+                    }
+                  />
                 );
               })}
             </ul>
@@ -290,20 +287,9 @@ export function ClientFeedback({
             <CardTitle>My reviews</CardTitle>
           </CardHeader>
           <CardContent>
-            <ul className="space-y-4">
+            <ul className="divide-y">
               {mesAvis.map((a) => (
-                <li key={a.id} className="space-y-1.5">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <RatingStars value={a.note} />
-                    <span className="text-xs text-muted-foreground">
-                      {a.seance.titre} · {formatDate(a.dateAvis)}
-                    </span>
-                  </div>
-                  <p className="text-sm text-slate">“{a.commentaire}”</p>
-                  {a.reponseStudio && (
-                    <p className="text-sm text-primary-text">Studio reply: {a.reponseStudio}</p>
-                  )}
-                </li>
+                <MyReviewItem key={a.id} avis={a} />
               ))}
             </ul>
           </CardContent>
