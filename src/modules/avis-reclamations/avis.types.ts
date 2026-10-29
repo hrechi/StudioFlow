@@ -4,7 +4,7 @@
  * Enums marked "proposé" are not in cahier §4.4: confirm them before creating the models.
  */
 import type { StatusConfig } from "@/components/shared/status-badge";
-import type { UtilisateurRef } from "@/modules/utilisateurs/utilisateur.types";
+import type { Role, UtilisateurRef } from "@/modules/utilisateurs/utilisateur.types";
 
 export const SENTIMENTS = ["POSITIF", "NEUTRE", "NEGATIF"] as const;
 export type Sentiment = (typeof SENTIMENTS)[number];
@@ -64,6 +64,15 @@ export type Avis = {
   seance: { id: string; titre: string; type: string };
 };
 
+/** One bubble of the conversation under a complaint (embedded in `reclamations`). */
+export type ReclamationMessage = {
+  id: string;
+  auteur: UtilisateurRef;
+  auteurRole: Role;
+  contenu: string;
+  dateEnvoi: string;
+};
+
 /** Collection `reclamations`. */
 export type Reclamation = {
   id: string;
@@ -79,6 +88,7 @@ export type Reclamation = {
   client: UtilisateurRef;
   seance: { id: string; titre: string };
   traitePar?: UtilisateurRef;
+  messages: ReclamationMessage[];
 };
 
 export type AvisListResult = {

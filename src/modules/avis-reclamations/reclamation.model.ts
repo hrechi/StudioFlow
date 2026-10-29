@@ -1,4 +1,5 @@
 import { Schema, Types, model, models, type Model } from "mongoose";
+import { ROLES, type Role } from "@/modules/utilisateurs/utilisateur.types";
 import {
   CATEGORIES_RECLAMATION,
   PRIORITES,
@@ -7,6 +8,15 @@ import {
   type Priorite,
   type StatutReclamation,
 } from "./avis.types";
+
+/** One bubble of the client ↔ studio conversation that follows a complaint. */
+export interface IReclamationMessage {
+  _id: Types.ObjectId;
+  auteur: Types.ObjectId;
+  auteurRole: Role;
+  contenu: string;
+  createdAt: Date;
+}
 
 export interface IReclamation {
   auteur: Types.ObjectId;
@@ -22,9 +32,20 @@ export interface IReclamation {
   dateReponse?: Date;
   dateResolution?: Date;
   traitePar?: Types.ObjectId;
+  messages: IReclamationMessage[];
   createdAt: Date;
   updatedAt: Date;
 }
+
+const messageSchema = new Schema<IReclamationMessage>(
+  {
+    auteur: { type: Schema.Types.ObjectId, ref: "Utilisateur", required: true },
+    auteurRole: { type: String, enum: ROLES, required: true },
+    contenu: { type: String, required: true, trim: true, maxlength: 2000 },
+    createdAt: { type: Date, default: Date.now, required: true },
+  },
+  { _id: true },
+);
 
 const reclamationSchema = new Schema<IReclamation>(
   {
@@ -41,6 +62,7 @@ const reclamationSchema = new Schema<IReclamation>(
     dateReponse: { type: Date },
     dateResolution: { type: Date },
     traitePar: { type: Schema.Types.ObjectId, ref: "Utilisateur" },
+    messages: { type: [messageSchema], default: [] },
   },
   { timestamps: true, collection: "reclamations" },
 );

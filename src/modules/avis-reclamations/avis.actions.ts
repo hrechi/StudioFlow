@@ -22,10 +22,12 @@ import {
   generateReplySchema,
   moderateAvisSchema,
   repondreAvisSchema,
+  sendReclamationMessageSchema,
   updateReclamationSchema,
 } from "./avis.schemas";
 import { generateReply } from "./ai.service";
-import { createReclamation, updateReclamation } from "./reclamation.service";
+import { addReclamationMessage, createReclamation, updateReclamation } from "./reclamation.service";
+import type { ReclamationMessage } from "./avis.types";
 import { getReclamationReplyContext } from "./reclamation.service";
 
 const AVIS_PATH = "/dashboard/avis";
@@ -97,6 +99,26 @@ export async function updateReclamationAction(input: unknown): Promise<ActionRes
     revalidatePath(RECLAMATIONS_PATH);
     revalidatePath("/espace-client/avis");
     return success();
+  } catch (error) {
+    return toFailure(error);
+  }
+}
+
+export async function sendReclamationMessageAction(
+  input: unknown,
+): Promise<ActionResult<ReclamationMessage>> {
+  const user = await requireRole("CLIENT", "ADMIN", "PHOTOGRAPHE");
+  const parsed = sendReclamationMessageSchema.safeParse(input);
+  if (!parsed.success) return validationFailure(parsed.error);
+  try {
+    const message = await addReclamationMessage(
+      parsed.data.id,
+      { id: user.id, role: user.role },
+      parsed.data.contenu,
+    );
+    revalidatePath(RECLAMATIONS_PATH);
+    revalidatePath("/espace-client/avis");
+    return success(message);
   } catch (error) {
     return toFailure(error);
   }

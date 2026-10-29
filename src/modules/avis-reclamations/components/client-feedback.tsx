@@ -1,6 +1,14 @@
 "use client";
 
-import { CheckCircle2, Circle, CircleDot, MessageSquareWarning, Send, Star } from "lucide-react";
+import {
+  CheckCircle2,
+  Circle,
+  CircleDot,
+  MessageSquareWarning,
+  MessagesSquare,
+  Send,
+  Star,
+} from "lucide-react";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { FormField } from "@/components/shared/form-field";
@@ -27,10 +35,11 @@ import {
   type Reclamation,
   type StatutReclamation,
 } from "../avis.types";
+import { ReclamationThread } from "./reclamation-thread";
 
 const STEPS: StatutReclamation[] = ["OUVERTE", "EN_COURS", "RESOLUE"];
 
-/** /espace-client/avis — rate a completed séance, file a complaint, follow its status. */
+/** /espace-client/avis — rate a completed séance, file a complaint, follow it and chat with the studio. */
 export function ClientFeedback({
   seancesANoter,
   mesAvis,
@@ -48,6 +57,7 @@ export function ClientFeedback({
   const [objet, setObjet] = useState("");
   const [description, setDescription] = useState("");
   const [feedback, setFeedback] = useState<string | null>(null);
+  const [openThread, setOpenThread] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
   return (
@@ -233,7 +243,7 @@ export function ClientFeedback({
               {mesReclamations.map((r) => {
                 const current = STEPS.indexOf(r.statut);
                 return (
-                  <li key={r.id} className="flex flex-col gap-3 py-4 md:flex-row md:items-center">
+                  <li key={r.id} className="flex flex-col gap-3 py-4 md:flex-row md:items-start">
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
                         <p className="font-semibold text-foreground">{r.objet}</p>
@@ -242,10 +252,21 @@ export function ClientFeedback({
                       <p className="text-xs text-muted-foreground">
                         {r.seance.titre} · sent {formatDate(r.dateCreation)}
                       </p>
-                      {r.reponse && (
-                        <p className="mt-2 rounded-lg bg-surface p-2.5 text-sm text-slate">
-                          Studio: {r.reponse}
-                        </p>
+                      <button
+                        type="button"
+                        onClick={() => setOpenThread(openThread === r.id ? null : r.id)}
+                        aria-expanded={openThread === r.id}
+                        className="mt-2 inline-flex items-center gap-1.5 text-sm font-medium text-primary-text hover:underline"
+                      >
+                        <MessagesSquare className="size-4" aria-hidden />
+                        {openThread === r.id ? "Hide conversation" : "Conversation"}
+                        {r.messages.length > 0 && ` (${r.messages.length})`}
+                      </button>
+                      {openThread === r.id && (
+                        <div className="mt-3">
+                          {/* The action revalidates this page, so new bubbles arrive via props. */}
+                          <ReclamationThread reclamation={r} viewer="client" />
+                        </div>
                       )}
                     </div>
                     {r.statut !== "REJETEE" && (

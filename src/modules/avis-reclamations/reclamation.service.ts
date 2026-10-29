@@ -8,11 +8,13 @@ import { findUtilisateurRefs, listAdminRefs } from "@/modules/utilisateurs/utili
 import { analyzeComplaint, containsProfanity } from "./ai.service";
 import { Reclamation, type IReclamation } from "./reclamation.model";
 import type { CreateReclamationInput } from "./avis.schemas";
+import type { Role } from "@/modules/utilisateurs/utilisateur.types";
 import type {
   CategorieReclamation,
   Priorite,
   Reclamation as ReclamationDTO,
   ReclamationListResult,
+  ReclamationMessage,
   StatutReclamation,
 } from "./avis.types";
 
@@ -24,9 +26,44 @@ function objectId(id: string): Types.ObjectId {
   return new Types.ObjectId(id);
 }
 
+const DELETED_USER = { nom: "Deleted", prenom: "user" };
+
+function isClosed(statut: StatutReclamation): boolean {
+  return statut === "RESOLUE" || statut === "REJETEE";
+}
+
+/** Thread shown under a complaint; a legacy single `reponse` becomes the studio's first bubble. */
+function threadOf(
+  doc: ReclamationLean,
+  refs: Map<string, ReclamationDTO["client"]>,
+): ReclamationMessage[] {
+  const ref = (id: string) => refs.get(id) ?? { id, ...DELETED_USER };
+  const messages = (doc.messages ?? []).map((m) => ({
+    id: m._id.toString(),
+    auteur: ref(m.auteur.toString()),
+    auteurRole: m.auteurRole,
+    contenu: m.contenu,
+    dateEnvoi: m.createdAt.toISOString(),
+  }));
+  if (!messages.length && doc.reponse && doc.traitePar) {
+    messages.push({
+      id: `${doc._id.toString()}-reponse`,
+      auteur: ref(doc.traitePar.toString()),
+      auteurRole: "ADMIN",
+      contenu: doc.reponse,
+      dateEnvoi: (doc.dateReponse ?? doc.updatedAt).toISOString(),
+    });
+  }
+  return messages;
+}
+
 async function toDTOs(docs: ReclamationLean[]): Promise<ReclamationDTO[]> {
   const ids = docs
-    .flatMap((doc) => [doc.auteur.toString(), doc.traitePar?.toString()])
+    .flatMap((doc) => [
+      doc.auteur.toString(),
+      doc.traitePar?.toString(),
+      ...(doc.messages ?? []).map((m) => m.auteur.toString()),
+    ])
     .filter(Boolean) as string[];
   const refs = await findUtilisateurRefs(ids);
   return docs.map((doc) => ({
@@ -40,13 +77,10 @@ async function toDTOs(docs: ReclamationLean[]): Promise<ReclamationDTO[]> {
     reponse: doc.reponse,
     dateCreation: doc.createdAt.toISOString(),
     dateResolution: doc.dateResolution?.toISOString(),
-    client: refs.get(doc.auteur.toString()) ?? {
-      id: doc.auteur.toString(),
-      nom: "Deleted",
-      prenom: "user",
-    },
+    client: refs.get(doc.auteur.toString()) ?? { id: doc.auteur.toString(), ...DELETED_USER },
     seance: { id: doc.seance?.toString() ?? "", titre: doc.seanceTitre ?? "Studio session" },
     traitePar: doc.traitePar ? refs.get(doc.traitePar.toString()) : undefined,
+    messages: threadOf(doc, refs),
   }));
 }
 
@@ -153,9 +187,26 @@ export async function updateReclamation(
     statut,
     traitePar: objectId(adminId),
     ...(reponse?.trim() ? { reponse: reponse.trim(), dateReponse: now } : {}),
-    ...(statut === "RESOLUE" || statut === "REJETEE" ? { dateResolution: now } : {}),
+    ...(isClosed(statut) ? { dateResolution: now } : {}),
   };
-  await Reclamation.updateOne({ _id: complaint._id }, { $set: update });
+  await Reclamation.updateOne(
+    { _id: complaint._id },
+    {
+      $set: update,
+      ...(reponse?.trim()
+        ? {
+            $push: {
+              messages: {
+                auteur: objectId(adminId),
+                auteurRole: "ADMIN",
+                contenu: reponse.trim(),
+                createdAt: now,
+              },
+            },
+          }
+        : {}),
+    },
+  );
   await createNotification({
     utilisateurId: complaint.auteur.toString(),
     titre: reponse?.trim() ? "The studio replied to your complaint" : "Complaint status updated",
@@ -165,6 +216,95 @@ export async function updateReclamation(
     type: "RECLAMATION",
     lienCible: "/espace-client/avis",
   });
+}
+
+/**
+ * Adds a bubble to the complaint conversation. The client may only write on their own
+ * complaint; staff (admin / photographer) may write on any. Closed complaints are read-only.
+ */
+export async function addReclamationMessage(
+  id: string,
+  sender: { id: string; role: Role },
+  contenu: string,
+): Promise<ReclamationMessage> {
+  await connectDB();
+  const complaint = await Reclamation.findById(objectId(id)).lean<ReclamationLean>();
+  if (!complaint) throw new ServiceError("Complaint not found.");
+  const isClient = sender.role === "CLIENT";
+  if (isClient && complaint.auteur.toString() !== sender.id) {
+    throw new ServiceError("Complaint not found.");
+  }
+  if (isClosed(complaint.statut)) {
+    throw new ServiceError("This complaint is closed; the conversation is read-only.");
+  }
+  if (await containsProfanity(contenu)) {
+    throw new ServiceError(
+      "Your message contains insulting or inappropriate language. Please edit it before sending.",
+      "contenu",
+    );
+  }
+
+  const now = new Date();
+  const messageId = new Types.ObjectId();
+  await Reclamation.updateOne(
+    { _id: complaint._id },
+    {
+      $push: {
+        messages: {
+          _id: messageId,
+          auteur: objectId(sender.id),
+          auteurRole: sender.role,
+          contenu,
+          createdAt: now,
+        },
+      },
+      // Staff answering an open complaint takes it in charge.
+      ...(!isClient
+        ? {
+            $set: {
+              traitePar: objectId(sender.id),
+              reponse: contenu,
+              dateReponse: now,
+              ...(complaint.statut === "OUVERTE" ? { statut: "EN_COURS" } : {}),
+            },
+          }
+        : {}),
+    },
+  );
+
+  if (isClient) {
+    const recipient = complaint.traitePar?.toString();
+    const titre = "New message on a complaint";
+    const message = `The client replied about: ${complaint.objet}`;
+    if (recipient) {
+      await createNotification({
+        utilisateurId: recipient,
+        titre,
+        message,
+        type: "RECLAMATION",
+        lienCible: "/dashboard/reclamations",
+      });
+    } else {
+      await notifyAdmins(titre, message, "/dashboard/reclamations");
+    }
+  } else {
+    await createNotification({
+      utilisateurId: complaint.auteur.toString(),
+      titre: "The studio replied to your complaint",
+      message: "Open your client area to continue the conversation.",
+      type: "RECLAMATION",
+      lienCible: "/espace-client/avis",
+    });
+  }
+
+  const author = (await findUtilisateurRefs([sender.id])).get(sender.id);
+  return {
+    id: messageId.toString(),
+    auteur: author ?? { id: sender.id, ...DELETED_USER },
+    auteurRole: sender.role,
+    contenu,
+    dateEnvoi: now.toISOString(),
+  };
 }
 
 export async function getReclamationReplyContext(id: string): Promise<string> {

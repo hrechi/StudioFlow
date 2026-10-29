@@ -46,6 +46,11 @@ export const updateReclamationSchema = z.object({
   reponse: z.string().trim().max(5000).optional(),
 });
 
+export const sendReclamationMessageSchema = z.object({
+  id: z.string().min(1),
+  contenu: text(2000, "Message"),
+});
+
 export const generateReplySchema = z.object({
   id: z.string().min(1),
   kind: z.enum(["avis", "reclamation"]),
