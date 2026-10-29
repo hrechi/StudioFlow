@@ -8,16 +8,18 @@ import { SeanceForm } from "@/modules/seances/components/seance-form";
 import { listPacks } from "@/modules/seances/pack.service";
 import { listTypesEvenement } from "@/modules/seances/type-evenement.service";
 import { listClientRefs, listPhotographeRefs } from "@/modules/utilisateurs/utilisateur.service";
+import { listLieuxRefs } from "@/modules/seances/lieu.service";
 
 export const metadata: Metadata = { title: "New session" };
 
 export default async function NouvelleSeancePage() {
   await requireRole("ADMIN");
-  const [clients, photographes, types, packs] = await Promise.all([
+  const [clients, photographes, types, packs, lieux] = await Promise.all([
     listClientRefs(),
     listPhotographeRefs(),
     listTypesEvenement(),
     listPacks(),
+    listLieuxRefs(),
   ]);
   return (
     <div className="mx-auto max-w-4xl space-y-6">
@@ -34,6 +36,7 @@ export default async function NouvelleSeancePage() {
       <SeanceForm
         clients={clients}
         photographes={photographes}
+        lieux={lieux}
         types={types.filter((t) => t.actif).map((t) => ({ id: t.id, nom: t.nom }))}
         packs={packs.map((p) => ({ id: p.id, nom: p.nom, typeId: p.typeEvenement.id, disabled: p.statut === "DESACTIVE" }))}
       />

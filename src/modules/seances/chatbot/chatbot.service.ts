@@ -1,15 +1,15 @@
 import "server-only";
 /**
  * Module : Chatbot IA · Responsable : Yosser Rafrafi
- * Orchestre la boucle LLM (Gemini function calling) et délègue le calcul aux tools.
+ * Orchestre la boucle LLM (Groq/OpenAI tool-calling) et délègue le calcul aux tools.
  * Aucune écriture : le chatbot est 100 % lecture seule.
  */
 import {
   generate,
   LlmUnavailableError,
-  type GeminiContent,
-  type GeminiToolDeclaration,
-} from "@/lib/llm-gemini";
+  type GroqMessage,
+  type GroqToolDeclaration,
+} from "@/lib/llm-groq";
 import { getPublicCatalogue } from "../pack.service";
 import {
   comparePacks,
@@ -43,43 +43,63 @@ RÈGLES ABSOLUES
 STYLE
 Réponds dans la langue du visiteur (français, anglais ou arabe). Sois chaleureux et concis (moins de 120 mots sauf pour une comparaison). Quand le type d'événement ou le budget est inconnu et utile, pose UNE seule question courte. Les prix sont en TND. Pour une comparaison, énonce les différences et l'écart de prix, puis ta suggestion selon les besoins du visiteur.`;
 
-const TOOLS: GeminiToolDeclaration[] = [
+const TOOLS: GroqToolDeclaration[] = [
   {
-    name: "list_event_types",
-    description: "Liste les types d'événements qui ont actuellement des packs publiés.",
-  },
-  {
-    name: "list_packs",
-    description:
-      "Liste les packs publiés avec prix, prestations incluses et options. Optionnel : pour un seul type d'événement (ex. 'mariage', 'wedding').",
-    parameters: { type: "OBJECT", properties: { type_evenement: { type: "STRING" } } },
-  },
-  {
-    name: "compare_packs",
-    description:
-      "Compare deux packs publiés ou plus (tableau de prestations et écart de prix) par leurs ids.",
-    parameters: {
-      type: "OBJECT",
-      properties: { pack_ids: { type: "ARRAY", items: { type: "STRING" } } },
-      required: ["pack_ids"],
+    type: "function",
+    function: {
+      name: "list_event_types",
+      description: "Liste les types d'événements qui ont actuellement des packs publiés.",
     },
   },
   {
-    name: "recommend_packs",
-    description:
-      "Classe les packs publiés selon les critères du visiteur. À utiliser dès que le type d'événement et/ou le budget est connu.",
-    parameters: {
-      type: "OBJECT",
-      properties: {
-        type_evenement: { type: "STRING" },
-        budget_max_tnd: { type: "NUMBER" },
-        prestations_souhaitees: { type: "ARRAY", items: { type: "STRING" } },
+    type: "function",
+    function: {
+      name: "list_packs",
+      description:
+        "Liste les packs publiés avec prix, prestations incluses et options. Optionnel : pour un seul type d'événement (ex. 'mariage', 'wedding').",
+      parameters: {
+        type: "object",
+        properties: { type_evenement: { type: "string" } },
       },
     },
   },
   {
-    name: "studio_contact",
-    description: "Retourne les coordonnées du studio (email, téléphone), si configurées.",
+    type: "function",
+    function: {
+      name: "compare_packs",
+      description:
+        "Compare deux packs publiés ou plus (tableau de prestations et écart de prix) par leurs ids.",
+      parameters: {
+        type: "object",
+        properties: {
+          pack_ids: { type: "array", items: { type: "string" } },
+        },
+        required: ["pack_ids"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "recommend_packs",
+      description:
+        "Classe les packs publiés selon les critères du visiteur. À utiliser dès que le type d'événement et/ou le budget est connu.",
+      parameters: {
+        type: "object",
+        properties: {
+          type_evenement: { type: "string" },
+          budget_max_tnd: { type: "number" },
+          prestations_souhaitees: { type: "array", items: { type: "string" } },
+        },
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "studio_contact",
+      description: "Retourne les coordonnées du studio (email, téléphone), si configurées.",
+    },
   },
 ];
 
@@ -103,22 +123,21 @@ export async function answerChat(history: ChatTurn[]): Promise<ChatReply> {
     }
   };
 
-  const contents: GeminiContent[] = history.map((t) => ({
-    role: t.role === "user" ? "user" : "model",
-    parts: [{ text: t.content }],
+  // Convertit l'historique en messages Groq
+  const messages: GroqMessage[] = history.map((t) => ({
+    role: t.role,
+    content: t.content,
   }));
+
   const mentioned: string[] = [];
 
   try {
     for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
-      const answer = await generate({ system: SYSTEM_PROMPT, contents, tools: TOOLS });
-      const calls = answer.parts.flatMap((p) => ("functionCall" in p ? [p.functionCall] : []));
+      const msg = await generate({ system: SYSTEM_PROMPT, messages, tools: TOOLS });
 
-      if (calls.length === 0) {
-        const reply = answer.parts
-          .map((p) => ("text" in p ? p.text : ""))
-          .join("")
-          .trim();
+      // Pas d'appel d'outil → réponse finale
+      if (!msg.tool_calls || msg.tool_calls.length === 0) {
+        const reply = (msg.content ?? "").trim();
         const known = new Map(
           catalogue.flatMap((c) => c.packs.map((p) => [p.id, p.nom] as const)),
         );
@@ -129,13 +148,24 @@ export async function answerChat(history: ChatTurn[]): Promise<ChatReply> {
         return { reply: reply || FALLBACK, packs };
       }
 
-      contents.push(answer);
-      const responses = calls.map((call) => {
-        const result = run(call.name, call.args ?? {});
+      // Exécuter les outils et ajouter les résultats à la conversation
+      messages.push({ role: "assistant", content: msg.content, tool_calls: msg.tool_calls });
+
+      for (const call of msg.tool_calls) {
+        let args: Record<string, unknown> = {};
+        try {
+          args = JSON.parse(call.function.arguments) as Record<string, unknown>;
+        } catch {
+          // arguments malformés → on passe un objet vide
+        }
+        const result = run(call.function.name, args);
         mentioned.push(...packIdsOf(result));
-        return { functionResponse: { name: call.name, response: result } };
-      });
-      contents.push({ role: "user", parts: responses });
+        messages.push({
+          role: "tool",
+          tool_call_id: call.id,
+          content: JSON.stringify(result),
+        });
+      }
     }
     return { reply: FALLBACK, packs: [] };
   } catch (error) {

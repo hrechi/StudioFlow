@@ -74,3 +74,32 @@ export const packSchema = z.object({
 export type PackInput = z.infer<typeof packSchema>;
 
 export const packStatutSchema = z.enum(STATUTS_PACK, { error: "Invalid status" });
+
+// ── AI suggestions (pack name + description) ────────────────────────────────
+
+export const LANGUES_SUGGESTION = ["en", "fr", "ar"] as const;
+
+/** What the pack form sends to ask for suggestions: nothing that is not already in the form. */
+export const packSuggestionInputSchema = z.object({
+  typeEvenementId: z.string().min(1, "Choose an event type first").pipe(objectIdSchema("Event type")),
+  packId: objectIdSchema("Pack").optional(),
+  /** Language the AI must write names and descriptions in. Defaults to "en". */
+  langue: z.enum(LANGUES_SUGGESTION).default("en"),
+  prestations: z
+    .array(
+      z.object({
+        prestationId: objectIdSchema("Service"),
+        quantite: z.number().int().min(1).max(10_000),
+      }),
+    )
+    .max(20),
+  prix: z.number().min(0).max(1_000_000),
+  dureeEstimeeMinutes: z.number().int().min(0).max(1440),
+  options: z.array(z.string().trim().min(1).max(80)).max(10),
+  /** Names / descriptions already shown, so "Suggest more" brings something new. */
+  nomsDejaProposes: z.array(z.string().trim().max(80)).max(12),
+  descriptionsDejaProposees: z.array(z.string().trim().max(300)).max(4),
+  /** Optional free-text hint from the admin (tone, angle, target audience…). Max 300 chars. */
+  remarque: z.string().trim().max(300).optional(),
+});
+export type PackSuggestionInput = z.infer<typeof packSuggestionInputSchema>;

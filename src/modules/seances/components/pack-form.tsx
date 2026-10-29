@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { FormField, IconInput, describedBy } from "@/components/shared/form-field";
 import { applyFieldErrors } from "@/components/shared/form-utils";
+import { PackAiSuggestions } from "./pack-ai-suggestions";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
@@ -371,6 +372,8 @@ export function PackForm({
           </div>
         ))}
       </Card>
+
+      <PackAiSuggestions form={form} packId={pack?.id} />
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         {editing ? (

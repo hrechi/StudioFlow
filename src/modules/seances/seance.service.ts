@@ -3,6 +3,7 @@ import { Types, type QueryFilter } from "mongoose";
 import { ServiceError } from "@/lib/action-result";
 import { connectDB } from "@/lib/db";
 import { listPhotographeRefs, findUtilisateurRefs } from "@/modules/utilisateurs/utilisateur.service";
+import { findLieuForSeance } from "./lieu.service";
 import { Pack, type IPack } from "./pack.model";
 import type { ReservationInput } from "./reservation.schemas";
 import {
@@ -78,6 +79,7 @@ async function hydrate(docs: SeanceLean[]): Promise<SeanceDTO[]> {
     dateDebut: d.dateDebut.toISOString(),
     dateFin: d.dateFin.toISOString(),
     lieu: d.lieu,
+    lieuId: d.lieuId?.toString(),
     statut: d.statut,
     equipe: d.equipe.map((m) => ({
       employe: users.get(m.employe.toString()) ?? unknown(m.employe.toString()),
@@ -139,7 +141,7 @@ async function assertNoConflict(
   throw new ServiceError(`Schedule conflict: ${messages.join("; ")}.`, "equipe");
 }
 
-async function normalize(input: SeanceInput, currentPackId?: string) {
+async function normalize(input: SeanceInput, currentPackId?: string, currentLieuId?: string) {
   const debut = new Date(input.dateDebut);
   const fin = new Date(input.dateFin);
 
@@ -168,10 +170,17 @@ async function normalize(input: SeanceInput, currentPackId?: string) {
       throw new ServiceError("Only active team members can be assigned.", "equipe");
     }
   }
-  return { debut, fin };
+  // A configured location wins over the typed text: the session keeps a copy of its name.
+  const lieu = input.lieuId ? await findLieuForSeance(input.lieuId, currentLieuId) : null;
+  return { debut, fin, lieu };
 }
 
-function toWrite(input: SeanceInput, debut: Date, fin: Date) {
+function toWrite(
+  input: SeanceInput,
+  debut: Date,
+  fin: Date,
+  lieu: { id: string; nom: string } | null,
+) {
   return {
     titre: input.titre,
     client: input.clientId ? new Types.ObjectId(input.clientId) : undefined,
@@ -183,7 +192,8 @@ function toWrite(input: SeanceInput, debut: Date, fin: Date) {
     prestationPersonnalisee: input.packId ? undefined : input.prestationPersonnalisee,
     dateDebut: debut,
     dateFin: fin,
-    lieu: input.lieu,
+    lieu: lieu?.nom ?? input.lieu,
+    lieuId: lieu ? new Types.ObjectId(lieu.id) : undefined,
     equipe: input.equipe.map((m) => ({ employe: new Types.ObjectId(m.employeId), role: m.role })),
     notes: input.notes || undefined,
     prixFinal: (input as SeanceInput & { prixFinal?: number }).prixFinal ?? undefined,
@@ -194,9 +204,9 @@ export async function createSeance(input: SeanceInput): Promise<{ id: string }> 
   await connectDB();
   const statut = (input.statut ?? "DEMANDE_RECUE") as StatutSeanceReel;
   if (!STATUTS_INITIAUX.includes(statut)) throw new ServiceError("Invalid initial status.", "statut");
-  const { debut, fin } = await normalize(input);
+  const { debut, fin, lieu } = await normalize(input);
   await assertNoConflict(input.equipe.map((m) => m.employeId), debut, fin);
-  const doc = await Seance.create({ ...toWrite(input, debut, fin), statut });
+  const doc = await Seance.create({ ...toWrite(input, debut, fin, lieu), statut });
   return { id: doc._id.toString() };
 }
 
@@ -207,11 +217,17 @@ export async function updateSeance(id: string, input: SeanceInput): Promise<void
   if (FINAL.includes(current.statut)) {
     throw new ServiceError("A completed or cancelled session can no longer be edited.");
   }
-  const { debut, fin } = await normalize(input, current.pack?.toString());
+  const { debut, fin, lieu } = await normalize(input, current.pack?.toString(), current.lieuId?.toString());
   if (STATUTS_BLOQUANTS.includes(current.statut)) {
     await assertNoConflict(input.equipe.map((m) => m.employeId), debut, fin, id);
   }
-  await Seance.updateOne({ _id: id }, setUnset(toWrite(input, debut, fin)), { runValidators: true });
+  const deplacee =
+    STATUTS_BLOQUANTS.includes(current.statut) && current.dateDebut.getTime() !== debut.getTime();
+  await Seance.updateOne(
+    { _id: id },
+    { ...setUnset(toWrite(input, debut, fin, lieu)), ...(deplacee ? { $inc: { nombreReports: 1 } } : {}) },
+    { runValidators: true },
+  );
 }
 
 export async function setSeanceStatut(id: string, statut: StatutSeanceReel): Promise<void> {
@@ -229,7 +245,66 @@ export async function setSeanceStatut(id: string, statut: StatutSeanceReel): Pro
       id,
     );
   }
-  await Seance.updateOne({ _id: id }, { $set: { statut } });
+  await Seance.updateOne(
+    { _id: id },
+    { $set: { statut }, ...(statut === "REPORTEE" ? { $inc: { nombreReports: 1 } } : {}) },
+  );
+}
+
+export async function creneauEquipeLibre(seanceId: string, debut: Date, fin: Date): Promise<boolean> {
+  await connectDB();
+  const current = await Seance.findById(seanceId).select("equipe").lean<SeanceLean>();
+  if (!current) return false;
+  try {
+    await assertNoConflict(current.equipe.map((m) => m.employe.toString()), debut, fin, seanceId);
+    return true;
+  } catch (error) {
+    if (error instanceof ServiceError) return false;
+    throw error;
+  }
+}
+
+/**
+ * Moves a session to another slot and/or another saved location. Called only after an admin
+ * explicitly validated a proposal: re-checks the team schedule, never runs on its own.
+ */
+export async function replanifierSeance(
+  id: string,
+  change: { dateDebut?: Date; dateFin?: Date; lieuId?: string },
+): Promise<{ titre: string; clientId?: string; dateDebut: Date; lieu: string }> {
+  await connectDB();
+  const current = await Seance.findById(id).lean<SeanceLean>();
+  if (!current) throw new ServiceError(NOT_FOUND);
+  if (FINAL.includes(current.statut)) {
+    throw new ServiceError("A completed or cancelled session can no longer be moved.");
+  }
+  const debut = change.dateDebut ?? current.dateDebut;
+  const fin = change.dateFin ?? current.dateFin;
+  const dateChangee =
+    debut.getTime() !== current.dateDebut.getTime() || fin.getTime() !== current.dateFin.getTime();
+  if (dateChangee && STATUTS_BLOQUANTS.includes(current.statut)) {
+    await assertNoConflict(current.equipe.map((m) => m.employe.toString()), debut, fin, id);
+  }
+  const lieu = change.lieuId
+    ? await findLieuForSeance(change.lieuId, current.lieuId?.toString())
+    : null;
+  await Seance.updateOne(
+    { _id: id },
+    {
+      $set: {
+        dateDebut: debut,
+        dateFin: fin,
+        ...(lieu ? { lieu: lieu.nom, lieuId: new Types.ObjectId(lieu.id) } : {}),
+      },
+      ...(dateChangee ? { $inc: { nombreReports: 1 } } : {}),
+    },
+  );
+  return {
+    titre: current.titre,
+    clientId: current.client?.toString(),
+    dateDebut: debut,
+    lieu: lieu?.nom ?? current.lieu,
+  };
 }
 
 export async function deleteSeance(id: string): Promise<void> {

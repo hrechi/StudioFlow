@@ -7,10 +7,13 @@ import {
   objectIdSchema,
   packSchema,
   packStatutSchema,
+  packSuggestionInputSchema,
   prestationSchema,
   typeEvenementSchema,
 } from "./catalogue.schemas";
 import { createPack, deletePack, setPackStatut, updatePack } from "./pack.service";
+import { suggererTextePack } from "./pack.suggestions";
+import type { PackSuggestionDTO } from "./catalogue.types";
 import {
   createPrestation,
   deletePrestation,
@@ -163,4 +166,20 @@ export async function deletePackAction(id: string): Promise<ActionResult> {
   const parsedId = parseId(id, "Pack");
   if (!parsedId.success) return validationFailure(parsedId.error);
   return run(() => deletePack(parsedId.data));
+}
+
+/**
+ * Suggests a pack name and description (AI via Groq, or templates as fallback).
+ * Read only: nothing is created or changed here — the admin applies a suggestion
+ * in the form and saves it themselves.
+ */
+export async function suggestPackTextAction(input: unknown): Promise<ActionResult<PackSuggestionDTO>> {
+  await requireArea("catalogue");
+  const parsed = packSuggestionInputSchema.safeParse(input);
+  if (!parsed.success) return validationFailure(parsed.error);
+  try {
+    return success(await suggererTextePack(parsed.data));
+  } catch (error) {
+    return toFailure(error);
+  }
 }

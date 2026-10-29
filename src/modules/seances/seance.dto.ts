@@ -78,6 +78,8 @@ export type SeanceDTO = {
   dateDebut: string;
   dateFin: string;
   lieu: string;
+  /** Configured location this session is linked to, if any. */
+  lieuId?: string;
   statut: StatutSeanceReel;
   equipe: { employe: UtilisateurRef; role: RoleEquipe }[];
   notes?: string;

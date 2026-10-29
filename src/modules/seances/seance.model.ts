@@ -16,12 +16,16 @@ export interface ISeance {
   dateDebut: Date;
   dateFin: Date;
   lieu: string;
+  /** Link to a configured location (weather, alternatives, availability). Optional. */
+  lieuId?: Types.ObjectId;
   statut: StatutSeanceReel;
   equipe: { employe: Types.ObjectId; role: RoleEquipe }[];
   notes?: string;
   messageClient?: string;
   /** Prix final réel convenu avec le client (peut différer du prix du pack). */
   prixFinal?: number;
+  /** How many times the date was moved. Statistics only. */
+  nombreReports?: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -48,6 +52,7 @@ const seanceSchema = new Schema<ISeance>(
     dateDebut: { type: Date, required: true },
     dateFin: { type: Date, required: true },
     lieu: { type: String, required: true, trim: true, maxlength: 200 },
+    lieuId: { type: Schema.Types.ObjectId, ref: "Lieu" },
     statut: { type: String, enum: STATUTS_SEANCE_REEL, default: "DEMANDE_RECUE", required: true },
     equipe: {
       type: [
@@ -62,6 +67,7 @@ const seanceSchema = new Schema<ISeance>(
     notes: { type: String, trim: true, maxlength: 1000 },
     messageClient: { type: String, trim: true, maxlength: 500 },
     prixFinal: { type: Number, min: 0 },
+    nombreReports: { type: Number, min: 0, default: 0 },
   },
   { timestamps: true, collection: "seances" },
 );
@@ -70,6 +76,7 @@ seanceSchema.index({ dateDebut: 1, dateFin: 1 });
 seanceSchema.index({ "equipe.employe": 1, dateDebut: 1 });
 seanceSchema.index({ pack: 1 });
 seanceSchema.index({ typeEvenement: 1 });
+seanceSchema.index({ lieuId: 1, dateDebut: 1 });
 
 export const Seance: Model<ISeance> =
   (models.Seance as Model<ISeance> | undefined) ?? model<ISeance>("Seance", seanceSchema);

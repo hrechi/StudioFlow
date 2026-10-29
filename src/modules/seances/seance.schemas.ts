@@ -25,6 +25,11 @@ export const seanceSchema = z
     dateDebut: isoDate("Start"),
     dateFin: isoDate("End"),
     lieu: z.string().trim().min(2, "Location is required").max(200, "200 characters maximum"),
+    /** Configured location ID: when set, the server uses its name and ignores the free-text `lieu`. */
+    lieuId: z
+      .string()
+      .refine((v) => v === "" || /^[a-f\d]{24}$/i.test(v), "Location is invalid")
+      .optional(),
     statut: z.enum(STATUTS_INITIAUX as unknown as [string, ...string[]], { error: "Invalid status" }).optional(),
     equipe: z
       .array(

@@ -23,8 +23,10 @@ import {
   type SeanceDTO,
 } from "../seance.dto";
 import { seanceSchema, type SeanceInput } from "../seance.schemas";
+import type { LieuRef } from "../lieu.types";
 
 const NO_PACK = "__custom__";
+const OTHER_LIEU = "__other__";
 
 const toLocal = (iso?: string) => {
   if (!iso) return "";
@@ -39,12 +41,14 @@ export function SeanceForm({
   seance,
   clients,
   photographes,
+  lieux,
   types,
   packs,
 }: {
   seance?: SeanceDTO;
   clients: UtilisateurRef[];
   photographes: UtilisateurRef[];
+  lieux: LieuRef[];
   types: { id: string; nom: string }[];
   packs: { id: string; nom: string; typeId: string; disabled: boolean }[];
 }) {
@@ -67,6 +71,7 @@ export function SeanceForm({
       dateDebut: toLocal(seance?.dateDebut),
       dateFin: toLocal(seance?.dateFin),
       lieu: seance?.lieu ?? "",
+      lieuId: seance?.lieuId ?? "",
       statut: "CONFIRMEE",
       equipe: seance?.equipe.map((m) => ({ employeId: m.employe.id, role: m.role })) ?? [],
       notes: seance?.notes ?? "",
@@ -197,7 +202,48 @@ export function SeanceForm({
             <IconInput id="dateFin" type="datetime-local" {...form.register("dateFin")} />
           </FormField>
         </div>
-        <FormField id="lieu" label="Location" required error={err("lieu")}>
+        {/* Configured location picker — optional, falls back to free text */}
+        {lieux.length > 0 && (
+          <FormField id="lieuId" label="Configured location" error={err("lieuId")} hint="Choosing a location links availability, weather checks and alternatives.">
+            <Controller
+              control={form.control}
+              name="lieuId"
+              render={({ field }) => (
+                <Select
+                  value={field.value || OTHER_LIEU}
+                  onValueChange={(v) => {
+                    const selected = v === OTHER_LIEU ? "" : v;
+                    field.onChange(selected);
+                    // When a configured location is selected, sync the free-text field with its name.
+                    if (selected) {
+                      const found = lieux.find((l) => l.id === selected);
+                      if (found) form.setValue("lieu", found.nom, { shouldDirty: true });
+                    }
+                  }}
+                >
+                  <SelectTrigger id="lieuId" className="h-10 w-full bg-card">
+                    <SelectValue>
+                      {field.value
+                        ? lieux.find((l) => l.id === field.value)?.nom ?? "Unknown location"
+                        : "Free text (see below)"}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={OTHER_LIEU}>Free text (see below)</SelectItem>
+                    {lieux.map((l) => (
+                      <SelectItem key={l.id} value={l.id} disabled={!l.disponible}>
+                        {l.nom}
+                        {l.exterieur ? " · Outdoor" : ""}
+                        {!l.disponible ? " (disabled)" : ""}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            />
+          </FormField>
+        )}
+        <FormField id="lieu" label={lieux.length > 0 ? "Location name (free text)" : "Location"} required error={err("lieu")}>
           <IconInput id="lieu" placeholder="Studio, venue address…" {...form.register("lieu")} />
         </FormField>
         {!editing && (

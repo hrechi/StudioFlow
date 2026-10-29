@@ -10,11 +10,13 @@ import { requireRole } from "@/lib/guards";
 import { STATUTS_SEANCE_FACTURABLES } from "@/modules/facturation/facturation.integrations";
 import { PrixFinalCard } from "@/modules/seances/components/prix-final-card";
 import { SeanceForm } from "@/modules/seances/components/seance-form";
+import { LieuInfoCard } from "@/modules/seances/components/lieu-info-card";
 import { listPacks } from "@/modules/seances/pack.service";
 import { statutSeanceReelConfig } from "@/modules/seances/seance.dto";
 import { findSeanceById } from "@/modules/seances/seance.service";
 import { listTypesEvenement } from "@/modules/seances/type-evenement.service";
 import { listClientRefs, listPhotographeRefs } from "@/modules/utilisateurs/utilisateur.service";
+import { listLieuxRefs } from "@/modules/seances/lieu.service";
 
 export const metadata: Metadata = { title: "Edit session" };
 
@@ -23,11 +25,12 @@ export default async function ModifierSeancePage({ params }: { params: Promise<{
   const { id } = await params;
   const seance = await findSeanceById(id);
   if (!seance) notFound();
-  const [clients, photographes, types, packs] = await Promise.all([
+  const [clients, photographes, types, packs, lieux] = await Promise.all([
     listClientRefs(),
     listPhotographeRefs(),
     listTypesEvenement(),
     listPacks(),
+    listLieuxRefs(),
   ]);
   const locked = seance.statut === "TERMINEE" || seance.statut === "ANNULEE";
 
@@ -76,11 +79,13 @@ export default async function ModifierSeancePage({ params }: { params: Promise<{
           prixFinal={seance.prixFinal}
         />
       )}
+      {seance.lieuId && <LieuInfoCard lieuId={seance.lieuId} />}
       {!locked && (
         <SeanceForm
           seance={seance}
           clients={clients}
           photographes={photographes}
+          lieux={lieux}
           types={types.filter((t) => t.actif || t.id === seance.typeEvenement.id).map((t) => ({ id: t.id, nom: t.nom }))}
           packs={packs.map((p) => ({ id: p.id, nom: p.nom, typeId: p.typeEvenement.id, disabled: p.statut === "DESACTIVE" }))}
         />

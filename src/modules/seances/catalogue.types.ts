@@ -103,3 +103,17 @@ export type CataloguePublicDTO = {
   type: Pick<TypeEvenementDTO, "id" | "nom" | "slug" | "description">;
   packs: PackPublicDTO[];
 }[];
+
+/**
+ * AI (or template) suggestion of a pack name and description. Read only: the admin picks one,
+ * nothing is saved until the pack form is submitted.
+ */
+export type LangueSuggestion = "en" | "fr" | "ar";
+
+export type PackSuggestionDTO = {
+  /** "IA" = written by the AI, "MODELE" = template fallback (AI unavailable or unusable). */
+  source: "IA" | "MODELE";
+  langue: LangueSuggestion;
+  noms: string[];
+  descriptions: string[];
+};
