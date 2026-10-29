@@ -251,6 +251,7 @@ export async function setSeanceStatut(id: string, statut: StatutSeanceReel): Pro
   );
 }
 
+/** True when nobody of the session's team is on another blocking session over this slot. */
 export async function creneauEquipeLibre(seanceId: string, debut: Date, fin: Date): Promise<boolean> {
   await connectDB();
   const current = await Seance.findById(seanceId).select("equipe").lean<SeanceLean>();
@@ -266,7 +267,8 @@ export async function creneauEquipeLibre(seanceId: string, debut: Date, fin: Dat
 
 /**
  * Moves a session to another slot and/or another saved location. Called only after an admin
- * explicitly validated a proposal: re-checks the team schedule, never runs on its own.
+ * explicitly validated a proposal (weather module): it re-checks the team schedule and that the
+ * session is still open, and never runs on its own.
  */
 export async function replanifierSeance(
   id: string,
@@ -280,14 +282,11 @@ export async function replanifierSeance(
   }
   const debut = change.dateDebut ?? current.dateDebut;
   const fin = change.dateFin ?? current.dateFin;
-  const dateChangee =
-    debut.getTime() !== current.dateDebut.getTime() || fin.getTime() !== current.dateFin.getTime();
+  const dateChangee = debut.getTime() !== current.dateDebut.getTime() || fin.getTime() !== current.dateFin.getTime();
   if (dateChangee && STATUTS_BLOQUANTS.includes(current.statut)) {
     await assertNoConflict(current.equipe.map((m) => m.employe.toString()), debut, fin, id);
   }
-  const lieu = change.lieuId
-    ? await findLieuForSeance(change.lieuId, current.lieuId?.toString())
-    : null;
+  const lieu = change.lieuId ? await findLieuForSeance(change.lieuId, current.lieuId?.toString()) : null;
   await Seance.updateOne(
     { _id: id },
     {

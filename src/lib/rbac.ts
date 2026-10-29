@@ -47,6 +47,9 @@ const ROUTE_AREAS: ReadonlyArray<readonly [prefix: string, area: Area]> = [
   ["/dashboard/planning", "seances"],
   ["/dashboard/taches", "seances"],
   ["/dashboard/lieux", "seances"],
+  // ADMIN only: weather decisions and revenue figures.
+  ["/dashboard/meteo", "catalogue"],
+  ["/dashboard/statistiques", "facturation"],
   ["/dashboard/photos", "photos-galeries"],
   ["/dashboard/galeries", "photos-galeries"],
   ["/dashboard/materiel", "materiel"],

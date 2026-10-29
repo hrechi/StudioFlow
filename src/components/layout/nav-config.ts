@@ -1,8 +1,10 @@
 import {
   BookImage,
+  BarChart3,
   CalendarClock,
   CalendarDays,
   Camera,
+  CloudSun,
   FileText,
   GalleryHorizontalEnd,
   Images,
@@ -44,6 +46,7 @@ export const BACKOFFICE_NAV: NavGroup[] = [
       { label: "Planning", href: "/dashboard/planning", icon: CalendarClock, area: "seances" },
       { label: "Tasks", href: "/dashboard/taches", icon: ListChecks, area: "seances" },
       { label: "Locations", href: "/dashboard/lieux", icon: MapPin, area: "seances" },
+      { label: "Weather", href: "/dashboard/meteo", icon: CloudSun, area: "catalogue" },
     ],
   },
   {
@@ -127,7 +130,10 @@ export const BACKOFFICE_NAV: NavGroup[] = [
   },
   {
     label: "Administration",
-    items: [{ label: "Users", href: "/dashboard/utilisateurs", icon: Users, area: "utilisateurs" }],
+    items: [
+      { label: "Statistics", href: "/dashboard/statistiques", icon: BarChart3, area: "facturation" },
+      { label: "Users", href: "/dashboard/utilisateurs", icon: Users, area: "utilisateurs" },
+    ],
   },
 ];
 
@@ -167,6 +173,8 @@ export const SEGMENT_LABELS: Record<string, string> = {
   nouveau: "New",
   reserver: "Book",
   lieux: "Locations",
+  meteo: "Weather",
+  statistiques: "Statistics",
   photos: "Photo Library",
   recherche: "AI Search",
   galeries: "Galleries",

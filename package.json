@@ -18,7 +18,8 @@
     "seed:inventaire": "tsx --env-file-if-exists=.env --env-file-if-exists=.env.local scripts/seed-inventaire.ts",
     "seed:reservations": "tsx --env-file-if-exists=.env --env-file-if-exists=.env.local scripts/seed-reservations.ts",
     "seed:galeries": "tsx --conditions=react-server --env-file-if-exists=.env --env-file-if-exists=.env.local scripts/seed-galeries.ts",
-    "seed:demo": "tsx --conditions=react-server --env-file-if-exists=.env --env-file-if-exists=.env.local scripts/seed-demo.ts && npm run seed:materiel"
+    "seed:demo": "tsx --conditions=react-server --env-file-if-exists=.env --env-file-if-exists=.env.local scripts/seed-demo.ts && npm run seed:materiel",
+    "seed:stats": "tsx --env-file-if-exists=.env --env-file-if-exists=.env.local scripts/seed-stats.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.3.0",
