@@ -202,6 +202,11 @@ Your module already has `xxx.types.ts` (types and enums from the class diagram),
 - Next.js **16**: route protection uses `src/proxy.ts`, `params` / `searchParams` are Promises, `error.tsx` receives `retry()`. Read `node_modules/next/dist/docs/` for the exact APIs.
 - **Cache Components is disabled** (`next.config.ts`): every page here depends on the session or MongoDB, so pages render on each request. Turning it on later requires wrapping session/database reads in `<Suspense>` (see the "Authentication with Cache Components" guide in the bundled docs).
 - Template photos come from `images.unsplash.com` (allowed in `next.config.ts`); `SafeImage` falls back to `/images/placeholder.svg`. Uploaded photos are stored in MongoDB (GridFS) and served by `/api/photos/...`; `SafeImage` loads those `/api/` URLs unoptimized because the image optimizer does not forward the session cookie.
+- **PWA** (installable, offline mode, mobile first):
+  - `src/app/manifest.ts` → `/manifest.webmanifest` (name, colors, icons in `public/icons/`).
+  - `public/sw.js` is the service worker. Public pages already opened stay readable offline; private areas (dashboard, client space) are never stored on the device and show `/offline`. Bump `VERSION` in it to reset every cache.
+  - `experimental.useOffline` + `components/pwa/offline-banner.tsx`: banner while offline; navigations and Server Actions wait and retry once back online.
+  - The service worker only runs in production: test with `npm run build && npm run start`, then Chrome DevTools → Application (Manifest, Service workers) and Network → Offline.
 
 ## 11. Brand and design system
 

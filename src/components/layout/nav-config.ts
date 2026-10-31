@@ -1,11 +1,16 @@
 import {
   BookImage,
+  BarChart3,
   CalendarClock,
   CalendarDays,
   Camera,
+  CloudSun,
   FileText,
   GalleryHorizontalEnd,
   Images,
+  Layers,
+  ListChecks,
+  Tags,
   LayoutDashboard,
   MapPin,
   MessageSquareWarning,
@@ -38,7 +43,23 @@ export const BACKOFFICE_NAV: NavGroup[] = [
     label: "Sessions",
     items: [
       { label: "Sessions", href: "/dashboard/seances", icon: CalendarDays, area: "seances" },
+      { label: "Planning", href: "/dashboard/planning", icon: CalendarClock, area: "seances" },
+      { label: "Tasks", href: "/dashboard/taches", icon: ListChecks, area: "seances" },
       { label: "Locations", href: "/dashboard/lieux", icon: MapPin, area: "seances" },
+      { label: "Weather", href: "/dashboard/meteo", icon: CloudSun, area: "catalogue" },
+    ],
+  },
+  {
+    label: "Catalogue",
+    items: [
+      { label: "Event types", href: "/dashboard/catalogue/types", icon: Tags, area: "catalogue" },
+      { label: "Packs", href: "/dashboard/catalogue/packs", icon: Layers, area: "catalogue" },
+      {
+        label: "Services",
+        href: "/dashboard/catalogue/prestations",
+        icon: ListChecks,
+        area: "catalogue",
+      },
     ],
   },
   {
@@ -109,7 +130,10 @@ export const BACKOFFICE_NAV: NavGroup[] = [
   },
   {
     label: "Administration",
-    items: [{ label: "Users", href: "/dashboard/utilisateurs", icon: Users, area: "utilisateurs" }],
+    items: [
+      { label: "Statistics", href: "/dashboard/statistiques", icon: BarChart3, area: "facturation" },
+      { label: "Users", href: "/dashboard/utilisateurs", icon: Users, area: "utilisateurs" },
+    ],
   },
 ];
 
@@ -139,10 +163,18 @@ export const SEGMENT_LABELS: Record<string, string> = {
   dashboard: "Dashboard",
   "espace-client": "My account",
   seances: "Sessions",
+  planning: "Planning",
+  taches: "Tasks",
+  catalogue: "Catalogue",
+  types: "Event types",
+  packs: "Packs",
+  prestations: "Services",
   nouvelle: "New",
   nouveau: "New",
   reserver: "Book",
   lieux: "Locations",
+  meteo: "Weather",
+  statistiques: "Statistics",
   photos: "Photo Library",
   recherche: "AI Search",
   galeries: "Galleries",
@@ -164,7 +196,7 @@ export const SEGMENT_LABELS: Record<string, string> = {
 export const PUBLIC_LINKS = [
   { label: "Portfolio", href: "/portfolio" },
   { label: "Services", href: "/#services" },
-  { label: "Packages", href: "/#packages" },
+  { label: "Packages", href: "/packs" },
   { label: "Reviews", href: "/#avis" },
   { label: "Contact", href: "/#contact" },
   { label: "Shared gallery", href: "/galerie" },

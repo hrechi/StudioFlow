@@ -6,7 +6,7 @@ x-mongo-uri: &mongo-uri mongodb://mongo:27017/reframe
 
 services:
   mongo:
-    image: mongo:8
+    image: mongo:8 # keep 8: the data volume was created by MongoDB 8 (7 cannot open it)
     attach: false # keep `docker compose up` readable; see its logs with `docker compose logs mongo`
     restart: unless-stopped
     ports:
@@ -30,6 +30,7 @@ services:
       MONGODB_URI: *mongo-uri
       ADMIN_EMAIL: ${ADMIN_EMAIL:?Set ADMIN_EMAIL in .env}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:?Set ADMIN_PASSWORD in .env}
+      SEED_CLIENT_PASSWORD: ${SEED_CLIENT_PASSWORD:-} # docker compose run --rm seed npx tsx scripts/seed-facturation.ts
     depends_on:
       mongo:
         condition: service_healthy
@@ -45,6 +46,22 @@ services:
     environment:
       MONGODB_URI: *mongo-uri
       AUTH_SECRET: ${AUTH_SECRET:?Set AUTH_SECRET in .env (e.g. openssl rand -base64 32)}
+      # Online payments (Konnect sandbox/production); without keys the test checkout is used if enabled.
+      APP_URL: ${APP_URL:-http://localhost:3000}
+      KONNECT_API_KEY: ${KONNECT_API_KEY:-}
+      KONNECT_WALLET_ID: ${KONNECT_WALLET_ID:-}
+      KONNECT_API_URL: ${KONNECT_API_URL:-https://api.sandbox.konnect.network/api/v2}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-} # Claude Haiku: photo analysis, culling, story order, AI search
+      CLAUDE_MODEL: ${CLAUDE_MODEL:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-} # chatbot, AI payment proof checker, portfolio AI
+      GEMINI_API_KEYS: ${GEMINI_API_KEYS:-} # spare keys, tried on quota errors
+      GEMINI_MODEL: ${GEMINI_MODEL:-}
+      STUDIO_CONTACT_EMAIL: ${STUDIO_CONTACT_EMAIL:-} # given by the chatbot
+      STUDIO_CONTACT_PHONE: ${STUDIO_CONTACT_PHONE:-}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+      STRIPE_TND_EUR_RATE: ${STRIPE_TND_EUR_RATE:-0.3}
+      PAIEMENT_SIMULATION: ${PAIEMENT_SIMULATION:-true} # local demo only: set false on a real server
       # Optional AI features (avis-reclamations); empty = disabled
       AI_API_KEY: ${AI_API_KEY:-}
       AI_MODEL: ${AI_MODEL:-}
@@ -52,6 +69,12 @@ services:
       RAPIDAPI_KEY: ${RAPIDAPI_KEY:-}
       RAPIDAPI_PROFANITY_HOST: ${RAPIDAPI_PROFANITY_HOST:-}
       RAPIDAPI_PROFANITY_URL: ${RAPIDAPI_PROFANITY_URL:-}
+      # Portfolio module
+      USE_MOCKS: ${USE_MOCKS:-true}
+      PORTFOLIO_BASE_URL: ${PORTFOLIO_BASE_URL:-http://localhost:3000}
+      CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME:-}
+      CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY:-}
+      CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET:-}
     depends_on:
       mongo:
         condition: service_healthy

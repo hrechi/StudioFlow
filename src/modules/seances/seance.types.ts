@@ -1,64 +1,50 @@
 /**
  * Module : Gestion des Séances · Responsable : Yosser Rafrafi
- * Types from the class diagram (cahier §4.3) — Seance, Lieu.
- * Enums marked "proposé" are not in cahier §4.4: confirm them before creating the Mongoose models.
+ * TEMPORARY (step 1): types of the séance TEMPLATE pages (dashboard, lieux, espace-client).
+ * They were imported by existing pages but missing from the archive. They will be replaced
+ * by the real Seance / Lieu models in step 3 (séances CRUD) — see mock-data.ts.
  */
 import type { StatusConfig } from "@/components/shared/status-badge";
 import type { UtilisateurRef } from "@/modules/utilisateurs/utilisateur.types";
 
-export const STATUTS_SEANCE = ["PLANIFIEE", "CONFIRMEE", "TERMINEE", "ANNULEE"] as const;
-export type StatutSeance = (typeof STATUTS_SEANCE)[number];
-
-/** Proposé (cahier §2.1: wedding, portrait, product, event). */
 export const TYPES_SEANCE = ["MARIAGE", "PORTRAIT", "PRODUIT", "EVENEMENT"] as const;
 export type TypeSeance = (typeof TYPES_SEANCE)[number];
 
-/** Proposé (cahier §2.1: studio room, outdoor, client's place). */
-export const TYPES_LIEU = ["STUDIO", "EXTERIEUR", "DOMICILE_CLIENT"] as const;
+export const STATUTS_SEANCE = ["PLANIFIEE", "CONFIRMEE", "EN_COURS", "TERMINEE", "ANNULEE"] as const;
+export type StatutSeance = (typeof STATUTS_SEANCE)[number];
+
+export const TYPES_LIEU = ["STUDIO", "EXTERIEUR", "DOMICILE"] as const;
 export type TypeLieu = (typeof TYPES_LIEU)[number];
 
-/** Collection `lieux`. */
 export type Lieu = {
   id: string;
   nom: string;
-  type: TypeLieu;
   adresse: string;
-  capacite: number;
   description: string;
+  type: TypeLieu;
+  capacite: number;
   disponible: boolean;
-  photo: string; // UI only (not in the class diagram)
+  photo: string;
 };
 
-/** Collection `seances` — references the client, the photographe and the lieu. */
 export type Seance = {
   id: string;
   titre: string;
   type: TypeSeance;
-  dateDebut: string; // ISO
-  dateFin: string; // ISO
   statut: StatutSeance;
-  notes?: string;
-  creneauSuggereIA?: string; // ISO
+  dateDebut: string;
+  dateFin: string;
+  lieu: Lieu;
   client: UtilisateurRef;
   photographe: UtilisateurRef;
-  lieu: Pick<Lieu, "id" | "nom" | "type">;
-  couverture: string; // UI only: cover photo
-};
-
-/** AI time-slot suggestion (cahier: suggererCreneauIA). */
-export type CreneauSuggere = {
-  debut: string;
-  fin: string;
-  photographe: UtilisateurRef;
-  lieu: Pick<Lieu, "id" | "nom">;
-  score: number; // 0–1
-  raison: string;
+  couverture: string;
 };
 
 export const statutSeanceConfig: StatusConfig<StatutSeance> = {
-  PLANIFIEE: { label: "Planned", tone: "info" },
-  CONFIRMEE: { label: "Confirmed", tone: "success" },
-  TERMINEE: { label: "Completed", tone: "neutral" },
+  PLANIFIEE: { label: "Requested", tone: "warning" },
+  CONFIRMEE: { label: "Confirmed", tone: "info" },
+  EN_COURS: { label: "In progress", tone: "ai" },
+  TERMINEE: { label: "Completed", tone: "success" },
   ANNULEE: { label: "Cancelled", tone: "danger" },
 };
 
@@ -72,5 +58,5 @@ export const typeSeanceLabels: Record<TypeSeance, string> = {
 export const typeLieuLabels: Record<TypeLieu, string> = {
   STUDIO: "Studio",
   EXTERIEUR: "Outdoor",
-  DOMICILE_CLIENT: "At the client's place",
+  DOMICILE: "On site",
 };

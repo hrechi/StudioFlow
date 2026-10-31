@@ -1,165 +1,116 @@
 "use client";
 
-import { Building2, Camera, Heart, PartyPopper, Send, Sparkles, UserRound } from "lucide-react";
-import { useState } from "react";
-import { comingSoon } from "@/components/shared/coming-soon-button";
-import { AIBadge } from "@/components/shared/ai-badge";
-import { FormField } from "@/components/shared/form-field";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Loader2 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useTransition } from "react";
+import { Controller, useForm, type Resolver } from "react-hook-form";
+import { toast } from "sonner";
+import { FormField, IconInput } from "@/components/shared/form-field";
+import { applyFieldErrors } from "@/components/shared/form-utils";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
+import { Card } from "@/components/ui/card";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { cn, formatDate, formatTime } from "@/lib/utils";
-import { typeSeanceLabels, type CreneauSuggere, type TypeSeance } from "../seance.types";
+import { formatCurrency } from "@/lib/utils";
+import type { CataloguePublicDTO } from "../catalogue.types";
+import { createReservationAction } from "../reservation.actions";
+import { reservationSchema, type ReservationInput } from "../reservation.schemas";
 
-const TYPES: { value: TypeSeance; icon: typeof Heart; hint: string }[] = [
-  { value: "MARIAGE", icon: Heart, hint: "Ceremony, couple, engagement" },
-  { value: "PORTRAIT", icon: UserRound, hint: "Solo, family, corporate" },
-  { value: "PRODUIT", icon: Building2, hint: "Packshot, catalogue, e-shop" },
-  { value: "EVENEMENT", icon: PartyPopper, hint: "Party, conference, birthday" },
-];
+export function ReservationRequestForm({
+  catalogue,
+  defaultPackId,
+}: {
+  catalogue: CataloguePublicDTO;
+  defaultPackId?: string;
+}) {
+  const router = useRouter();
+  const [pending, startTransition] = useTransition();
+  const packs = catalogue.flatMap((c) => c.packs.map((p) => ({ ...p, type: c.type.nom })));
+  const initial = packs.some((p) => p.id === defaultPackId) ? defaultPackId! : "";
 
-/** /espace-client/seances/reserver — booking request (front office). */
-export function ReservationRequestForm({ creneaux }: { creneaux: CreneauSuggere[] }) {
-  const [type, setType] = useState<TypeSeance>("PORTRAIT");
-  const [slot, setSlot] = useState<number | null>(null);
+  const form = useForm<ReservationInput>({
+    resolver: zodResolver(reservationSchema) as unknown as Resolver<ReservationInput>,
+    defaultValues: { packId: initial, dateDebut: "", lieu: "", message: "" },
+  });
+  const { errors } = form.formState;
+  const selected = packs.find((p) => p.id === form.watch("packId"));
+  const min = new Date(Date.now() + 24 * 3_600_000 - new Date().getTimezoneOffset() * 60000)
+    .toISOString()
+    .slice(0, 16);
+
+  const onSubmit = form.handleSubmit((values) => {
+    const payload = { ...values, dateDebut: new Date(values.dateDebut).toISOString() };
+    startTransition(async () => {
+      const result = await createReservationAction(payload);
+      if (!result.ok) {
+        applyFieldErrors(form.setError, result.fieldErrors);
+        toast.error(result.error);
+        return;
+      }
+      toast.success("Request sent. The studio will confirm shortly.");
+      router.push("/espace-client/seances");
+    });
+  });
+
+  if (packs.length === 0) {
+    return (
+      <Card className="p-6 text-sm text-muted-foreground">
+        No pack is available for online booking right now. Please contact the studio.
+      </Card>
+    );
+  }
 
   return (
-    <form
-      className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]"
-      onSubmit={(event) => {
-        event.preventDefault();
-        comingSoon("Send the session request to the studio");
-      }}
-    >
-      <div className="space-y-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>What kind of session?</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <fieldset>
-              <legend className="sr-only">Session type</legend>
-              <div className="grid gap-3 sm:grid-cols-2">
-                {TYPES.map(({ value, icon: Icon, hint }) => (
-                  <label
-                    key={value}
-                    className={cn(
-                      "flex cursor-pointer items-center gap-3 rounded-xl border bg-card p-4 transition-colors has-[:focus-visible]:ring-3 has-[:focus-visible]:ring-ring/50",
-                      type === value ? "border-primary bg-accent/60" : "hover:border-gray/40",
-                    )}
-                  >
-                    <input
-                      type="radio"
-                      name="type"
-                      value={value}
-                      checked={type === value}
-                      onChange={() => setType(value)}
-                      className="sr-only"
-                    />
-                    <span
-                      className={cn(
-                        "grid size-10 place-items-center rounded-lg",
-                        type === value
-                          ? "bg-primary text-primary-foreground"
-                          : "bg-muted text-slate",
-                      )}
-                    >
-                      <Icon className="size-5" aria-hidden />
-                    </span>
-                    <span>
-                      <span className="block font-semibold text-foreground">
-                        {typeSeanceLabels[value]}
-                      </span>
-                      <span className="block text-xs text-muted-foreground">{hint}</span>
-                    </span>
-                  </label>
+    <Card className="p-6">
+      <form onSubmit={onSubmit} noValidate className="space-y-5">
+        <FormField id="packId" label="Pack" required error={errors.packId?.message}>
+          <Controller control={form.control} name="packId" render={({ field }) => (
+            <Select value={field.value} onValueChange={field.onChange}>
+              <SelectTrigger id="packId" className="h-10 w-full bg-card">
+                <SelectValue placeholder="Choose a pack">
+                  {selected ? `${selected.type} · ${selected.nom}` : undefined}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {catalogue.map((c) => (
+                  <SelectGroup key={c.type.id}>
+                    <SelectLabel>{c.type.nom}</SelectLabel>
+                    {c.packs.map((p) => (
+                      <SelectItem key={p.id} value={p.id}>
+                        {p.nom}{p.prix !== null ? ` — ${formatCurrency(p.prix)}` : ""}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
                 ))}
-              </div>
-            </fieldset>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Your preferences</CardTitle>
-            <CardDescription>The studio confirms the date and sends you a quote.</CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-4 sm:grid-cols-2">
-            <FormField id="date-souhaitee" label="Preferred date" required>
-              <Input id="date-souhaitee" type="date" className="h-10 bg-card" />
-            </FormField>
-            <FormField id="personnes" label="Number of people">
-              <Input
-                id="personnes"
-                type="number"
-                min={1}
-                defaultValue={2}
-                className="h-10 bg-card"
-              />
-            </FormField>
-            <FormField id="lieu-souhaite" label="Preferred location" className="sm:col-span-2">
-              <Input
-                id="lieu-souhaite"
-                placeholder="At the studio, outdoors, at your place…"
-                className="h-10 bg-card"
-              />
-            </FormField>
-            <FormField id="message" label="Your ideas" className="sm:col-span-2">
-              <Textarea
-                id="message"
-                rows={4}
-                placeholder="Tell us about the mood, the style, the key moments…"
-                className="bg-card"
-              />
-            </FormField>
-          </CardContent>
-        </Card>
-      </div>
-
-      <aside className="space-y-4">
-        <Card className="ring-ai/20">
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <AIBadge />
-              <CardTitle className="text-sm">Available slots</CardTitle>
-            </div>
-            <CardDescription>Suggested from the studio&apos;s availability.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {creneaux.map((creneau, index) => (
-              <button
-                key={creneau.debut}
-                type="button"
-                onClick={() => setSlot(index)}
-                aria-pressed={slot === index}
-                className={cn(
-                  "flex w-full items-center gap-3 rounded-lg border px-3 py-2.5 text-left text-sm transition-colors",
-                  slot === index ? "border-ai bg-ai-soft" : "hover:border-ai/40",
-                )}
-              >
-                <Sparkles className="size-4 shrink-0 text-ai" aria-hidden />
-                <span>
-                  <span className="block font-semibold text-foreground">
-                    {formatDate(creneau.debut)}
-                  </span>
-                  <span className="text-xs text-muted-foreground">
-                    {formatTime(creneau.debut)} – {formatTime(creneau.fin)}
-                  </span>
-                </span>
-              </button>
-            ))}
-          </CardContent>
-        </Card>
-        <Button type="submit" size="lg" className="w-full">
-          <Send aria-hidden />
-          Send my request
-        </Button>
-        <p className="flex items-center justify-center gap-1.5 text-center text-xs text-muted-foreground">
-          <Camera className="size-3.5" aria-hidden />
-          The studio replies within 24 hours
-        </p>
-      </aside>
-    </form>
+              </SelectContent>
+            </Select>
+          )} />
+        </FormField>
+        {selected && (
+          <p className="text-xs text-muted-foreground">
+            Includes: {selected.prestations.map((l) => l.nom).join(", ")}.
+          </p>
+        )}
+        <div className="grid gap-4 sm:grid-cols-2">
+          <FormField id="dateDebut" label="Preferred date and time" required error={errors.dateDebut?.message}
+            hint="At least 24 hours from now. The studio confirms the final slot.">
+            <IconInput id="dateDebut" type="datetime-local" min={min} {...form.register("dateDebut")} />
+          </FormField>
+          <FormField id="lieu" label="Location" required error={errors.lieu?.message}>
+            <IconInput id="lieu" placeholder="Venue or address" {...form.register("lieu")} />
+          </FormField>
+        </div>
+        <FormField id="message" label="Message for the studio" error={errors.message?.message}>
+          <Textarea id="message" rows={3} placeholder="Number of guests, style, special requests…" {...form.register("message")} />
+        </FormField>
+        <div className="flex justify-end">
+          <Button type="submit" disabled={pending}>
+            {pending && <Loader2 className="animate-spin" aria-hidden />}
+            Send my request
+          </Button>
+        </div>
+      </form>
+    </Card>
   );
 }

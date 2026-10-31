@@ -6,22 +6,25 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { requireArea } from "@/lib/guards";
-import { SeanceCard } from "@/modules/seances/components/seance-card";
-import { MES_SEANCES } from "@/modules/seances/mock-data";
+import { ClientSeanceCard } from "@/modules/seances/components/client-seance-card";
+import { listSeancesForClient } from "@/modules/seances/seance.service";
 
 export const metadata: Metadata = { title: "My sessions" };
 
 export default async function MesSeancesPage() {
-  await requireArea("espace-client");
+  const user = await requireArea("espace-client");
+  const seances = await listSeancesForClient(user.id);
   const now = new Date().toISOString();
-  const aVenir = MES_SEANCES.filter((s) => s.dateDebut >= now && s.statut !== "ANNULEE");
-  const passees = MES_SEANCES.filter((s) => s.dateDebut < now || s.statut === "ANNULEE");
+  const closed = (s: (typeof seances)[number]) =>
+    s.statut === "ANNULEE" || s.statut === "TERMINEE";
+  const aVenir = seances.filter((s) => !closed(s) && s.dateFin >= now).reverse();
+  const passees = seances.filter((s) => closed(s) || s.dateFin < now);
 
   return (
     <div className="space-y-8">
       <PageHeader
         title="My sessions"
-        description="Your upcoming sessions and your history with the studio."
+        description="Your requests, upcoming sessions and your history with the studio."
         actions={
           <Button asChild>
             <Link href="/espace-client/seances/reserver">
@@ -46,20 +49,18 @@ export default async function MesSeancesPage() {
           />
         ) : (
           <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {aVenir.map((seance) => (
-              <SeanceCard key={seance.id} seance={seance} />
-            ))}
+            {aVenir.map((s) => <ClientSeanceCard key={s.id} seance={s} />)}
           </div>
         )}
       </section>
-      <section className="space-y-4">
-        <h2 className="text-lg font-semibold text-foreground">History</h2>
-        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {passees.map((seance) => (
-            <SeanceCard key={seance.id} seance={seance} className="opacity-90" />
-          ))}
-        </div>
-      </section>
+      {passees.length > 0 && (
+        <section className="space-y-4">
+          <h2 className="text-lg font-semibold text-foreground">History</h2>
+          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            {passees.map((s) => <ClientSeanceCard key={s.id} seance={s} />)}
+          </div>
+        </section>
+      )}
     </div>
   );
 }

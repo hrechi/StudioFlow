@@ -15,7 +15,7 @@ export function Footer() {
   return (
     <footer className="border-t border-foreground/[0.06] bg-background text-foreground/60">
       <div className="container-wide py-20 lg:py-28">
-        <div className="grid gap-14 lg:grid-cols-[1.5fr_1fr_1fr_1.2fr]">
+        <div className="grid grid-cols-1 gap-14 lg:grid-cols-[1.5fr_1fr_1fr_1.2fr]">
           <div className="space-y-6">
             <p className="max-w-xs text-sm leading-relaxed">
               Photography studio in Tunis. Weddings, portraits, products and events, told in images

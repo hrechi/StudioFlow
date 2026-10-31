@@ -1,12 +1,12 @@
 "use client";
 
-import { AlertTriangle, CalendarRange, List, PackageCheck } from "lucide-react";
+import { CalendarRange, List } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import { EmptyState } from "@/components/shared/empty-state";
 import { ALL, FilterSelect, labelsOf } from "@/components/shared/filters";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { UserAvatar } from "@/components/shared/user-avatar";
-import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { fullName } from "@/lib/mock-data-helpers";
@@ -16,20 +16,30 @@ import {
   type Reservation,
   type StatutReservation,
 } from "../materiel.types";
-import { BreakdownDialog, ReturnDialog } from "./materiel-dialogs";
+import { ReservationActions, type CurrentUser } from "./reservation-actions";
 
 const dayFormatter = new Intl.DateTimeFormat("en-GB", { weekday: "short", day: "numeric" });
 
-/** /dashboard/materiel/reservations — list + 7-day view, return and breakdown dialogs. */
-export function ReservationsBoard({ reservations }: { reservations: Reservation[] }) {
+const MINE = { mine: "My reservations" } as const;
+
+/** /dashboard/materiel/reservations — list + 7-day view, with the actions each user may take. */
+export function ReservationsBoard({
+  reservations,
+  currentUser,
+}: {
+  reservations: Reservation[];
+  currentUser: CurrentUser;
+}) {
   const [view, setView] = useState<"liste" | "semaine">("liste");
   const [statut, setStatut] = useState<StatutReservation | typeof ALL>(ALL);
+  const [owner, setOwner] = useState<keyof typeof MINE | typeof ALL>(ALL);
   const list = useMemo(
     () =>
       reservations
         .filter((r) => statut === ALL || r.statut === statut)
+        .filter((r) => owner === ALL || r.utilisateur?.id === currentUser.id)
         .sort((a, b) => a.dateDebut.localeCompare(b.dateDebut)),
-    [reservations, statut],
+    [reservations, statut, owner, currentUser.id],
   );
 
   const days = useMemo(() => {
@@ -56,16 +66,36 @@ export function ReservationsBoard({ reservations }: { reservations: Reservation[
             </TabsTrigger>
           </TabsList>
         </Tabs>
-        <FilterSelect
-          value={statut}
-          onChange={setStatut}
-          options={labelsOf(statutReservationConfig)}
-          allLabel="All statuses"
-          label="Filter by status"
-        />
+        <div className="flex flex-wrap gap-2">
+          <FilterSelect
+            value={owner}
+            onChange={setOwner}
+            options={MINE}
+            allLabel="Everyone"
+            label="Filter by owner"
+            className="w-44"
+          />
+          <FilterSelect
+            value={statut}
+            onChange={setStatut}
+            options={labelsOf(statutReservationConfig)}
+            allLabel="All statuses"
+            label="Filter by status"
+          />
+        </div>
       </div>
 
-      {view === "liste" ? (
+      {list.length === 0 && view === "liste" ? (
+        <EmptyState
+          title="No reservation"
+          description={
+            reservations.length === 0
+              ? "No equipment has been reserved yet."
+              : "No reservation matches these filters."
+          }
+          className="m-4"
+        />
+      ) : view === "liste" ? (
         <div className="overflow-x-auto">
           <table className="w-full min-w-[52rem] text-sm">
             <caption className="sr-only">Equipment reservations</caption>
@@ -73,7 +103,7 @@ export function ReservationsBoard({ reservations }: { reservations: Reservation[
               <tr className="border-b text-left text-xs font-semibold tracking-wide text-muted-foreground uppercase">
                 <th className="px-4 py-2.5">Equipment</th>
                 <th className="px-4 py-2.5">Session</th>
-                <th className="px-4 py-2.5">Photographer</th>
+                <th className="px-4 py-2.5">Reserved by</th>
                 <th className="px-4 py-2.5">Period</th>
                 <th className="px-4 py-2.5">Status</th>
                 <th className="px-4 py-2.5 text-right">Actions</th>
@@ -93,12 +123,21 @@ export function ReservationsBoard({ reservations }: { reservations: Reservation[
                       <p className="text-xs text-muted-foreground">“{r.remarqueRetour}”</p>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-slate">{r.seance.titre}</td>
-                  <td className="px-4 py-3">
-                    <span className="flex items-center gap-2 text-slate">
-                      <UserAvatar {...r.photographe} size="sm" />
-                      {fullName(r.photographe)}
+                  <td className="px-4 py-3 text-slate">
+                    {r.seance.titre}
+                    <span className="block text-xs text-muted-foreground">
+                      {r.seance.typeEvenement}
                     </span>
+                  </td>
+                  <td className="px-4 py-3">
+                    {r.utilisateur ? (
+                      <span className="flex items-center gap-2 text-slate">
+                        <UserAvatar {...r.utilisateur} size="sm" />
+                        {fullName(r.utilisateur)}
+                      </span>
+                    ) : (
+                      <span className="text-muted-foreground">Deleted account</span>
+                    )}
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap text-slate">
                     {formatDate(r.dateDebut)} {formatTime(r.dateDebut)}
@@ -110,31 +149,7 @@ export function ReservationsBoard({ reservations }: { reservations: Reservation[
                     <StatusBadge value={r.statut} config={statutReservationConfig} />
                   </td>
                   <td className="px-4 py-3">
-                    <div className="flex justify-end gap-1">
-                      {(r.statut === "EN_COURS" || r.statut === "CONFIRMEE") && (
-                        <ReturnDialog
-                          materielNom={r.materiel.nom}
-                          trigger={
-                            <Button size="sm" variant="outline">
-                              <PackageCheck aria-hidden />
-                              Return
-                            </Button>
-                          }
-                        />
-                      )}
-                      <BreakdownDialog
-                        materielNom={r.materiel.nom}
-                        trigger={
-                          <Button
-                            size="icon-sm"
-                            variant="ghost"
-                            aria-label={`Report a breakdown: ${r.materiel.nom}`}
-                          >
-                            <AlertTriangle aria-hidden />
-                          </Button>
-                        }
-                      />
-                    </div>
+                    <ReservationActions reservation={r} currentUser={currentUser} />
                   </td>
                 </tr>
               ))}

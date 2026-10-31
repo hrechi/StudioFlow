@@ -115,7 +115,7 @@ export function ClientGallery({ galerie, photos }: { galerie: Galerie; photos: P
         </div>
       </div>
 
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_20rem]">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_20rem]">
         <div className="min-w-0 space-y-3">
           {current ? (
             <>

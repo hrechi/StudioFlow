@@ -6,15 +6,15 @@ import { PageHeader } from "@/components/shared/page-header";
 import { StatCard } from "@/components/shared/stat-card";
 import { Button } from "@/components/ui/button";
 import { requireArea } from "@/lib/guards";
-import { formatCurrency } from "@/lib/utils";
+import { formatTND } from "@/modules/facturation/facturation.utils";
 import { DevisList } from "@/modules/facturation/components/devis-list";
-import { DEVIS } from "@/modules/facturation/mock-data";
+import { getDevisStats, listDevis } from "@/modules/facturation/devis.service";
 
 export const metadata: Metadata = { title: "Quotes" };
 
 export default async function DevisPage() {
-  await requireArea("facturation");
-  const accepted = DEVIS.filter((d) => d.statut === "ACCEPTE");
+  const user = await requireArea("facturation");
+  const [devis, stats] = await Promise.all([listDevis(user), getDevisStats(user)]);
   return (
     <div className="space-y-6">
       <PageHeader
@@ -32,24 +32,24 @@ export default async function DevisPage() {
       <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
         <StatCard
           label="Drafts"
-          value={DEVIS.filter((d) => d.statut === "BROUILLON").length}
+          value={stats.brouillons}
           icon={FilePen}
           tone="neutral"
         />
         <StatCard
           label="Sent"
-          value={DEVIS.filter((d) => d.statut === "ENVOYE").length}
+          value={stats.envoyes}
           icon={Send}
         />
-        <StatCard label="Accepted" value={accepted.length} icon={FileCheck2} tone="green" />
+        <StatCard label="Accepted" value={stats.acceptes} icon={FileCheck2} tone="green" />
         <StatCard
           label="Accepted amount"
-          value={formatCurrency(accepted.reduce((s, d) => s + d.montantTTC, 0))}
+          value={formatTND(stats.montantAccepte)}
           icon={FileText}
           tone="amber"
         />
       </div>
-      <DevisList devis={DEVIS} />
+      <DevisList devis={devis} />
     </div>
   );
 }

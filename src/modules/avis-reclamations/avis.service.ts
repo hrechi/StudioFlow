@@ -13,7 +13,7 @@ import {
   type ModerationAnalysis,
   type ReviewAnalysis,
 } from "./ai.service";
-import type { CreateAvisInput } from "./avis.schemas";
+import type { CreateAvisInput, UpdateOwnAvisInput } from "./avis.schemas";
 import type {
   Avis as AvisDTO,
   AvisListResult,
@@ -142,6 +142,53 @@ export async function createAvis(auteurId: string, input: CreateAvisInput): Prom
   const fresh = await Avis.findById(doc._id).lean<AvisLean>();
   if (!fresh) throw new ServiceError("Review could not be saved.");
   return (await toDTOs([fresh]))[0];
+}
+
+/**
+ * The author edits their own review. The new text is checked again (profanity), the review
+ * goes back to moderation (unpublished until an admin approves it) and is re-analysed by AI.
+ */
+export async function updateOwnAvis(auteurId: string, input: UpdateOwnAvisInput): Promise<void> {
+  await connectDB();
+  const review = await Avis.findOne({ _id: objectId(input.id), auteur: objectId(auteurId) })
+    .select("_id")
+    .lean();
+  if (!review) throw new ServiceError("Review not found.");
+  if (await containsProfanity(input.commentaire)) {
+    throw new ServiceError(
+      "Your review contains insulting or inappropriate language. Please edit it before sending.",
+      "commentaire",
+    );
+  }
+  await Avis.updateOne(
+    { _id: review._id },
+    {
+      $set: {
+        note: input.note,
+        commentaire: input.commentaire,
+        statut: "EN_ATTENTE",
+        moderation: { statut: "EN_ATTENTE", categories: [] },
+        statutAnalyseIA: "EN_ATTENTE",
+      },
+    },
+  );
+  try {
+    await retryAvisAnalysis(review._id.toString());
+  } catch {
+    await Avis.updateOne({ _id: review._id }, { $set: { statutAnalyseIA: "ECHOUEE" } });
+  }
+  await notifyAdmins(
+    "Review edited",
+    "A client edited their review: it is waiting for moderation again.",
+    "/dashboard/avis",
+  );
+}
+
+/** The author deletes their own review (also removed from the public website). */
+export async function deleteOwnAvis(auteurId: string, id: string): Promise<void> {
+  await connectDB();
+  const result = await Avis.deleteOne({ _id: objectId(id), auteur: objectId(auteurId) });
+  if (!result.deletedCount) throw new ServiceError("Review not found.");
 }
 
 export async function listAvis({

@@ -14,9 +14,14 @@ export interface IPhoto {
   datePrise?: Date; // EXIF DateTimeOriginal when available
   fichier: Types.ObjectId; // GridFS id of the original
   miniature: Types.ObjectId; // GridFS id of the WebP thumbnail
-  scoreQualite: number; // 0–100 (AI, later)
-  estFloue: boolean; // AI, later
-  tagsIA: string[]; // AI, later
+  scoreQualite: number; // 0–100 (AI vision analysis, photo-ai.service.ts)
+  estFloue: boolean; // AI: sharpness too low
+  yeuxFermes: boolean; // AI: a main subject has their eyes closed
+  tagsIA: string[]; // AI: subjects, setting, mood (lowercase English)
+  descriptionIA?: string; // AI: one-sentence description (used by AI search)
+  groupeDoublon?: string; // AI: id shared by near-duplicate shots (auto-culling)
+  statutAnalyseIA: "EN_ATTENTE" | "TERMINEE" | "ECHOUEE";
+  dateAnalyseIA?: Date;
   statutCulling: StatutCulling;
   estFavori: boolean;
   commentaireClient?: string;
@@ -41,7 +46,16 @@ const photoSchema = new Schema<IPhoto>(
     miniature: { type: Schema.Types.ObjectId, required: true },
     scoreQualite: { type: Number, default: 0, min: 0, max: 100 },
     estFloue: { type: Boolean, default: false },
+    yeuxFermes: { type: Boolean, default: false },
     tagsIA: { type: [String], default: [] },
+    descriptionIA: { type: String, trim: true, maxlength: 500 },
+    groupeDoublon: { type: String, trim: true, maxlength: 40 },
+    statutAnalyseIA: {
+      type: String,
+      enum: ["EN_ATTENTE", "TERMINEE", "ECHOUEE"],
+      default: "EN_ATTENTE",
+    },
+    dateAnalyseIA: { type: Date },
     statutCulling: { type: String, enum: STATUTS_CULLING, default: "EN_ATTENTE", required: true },
     estFavori: { type: Boolean, default: false },
     commentaireClient: { type: String, trim: true, maxlength: 1000 },

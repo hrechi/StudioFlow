@@ -6,22 +6,21 @@ import { Button } from "@/components/ui/button";
 
 /** Body of every error.tsx boundary: message + retry (Next.js 16 `retry()` re-fetches the segment). */
 export function ErrorState({
-  error,
+  errorMessage,
+  digest,
   retry,
   title = "Something went wrong",
 }: {
-  error: unknown;
+  errorMessage?: string;
+  digest?: string;
   retry: () => void;
   title?: string;
 }) {
   useEffect(() => {
-    console.error(error);
-  }, [error]);
-
-  const digest =
-    error instanceof Error && "digest" in error && typeof error.digest === "string"
-      ? error.digest
-      : undefined;
+    if (errorMessage) {
+      console.error(errorMessage);
+    }
+  }, [errorMessage]);
 
   return (
     <div

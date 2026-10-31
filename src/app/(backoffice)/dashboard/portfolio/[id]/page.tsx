@@ -1,40 +1,22 @@
-/* Module : Gestion du Portfolio · Responsable : Anas Ben Ibrahim */
-import { ArrowLeft } from "lucide-react";
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound } from "next/navigation";
-import { PageHeader } from "@/components/shared/page-header";
 import { requireArea } from "@/lib/guards";
 import { PortfolioEditor } from "@/modules/portfolio/components/portfolio-editor";
-import { CANDIDATS_IA, getPortfolio } from "@/modules/portfolio/mock-data";
-import { categoriePortfolioLabels } from "@/modules/portfolio/portfolio.types";
+import { getPortfolioForEditor } from "@/modules/portfolio/portfolio.service";
+import { PortfolioAdminReview } from "@/modules/portfolio/components/portfolio-admin-review";
 
-export const metadata: Metadata = { title: "Portfolio collection" };
+export const metadata: Metadata = { title: "Portfolio editor" };
 
-export default async function PortfolioDetailPage({
-  params,
-}: PageProps<"/dashboard/portfolio/[id]">) {
-  await requireArea("portfolio");
+export default async function PortfolioDetailPage({ params }: PageProps<"/dashboard/portfolio/[id]">) {
+  const user = await requireArea("portfolio");
   const { id } = await params;
-  const portfolio = getPortfolio(id);
+  const portfolio = await getPortfolioForEditor(id, user.id, user.role === "ADMIN");
   if (!portfolio) notFound();
+  const isOwner = portfolio.proprietaire === user.id;
 
-  return (
-    <div className="space-y-6">
-      <PageHeader
-        eyebrow={
-          <Link
-            href="/dashboard/portfolio"
-            className="inline-flex items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground"
-          >
-            <ArrowLeft className="size-4" aria-hidden />
-            Portfolio · {categoriePortfolioLabels[portfolio.categorie]}
-          </Link>
-        }
-        title={portfolio.titre}
-        description={portfolio.description}
-      />
-      <PortfolioEditor portfolio={portfolio} candidats={CANDIDATS_IA} />
-    </div>
-  );
+  if (isOwner) return <PortfolioEditor portfolio={portfolio} />;
+  if (user.role === "ADMIN") {
+    return <PortfolioAdminReview portfolio={portfolio} />;
+  }
+  notFound();
 }

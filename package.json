@@ -3,29 +3,48 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev -H 0.0.0.0",
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "next typegen && tsc --noEmit",
+    "test:portfolio": "vitest run src/modules/portfolio/tests",
+    "test:e2e": "playwright test",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "seed:admin": "tsx --env-file=.env.local scripts/seed-admin.ts"
+    "seed:admin": "tsx --env-file=.env.local scripts/seed-admin.ts",
+    "seed:facturation": "tsx --env-file=.env.local scripts/seed-facturation.ts",
+    "seed:materiel": "tsx --env-file-if-exists=.env --env-file-if-exists=.env.local scripts/seed-materiel.ts",
+    "seed:inventaire": "tsx --env-file-if-exists=.env --env-file-if-exists=.env.local scripts/seed-inventaire.ts",
+    "seed:reservations": "tsx --env-file-if-exists=.env --env-file-if-exists=.env.local scripts/seed-reservations.ts",
+    "seed:galeries": "tsx --conditions=react-server --env-file-if-exists=.env --env-file-if-exists=.env.local scripts/seed-galeries.ts",
+    "seed:demo": "tsx --conditions=react-server --env-file-if-exists=.env --env-file-if-exists=.env.local scripts/seed-demo.ts && npm run seed:materiel",
+    "seed:stats": "tsx --env-file-if-exists=.env --env-file-if-exists=.env.local scripts/seed-stats.ts"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^1.3.0",
+    "@dnd-kit/core": "^6.3.1",
+    "@dnd-kit/sortable": "^10.0.0",
+    "@dnd-kit/utilities": "^3.2.2",
     "@hookform/resolvers": "^5.9.1",
+    "@types/leaflet": "1.9.22",
     "bcryptjs": "^3.0.3",
     "class-variance-authority": "^0.7.1",
     "cn": "^0.4.0",
     "fflate": "^0.8.3",
+    "groq-sdk": "^1.6.0",
+    "leaflet": "1.9.4",
     "lucide-react": "^1.57.0",
     "mongoose": "^9.11.2",
     "next": "16.4.2",
     "next-auth": "^5.0.0-beta.32",
+    "next-pwa": "^5.6.0",
+    "pdf-lib": "^1.17.1",
     "radix-ui": "^1.8.1",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "react-hook-form": "^7.90.0",
+    "react-leaflet": "5.0.0",
     "server-only": "^0.0.1",
     "sharp": "^0.35.5",
     "sonner": "^2.0.8",
@@ -33,6 +52,7 @@
     "zod": "^4.6.7"
   },
   "devDependencies": {
+    "@playwright/test": "^1.57.0",
     "@tailwindcss/turbopack": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
@@ -44,6 +64,7 @@
     "shadcn": "^4.21.5",
     "tailwindcss": "^4",
     "tsx": "^4.23.15",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^3.2.4"
   }
 }

@@ -2,18 +2,33 @@
 import { CalendarClock, Camera, CircleCheck, PackagePlus, Wrench } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ComingSoonButton } from "@/components/shared/coming-soon-button";
+import { EmptyState } from "@/components/shared/empty-state";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatCard } from "@/components/shared/stat-card";
 import { Button } from "@/components/ui/button";
 import { requireArea } from "@/lib/guards";
+import { MaterielFormDialog } from "@/modules/materiel/components/materiel-form";
 import { MaterielInventory } from "@/modules/materiel/components/materiel-inventory";
-import { MATERIELS } from "@/modules/materiel/mock-data";
+import { getMaterielStats, listMateriels } from "@/modules/materiel/materiel.service";
 
 export const metadata: Metadata = { title: "Equipment" };
 
 export default async function MaterielPage() {
-  await requireArea("materiel");
+  const user = await requireArea("materiel");
+  const isAdmin = user.role === "ADMIN";
+  const [materiels, stats] = await Promise.all([listMateriels(), getMaterielStats()]);
+
+  const addButton = isAdmin && (
+    <MaterielFormDialog
+      trigger={
+        <Button>
+          <PackagePlus aria-hidden />
+          Add
+        </Button>
+      }
+    />
+  );
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -27,35 +42,29 @@ export default async function MaterielPage() {
                 Reservations
               </Link>
             </Button>
-            <ComingSoonButton feature="Add equipment">
-              <PackagePlus aria-hidden />
-              Add
-            </ComingSoonButton>
+            {addButton}
           </>
         }
       />
-      <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
-        <StatCard label="Items" value={MATERIELS.length} icon={Camera} />
-        <StatCard
-          label="Available"
-          value={MATERIELS.filter((m) => m.disponible).length}
-          icon={CircleCheck}
-          tone="green"
-        />
-        <StatCard
-          label="Reserved"
-          value={MATERIELS.filter((m) => !m.disponible && m.etat !== "EN_PANNE").length}
-          icon={CalendarClock}
-          tone="amber"
-        />
-        <StatCard
-          label="Out of order"
-          value={MATERIELS.filter((m) => m.etat === "EN_PANNE").length}
-          icon={Wrench}
-          tone="red"
-        />
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-3">
+        <StatCard label="Items" value={stats.total} icon={Camera} />
+        <StatCard label="Available" value={stats.disponibles} icon={CircleCheck} tone="green" />
+        <StatCard label="Out of order" value={stats.enPanne} icon={Wrench} tone="red" />
       </div>
-      <MaterielInventory materiels={MATERIELS} />
+      {materiels.length === 0 ? (
+        <EmptyState
+          icon={Camera}
+          title="The inventory is empty"
+          description={
+            isAdmin
+              ? "Add the studio's first piece of equipment."
+              : "An administrator has not registered any equipment yet."
+          }
+          action={addButton || undefined}
+        />
+      ) : (
+        <MaterielInventory materiels={materiels} isAdmin={isAdmin} />
+      )}
     </div>
   );
 }

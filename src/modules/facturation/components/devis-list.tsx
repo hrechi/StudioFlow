@@ -1,9 +1,10 @@
 "use client";
 
 import { FileSearch, MoreHorizontal } from "lucide-react";
+import Link from "next/link";
 import { useMemo, useState } from "react";
 import { AIBadge } from "@/components/shared/ai-badge";
-import { comingSoon } from "@/components/shared/coming-soon-button";
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ALL, FilterSelect, SearchInput, labelsOf } from "@/components/shared/filters";
 import { StatusBadge } from "@/components/shared/status-badge";
@@ -18,12 +19,15 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { fullName } from "@/lib/mock-data-helpers";
 import { formatCurrency, formatDate } from "@/lib/utils";
-import { statutDevisConfig, type Devis, type StatutDevis } from "../facturation.types";
+import { pdfHref, statutDevisConfig, type Devis, type StatutDevis } from "../facturation.types";
+import { needsInvoices, useDevisCommands } from "./devis-actions";
 
 /** /dashboard/facturation/devis — quotes list. */
 export function DevisList({ devis }: { devis: Devis[] }) {
   const [query, setQuery] = useState("");
   const [statut, setStatut] = useState<StatutDevis | typeof ALL>(ALL);
+  const [deleting, setDeleting] = useState<Devis | null>(null);
+  const commands = useDevisCommands();
   const list = useMemo(() => {
     const q = query.trim().toLowerCase();
     return devis
@@ -81,10 +85,13 @@ export function DevisList({ devis }: { devis: Devis[] }) {
               {list.map((d) => (
                 <tr key={d.id} className="border-b last:border-0 hover:bg-surface/60">
                   <td className="px-4 py-3">
-                    <span className="flex items-center gap-2 font-semibold text-foreground">
+                    <Link
+                      href={`/dashboard/facturation/devis/${d.id}`}
+                      className="flex items-center gap-2 font-semibold text-foreground hover:underline"
+                    >
                       {d.numero}
                       {d.genereParIA && <AIBadge />}
-                    </span>
+                    </Link>
                     <span className="text-xs text-muted-foreground">
                       {d.prestations.length} service{d.prestations.length > 1 ? "s" : ""}
                     </span>
@@ -119,28 +126,45 @@ export function DevisList({ devis }: { devis: Devis[] }) {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="w-56">
-                        <DropdownMenuItem onSelect={() => comingSoon("View the quote (PDF)")}>
-                          View PDF
+                        <DropdownMenuItem asChild>
+                          <Link href={`/dashboard/facturation/devis/${d.id}`}>View details</Link>
                         </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onSelect={() => comingSoon("Send to the client")}
-                          disabled={d.statut !== "BROUILLON"}
-                        >
-                          Send to client
+                        {d.statut === "BROUILLON" && (
+                          <>
+                            <DropdownMenuItem asChild>
+                              <Link href={`/dashboard/facturation/devis/${d.id}/modifier`}>Edit</Link>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onSelect={() => commands.send(d)}>
+                              Send to client
+                            </DropdownMenuItem>
+                          </>
+                        )}
+                        {(d.statut === "ENVOYE" || d.statut === "EXPIRE") && (
+                          <DropdownMenuItem onSelect={() => commands.withdraw(d)}>
+                            Back to draft
+                          </DropdownMenuItem>
+                        )}
+                        <DropdownMenuItem onSelect={() => commands.duplicate(d)}>
+                          Duplicate
                         </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem
-                          onSelect={() => comingSoon("Generate the deposit invoice")}
-                          disabled={d.statut !== "ACCEPTE"}
-                        >
-                          Deposit invoice
+                        <DropdownMenuItem asChild>
+                          <a href={pdfHref(d.id)} download>
+                            Download PDF
+                          </a>
                         </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onSelect={() => comingSoon("Generate the balance invoice")}
-                          disabled={d.statut !== "ACCEPTE"}
-                        >
-                          Balance invoice
-                        </DropdownMenuItem>
+                        {needsInvoices(d) && (
+                          <DropdownMenuItem onSelect={() => commands.issueInvoices(d)}>
+                            Issue invoices
+                          </DropdownMenuItem>
+                        )}
+                        {d.factures.length === 0 && (
+                          <>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem variant="destructive" onSelect={() => setDeleting(d)}>
+                              {d.statut === "BROUILLON" ? "Delete" : "Archive"}
+                            </DropdownMenuItem>
+                          </>
+                        )}
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </td>
@@ -150,6 +174,22 @@ export function DevisList({ devis }: { devis: Devis[] }) {
           </table>
         </div>
       )}
+      <ConfirmDialog
+        open={!!deleting}
+        onOpenChange={(open) => !open && setDeleting(null)}
+        tone="destructive"
+        title={deleting?.statut === "BROUILLON" ? "Delete this draft?" : "Archive this quote?"}
+        description={
+          deleting?.statut === "BROUILLON"
+            ? "The draft will be permanently deleted."
+            : "The client has already seen this quote: it is archived and hidden from the lists."
+        }
+        confirmLabel={deleting?.statut === "BROUILLON" ? "Delete" : "Archive"}
+        onConfirm={() => {
+          if (deleting) commands.remove(deleting);
+          setDeleting(null);
+        }}
+      />
     </Card>
   );
 }

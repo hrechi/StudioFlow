@@ -1,5 +1,5 @@
-/* Front office — landing page (visitors). Reviews come from the Avis & Réclamations module,
- * portfolio images from the Portfolio module (MOCK data for now). */
+/* Front office — landing page (visitors). Reviews and their summary come from the Avis &
+ * Réclamations module, portfolio images from the Portfolio module (both from MongoDB). */
 import { ArrowDown, ArrowUpRight, Check } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -13,7 +13,7 @@ import { FRONT_IMAGES, mockImage } from "@/lib/mock-images";
 import { cn } from "@/lib/utils";
 import { listAvis } from "@/modules/avis-reclamations/avis.service";
 import { getPublicReviewSummary } from "@/modules/avis-reclamations/summary.service";
-import { PORTFOLIOS_PUBLICS } from "@/modules/portfolio/mock-data";
+import { listPublicPortfolios } from "@/modules/portfolio/portfolio.service";
 import { ContactForm } from "./_components/contact-form";
 import { Testimonials } from "./_components/testimonials";
 
@@ -117,9 +117,17 @@ export default async function HomePage() {
       : role
         ? "/dashboard/seances/nouvelle"
         : "/register";
-  const publicSlugs = new Set(PORTFOLIOS_PUBLICS.map((p) => p.slug));
-  const gallery = PORTFOLIOS_PUBLICS.flatMap((p) =>
-    p.elements.slice(0, 3).map((e) => ({ ...e, slug: p.slug })),
+  const publishedPortfolios = (await listPublicPortfolios({ page: 1 })).items;
+  const publicSlugs = new Set(publishedPortfolios.map((portfolio) => portfolio.slug));
+  const gallery = publishedPortfolios.flatMap((portfolio) =>
+    portfolio.blocsPublies.flatMap((block) =>
+      block.elements.map((element) => ({
+        id: element.idElement,
+        legende: element.legende ?? element.titre ?? "Portfolio photograph",
+        slug: portfolio.slug,
+        photo: { url: element.media.urlMiniature || element.media.url },
+      })),
+    ),
   ).slice(0, 9);
   const { items: publicReviews } = await listAvis({ publicOnly: true });
   const reviewSummary = await getPublicReviewSummary();
@@ -424,6 +432,7 @@ export default async function HomePage() {
                     src={element.photo.url}
                     alt={element.legende}
                     fill
+                    unoptimized
                     sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
                     className="img-zoom object-cover"
                   />
@@ -436,6 +445,59 @@ export default async function HomePage() {
               </Reveal>
             ))}
           </ul>
+          {publishedPortfolios.length > 0 && (
+            <div className="mt-16">
+              <div className="mb-6 flex items-center justify-between">
+                <div>
+                  <p className="eyebrow text-[#e8a34a]">Photographes StudioFlow</p>
+                  <h3 className="text-2xl font-bold tracking-tight text-foreground">Portfolios en ligne</h3>
+                </div>
+                <span className="font-mono text-xs text-foreground/50">{publishedPortfolios.length} portfolio(s) actif(s)</span>
+              </div>
+              <ul className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                {publishedPortfolios.map((portfolio) => (
+                  <li key={portfolio.id}>
+                    <Link
+                      href={`/portfolio/${portfolio.slug}`}
+                      className="group block overflow-hidden rounded-2xl border border-foreground/10 bg-card transition-all hover:border-[#e8a34a]/40 hover:shadow-xl"
+                    >
+                      <div className="relative aspect-[16/10] overflow-hidden bg-black/20">
+                        <SafeImage
+                          src={portfolio.photoCouverture}
+                          alt={portfolio.titre}
+                          fill
+                          unoptimized
+                          sizes="(min-width: 1024px) 33vw, 50vw"
+                          className="img-zoom object-cover"
+                        />
+                      </div>
+                      <div className="p-5">
+                        <p className="text-xs tracking-[0.18em] text-foreground/55 uppercase">
+                          {portfolio.specialites.join(" · ")}
+                          {portfolio.ville ? ` · ${portfolio.ville}` : ""}
+                        </p>
+                        <h4 className="mt-2 text-lg font-semibold text-foreground transition-colors group-hover:text-[#e8a34a]">
+                          {portfolio.titre}
+                        </h4>
+                        <div className="mt-2 flex items-center justify-between border-t border-foreground/10 pt-3">
+                          <p className="text-sm font-medium text-foreground/70">
+                            {portfolio.photographe.prenom} {portfolio.photographe.nom}
+                          </p>
+                          <div className="flex items-center gap-1 font-mono text-xs font-semibold text-[#e8a34a]">
+                            <span>★</span>
+                            <span>{(portfolio.noteMoyenne ?? 5).toFixed(1)}</span>
+                            {portfolio.nombreAvis ? (
+                              <span className="text-[10px] text-foreground/40">({portfolio.nombreAvis})</span>
+                            ) : null}
+                          </div>
+                        </div>
+                      </div>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
       </section>
 

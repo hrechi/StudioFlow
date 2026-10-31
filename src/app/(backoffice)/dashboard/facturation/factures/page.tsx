@@ -4,15 +4,17 @@ import type { Metadata } from "next";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatCard } from "@/components/shared/stat-card";
 import { requireArea } from "@/lib/guards";
-import { formatCurrency } from "@/lib/utils";
+import { formatTND } from "@/modules/facturation/facturation.utils";
 import { FacturesBoard } from "@/modules/facturation/components/factures-board";
-import { FACTURES } from "@/modules/facturation/mock-data";
+import { listFactures } from "@/modules/facturation/devis.service";
 
 export const metadata: Metadata = { title: "Invoices" };
 
 export default async function FacturesPage() {
-  await requireArea("facturation");
-  const unpaid = FACTURES.filter((f) => f.statut !== "PAYEE");
+  const user = await requireArea("facturation");
+  const factures = await listFactures(user);
+  const unpaid = factures.filter((f) => f.statut !== "PAYEE");
+  const aRevoir = factures.reduce((n, f) => n + (f.declarations ?? []).filter((d) => d.statut === "EN_ATTENTE").length, 0);
   return (
     <div className="space-y-6">
       <PageHeader
@@ -22,24 +24,30 @@ export default async function FacturesPage() {
       <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
         <StatCard
           label="To collect"
-          value={formatCurrency(unpaid.reduce((s, f) => s + f.montantTTC - f.montantPaye, 0))}
+          value={formatTND(Math.round(unpaid.reduce((s, f) => s + f.montantTTC - f.montantPaye, 0) * 1000))}
           icon={Wallet}
         />
-        <StatCard label="Unpaid invoices" value={unpaid.length} icon={HandCoins} tone="amber" />
+        <StatCard
+          label="Unpaid invoices"
+          value={unpaid.length}
+          icon={HandCoins}
+          tone="amber"
+          hint={aRevoir > 0 ? `${aRevoir} payment proof${aRevoir > 1 ? "s" : ""} to review` : undefined}
+        />
         <StatCard
           label="Overdue"
-          value={FACTURES.filter((f) => f.statut === "EN_RETARD").length}
+          value={factures.filter((f) => f.statut === "EN_RETARD").length}
           icon={AlarmClock}
           tone="red"
         />
         <StatCard
           label="Paid"
-          value={FACTURES.filter((f) => f.statut === "PAYEE").length}
+          value={factures.filter((f) => f.statut === "PAYEE").length}
           icon={CircleCheck}
           tone="green"
         />
       </div>
-      <FacturesBoard factures={FACTURES} />
+      <FacturesBoard factures={factures} />
     </div>
   );
 }
