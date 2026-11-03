@@ -3,7 +3,15 @@
  * Pure helpers of the Statistics page (no database): periods, months, rates, bar widths.
  */
 import { debutJourTunis } from "./lieu.rules";
-import { PERIODES_STATS, periodeStatsLabels, type PeriodeResolue, type PeriodeStats } from "./stats.types";
+import {
+  PERIODES_STATS,
+  periodeStatsLabels,
+  type PeriodeResolue,
+  type PeriodeStats,
+  type Recommandation,
+  type StatsSeances,
+  type StatsTaches,
+} from "./stats.types";
 
 const DAY = 86_400_000;
 const HOUR = 3_600_000;
@@ -84,4 +92,129 @@ export function largeurBarre(value: number, max: number): number {
 /** Hours between two dates, one decimal. */
 export function heuresEntre(debut: Date, fin: Date): number {
   return Math.round(((fin.getTime() - debut.getTime()) / HOUR) * 10) / 10;
+}
+
+// ── Comparison with the previous period ──────────────────────────────────────
+
+/** Same-length window right before the period; null for "a-venir" (nothing to compare with). */
+export function periodePrecedente(p: PeriodeResolue): { from: Date; to: Date } | null {
+  if (p.code === "a-venir") return null;
+  const from = Date.parse(p.from);
+  const to = Date.parse(p.to);
+  return { from: new Date(from - (to - from)), to: new Date(from) };
+}
+
+/** Relative change in %, one decimal; null when there is no usable reference (previous = 0). */
+export function variation(actuel: number, precedent: number | null | undefined): number | null {
+  if (precedent === null || precedent === undefined || precedent <= 0) return null;
+  return Math.round(((actuel - precedent) / precedent) * 1000) / 10;
+}
+
+/** MongoDB $dayOfWeek (1 = Sunday … 7 = Saturday) → Monday-first array of 7 counts. */
+export function joursLundiPremier(groupes: { _id: number; n: number }[]): number[] {
+  const out = [0, 0, 0, 0, 0, 0, 0];
+  for (const g of groupes) if (g._id >= 1 && g._id <= 7) out[(g._id + 5) % 7] += g.n;
+  return out;
+}
+
+// ── Insights (cahier §3.14) ──────────────────────────────────────────────────
+
+const NIVEAU_ORDRE = { attention: 0, opportunite: 1, info: 2 } as const;
+
+function moisCourt(mois: string): string {
+  const [y, m] = mois.split("-").map(Number);
+  return new Intl.DateTimeFormat("en-GB", { month: "short", year: "2-digit", timeZone: "UTC" }).format(
+    new Date(Date.UTC(y, m - 1, 1)),
+  );
+}
+
+/**
+ * Suggestions for the manager, derived ONLY from counts already shown on the page.
+ * Thresholds are explicit constants below; the manager decides what to do with them.
+ */
+export function genererRecommandations(input: {
+  seances: StatsSeances;
+  taches: StatsTaches;
+  facturationEnRetard: number;
+}): Recommandation[] {
+  const { seances: s, taches, facturationEnRetard } = input;
+  const recs: Recommandation[] = [];
+
+  if (taches.enRetard > 0) {
+    recs.push({
+      id: "taches-retard",
+      niveau: "attention",
+      titre: `${taches.enRetard} task${taches.enRetard > 1 ? "s" : ""} past due`,
+      detail: "Late preparation or delivery tasks can delay what clients receive.",
+      lien: { href: "/dashboard/taches", label: "Open tasks" },
+    });
+  }
+  if (facturationEnRetard > 0) {
+    recs.push({
+      id: "factures-retard",
+      niveau: "attention",
+      titre: `${facturationEnRetard} invoice${facturationEnRetard > 1 ? "s" : ""} past due`,
+      detail: "Unpaid invoices beyond their due date (figures come from Billing).",
+      lien: { href: "/dashboard/facturation/factures", label: "Open invoices" },
+    });
+  }
+  if (s.taux.tauxAnnulation !== null && s.taux.tauxAnnulation > 15 && s.total >= 5) {
+    recs.push({
+      id: "annulations",
+      niveau: "attention",
+      titre: `Cancellation rate at ${s.taux.tauxAnnulation}%`,
+      detail: `${s.taux.annulees} cancelled session${s.taux.annulees > 1 ? "s" : ""} in the period. Consider confirming bookings earlier or asking for a deposit.`,
+    });
+  }
+  if (s.packsSansDemande.length > 0 && s.total >= 5) {
+    const noms = s.packsSansDemande.slice(0, 3).map((p) => p.nom).join(", ");
+    recs.push({
+      id: "packs-sans-demande",
+      niveau: "opportunite",
+      titre: `${s.packsSansDemande.length} published pack${s.packsSansDemande.length > 1 ? "s" : ""} without any request`,
+      detail: `${noms}${s.packsSansDemande.length > 3 ? "…" : ""}. Review the price, the description or how visible they are.`,
+      lien: { href: "/dashboard/catalogue/packs", label: "Open packs" },
+    });
+  }
+  if (s.parMois.length >= 3 && s.total >= 6) {
+    const moyenne = s.total / s.parMois.length;
+    const creux = s.parMois.filter((m) => m.total <= moyenne * 0.5).map((m) => moisCourt(m.mois));
+    if (creux.length > 0 && creux.length < s.parMois.length) {
+      recs.push({
+        id: "periodes-creuses",
+        niveau: "opportunite",
+        titre: "Quieter periods",
+        detail: `${creux.join(", ")} ${creux.length > 1 ? "have" : "has"} less than half of the monthly average (${Math.round(moyenne * 10) / 10} sessions). A seasonal offer could help.`,
+      });
+    }
+  }
+  const ventesPacks = s.packs.avecPack;
+  const premier = s.packs.top[0];
+  if (premier && ventesPacks >= 5) {
+    const part = Math.round((premier.total / ventesPacks) * 100);
+    if (part >= 50) {
+      recs.push({
+        id: "pack-dominant",
+        niveau: "info",
+        titre: `"${premier.nom}" leads with ${part}% of pack bookings`,
+        detail: "Consider featuring it, or building a higher tier to offer as an upgrade.",
+      });
+    }
+  }
+  const heuresTotal = s.charge.reduce((a, c) => a + c.heures, 0);
+  const premierEmploye = s.charge[0];
+  if (s.charge.length >= 2 && heuresTotal >= 10 && premierEmploye) {
+    const part = Math.round((premierEmploye.heures / heuresTotal) * 100);
+    if (part >= 60) {
+      recs.push({
+        id: "charge-desequilibree",
+        niveau: "info",
+        titre: `${premierEmploye.employe.nom} carries ${part}% of the team's hours`,
+        detail: "Consider spreading the next assignments to keep the workload balanced.",
+      });
+    }
+  }
+  return recs
+    .sort((a, b) => NIVEAU_ORDRE[a.niveau] - NIVEAU_ORDRE[b.niveau])
+    .slice(0, 5);
 }

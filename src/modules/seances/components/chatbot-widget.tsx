@@ -5,16 +5,18 @@
  * Widget flottant du site vitrine. Il ne parle qu'à /api/chat (lecture seule, basé sur les vrais packs).
  */
 
-import { Loader2, MessageCircle, Send, X } from "lucide-react";
+import { Clock, Loader2, MessageCircle, Send, Sparkles, X } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { AIBadge } from "@/components/shared/ai-badge";
 import { Button } from "@/components/ui/button";
+import { CHATBOT_NAME } from "../chatbot/chatbot.config";
+import type { ChatPackCard } from "../chatbot/chatbot.config";
 
 type Msg = {
   role: "user" | "assistant";
   content: string;
-  packs?: { id: string; nom: string }[];
+  packs?: ChatPackCard[];
 };
 
 const SUGGESTIONS = [
@@ -22,6 +24,91 @@ const SUGGESTIONS = [
   "J'ai un budget de 800 TND",
   "Comparez vos packs",
 ];
+
+function formatPrix(prix: number | null): string {
+  if (prix === null) return "Prix sur demande";
+  return `${(prix / 1000).toLocaleString("fr-TN", { minimumFractionDigits: 0 })} TND`;
+}
+
+function formatDuree(min: number): string {
+  if (min < 60) return `${min} min`;
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  return m > 0 ? `${h}h${m.toString().padStart(2, "0")}` : `${h}h`;
+}
+
+function Avatar({ className }: { className?: string }) {
+  return (
+    <div
+      className={`flex items-center justify-center rounded-full bg-ai text-ai-foreground text-xs font-bold ${className ?? ""}`}
+      aria-hidden
+    >
+      <Sparkles className="size-3.5" />
+    </div>
+  );
+}
+
+function PackCard({ pack, bookHref }: { pack: ChatPackCard; bookHref: string }) {
+  return (
+    <div className="rounded-xl border bg-card p-3 shadow-sm space-y-2 text-xs">
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          {pack.miseEnAvant && (
+            <span className="inline-block mb-1 rounded-full bg-ai-soft px-2 py-0.5 text-[0.65rem] font-semibold text-ai-text">
+              Featured
+            </span>
+          )}
+          <p className="font-semibold text-sm text-foreground leading-tight">{pack.nom}</p>
+          <p className="text-muted-foreground">{pack.typeEvenement}</p>
+        </div>
+        <div className="text-right shrink-0">
+          <p className="font-bold text-foreground">{formatPrix(pack.prix)}</p>
+          {pack.dureeMinutes && (
+            <p className="text-muted-foreground flex items-center gap-1 justify-end">
+              <Clock className="size-3" aria-hidden />
+              {formatDuree(pack.dureeMinutes)}
+            </p>
+          )}
+        </div>
+      </div>
+      {pack.prestations.length > 0 && (
+        <ul className="space-y-0.5 text-muted-foreground">
+          {pack.prestations.slice(0, 4).map((p, i) => (
+            <li key={i} className="flex items-start gap-1">
+              <span className="text-ai-text mt-0.5">•</span>
+              <span>
+                {p.libelle}
+                {p.conditions && <span className="text-[0.65rem] opacity-70"> ({p.conditions})</span>}
+              </span>
+            </li>
+          ))}
+          {pack.prestations.length > 4 && (
+            <li className="text-[0.65rem] opacity-60">+{pack.prestations.length - 4} more…</li>
+          )}
+        </ul>
+      )}
+      <Button asChild size="sm" className="w-full h-8 text-xs">
+        <Link href={`${bookHref}?pack=${pack.id}`}>
+          Request this pack →
+        </Link>
+      </Button>
+    </div>
+  );
+}
+
+function TypingDots() {
+  return (
+    <div className="flex items-center gap-1 px-3 py-2" aria-label="L'assistant réfléchit…">
+      {[0, 1, 2].map((i) => (
+        <span
+          key={i}
+          className="size-1.5 rounded-full bg-muted-foreground/50 animate-bounce"
+          style={{ animationDelay: `${i * 150}ms` }}
+        />
+      ))}
+    </div>
+  );
+}
 
 export function ChatbotWidget({ bookHref }: { bookHref: string }) {
   const [open, setOpen] = useState(false);
@@ -51,7 +138,7 @@ export function ChatbotWidget({ bookHref }: { bookHref: string }) {
       });
       const data = (await res.json()) as {
         reply?: string;
-        packs?: Msg["packs"];
+        packs?: ChatPackCard[];
         error?: string;
       };
       setMessages([
@@ -79,14 +166,19 @@ export function ChatbotWidget({ bookHref }: { bookHref: string }) {
     <div className="fixed right-4 bottom-4 z-40 sm:right-6 sm:bottom-6">
       {open ? (
         <section
-          aria-label="Assistant du studio"
-          className="flex h-[32rem] max-h-[80dvh] w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-2xl bg-card shadow-lg ring-1 ring-border sm:w-96"
+          aria-label={`Assistant ${CHATBOT_NAME}`}
+          className="flex h-[36rem] max-h-[85dvh] w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-2xl bg-card shadow-xl ring-1 ring-border sm:w-[26rem]"
         >
           {/* Header */}
           <header className="flex items-center justify-between gap-2 border-b px-4 py-3">
             <div className="flex items-center gap-2">
-              <AIBadge />
-              <h2 className="text-sm font-semibold">Assistant ReFrame</h2>
+              <Avatar className="size-7" />
+              <div>
+                <h2 className="text-sm font-semibold leading-none">{CHATBOT_NAME}</h2>
+                <p className="text-[0.65rem] text-muted-foreground leading-none mt-0.5">
+                  <AIBadge />
+                </p>
+              </div>
             </div>
             <button
               type="button"
@@ -106,18 +198,21 @@ export function ChatbotWidget({ bookHref }: { bookHref: string }) {
           >
             {messages.length === 0 && (
               <div className="space-y-3">
-                <p className="text-slate">
-                  Bonjour ! Je peux vous expliquer nos packs, les comparer et vous aider à choisir.
-                  Les prix proviennent directement des offres actuelles du studio.
-                </p>
-                <div className="flex flex-wrap gap-2" role="list" aria-label="Suggestions">
+                <div className="flex items-start gap-2">
+                  <Avatar className="size-6 shrink-0 mt-0.5" />
+                  <p className="text-foreground bg-muted rounded-2xl rounded-bl-sm px-3 py-2 text-sm">
+                    Bonjour ! Je suis {CHATBOT_NAME}, je peux vous expliquer nos packs, les comparer et vous aider à choisir.
+                    Les prix proviennent directement des offres actuelles du studio.
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2 pl-8" role="list" aria-label="Suggestions">
                   {SUGGESTIONS.map((s) => (
                     <button
                       key={s}
                       type="button"
                       role="listitem"
                       onClick={() => send(s)}
-                      className="rounded-full bg-ai-soft px-3 py-1 text-xs text-ai-text ring-1 ring-ai/25 hover:bg-ai-soft/70"
+                      className="rounded-full bg-ai-soft px-3 py-1 text-xs text-ai-text ring-1 ring-ai/25 hover:bg-ai-soft/70 transition-colors"
                     >
                       {s}
                     </button>
@@ -129,8 +224,9 @@ export function ChatbotWidget({ bookHref }: { bookHref: string }) {
             {messages.map((m, i) => (
               <div
                 key={i}
-                className={m.role === "user" ? "flex justify-end" : "flex justify-start"}
+                className={m.role === "user" ? "flex justify-end" : "flex justify-start items-start gap-2"}
               >
+                {m.role === "assistant" && <Avatar className="size-6 shrink-0 mt-0.5" />}
                 <div
                   className={
                     m.role === "user"
@@ -140,13 +236,9 @@ export function ChatbotWidget({ bookHref }: { bookHref: string }) {
                 >
                   <p className="whitespace-pre-wrap">{m.content}</p>
                   {m.packs && m.packs.length > 0 && (
-                    <div className="flex flex-wrap gap-2 pt-1">
+                    <div className="space-y-2 pt-1">
                       {m.packs.map((p) => (
-                        <Button key={p.id} asChild size="sm" variant="outline">
-                          <Link href={`${bookHref}?pack=${p.id}`}>
-                            Demander « {p.nom} »
-                          </Link>
-                        </Button>
+                        <PackCard key={p.id} pack={p} bookHref={bookHref} />
                       ))}
                     </div>
                   )}
@@ -155,10 +247,12 @@ export function ChatbotWidget({ bookHref }: { bookHref: string }) {
             ))}
 
             {pending && (
-              <p className="flex items-center gap-2 text-xs text-muted-foreground">
-                <Loader2 className="size-3.5 animate-spin" aria-hidden />
-                Je réfléchis…
-              </p>
+              <div className="flex items-start gap-2">
+                <Avatar className="size-6 shrink-0 mt-0.5" />
+                <div className="rounded-2xl rounded-bl-sm bg-muted">
+                  <TypingDots />
+                </div>
+              </div>
             )}
             <div ref={endRef} aria-hidden />
           </div>
@@ -188,12 +282,12 @@ export function ChatbotWidget({ bookHref }: { bookHref: string }) {
               disabled={pending || !input.trim()}
               aria-label="Envoyer"
             >
-              <Send aria-hidden />
+              {pending ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Send aria-hidden />}
             </Button>
           </form>
 
           <p className="px-4 pb-2 text-[0.65rem] text-muted-foreground">
-            Assistant IA · Le studio valide chaque demande de réservation.
+            {CHATBOT_NAME} · IA · Le studio valide chaque demande de réservation.
           </p>
         </section>
       ) : (
@@ -202,7 +296,7 @@ export function ChatbotWidget({ bookHref }: { bookHref: string }) {
           size="lg"
           onClick={() => setOpen(true)}
           className="rounded-full shadow-lg"
-          aria-label="Ouvrir l'assistant du studio"
+          aria-label={`Ouvrir l'assistant ${CHATBOT_NAME}`}
         >
           <MessageCircle aria-hidden />
           Demandez-nous

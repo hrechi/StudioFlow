@@ -5,8 +5,21 @@ import { getStatsFacturation } from "@/modules/facturation/facturation.stats";
 import { findUtilisateurRefs } from "@/modules/utilisateurs/utilisateur.service";
 import { Pack } from "./pack.model";
 import { Seance } from "./seance.model";
-import { listeMois, resoudrePeriode, taux } from "./stats.rules";
-import type { PeriodeStats, StatistiquesDTO, StatsSeances, StatsTaches } from "./stats.types";
+import {
+  genererRecommandations,
+  joursLundiPremier,
+  listeMois,
+  periodePrecedente,
+  resoudrePeriode,
+  taux,
+} from "./stats.rules";
+import type {
+  ComparaisonPeriode,
+  PeriodeStats,
+  StatistiquesDTO,
+  StatsSeances,
+  StatsTaches,
+} from "./stats.types";
 import { listTaches } from "./tache.service";
 import { PRIORITES } from "./tache.dto";
 import { TypeEvenement } from "./type-evenement.model";
@@ -31,10 +44,15 @@ const DAY = 86_400_000;
 
 async function statsSeances(from: Date, to: Date): Promise<StatsSeances> {
   const periode = { dateDebut: { $gte: from, $lt: to } };
-  const [parTypeStatut, parMois, parPack, taux_, charge] = await Promise.all([
+  const [parTypeStatut, parStatut, parMois, parPack, parJour, taux_, charge] = await Promise.all([
     Seance.aggregate<{ _id: { type: Types.ObjectId; statut: string }; n: number }>([
       { $match: periode },
       { $group: { _id: { type: "$typeEvenement", statut: "$statut" }, n: { $sum: 1 } } },
+    ]),
+    // All statuses (including DEMANDE_RECUE) for the donut chart
+    Seance.aggregate<{ _id: string; n: number }>([
+      { $match: periode },
+      { $group: { _id: "$statut", n: { $sum: 1 } } },
     ]),
     Seance.aggregate<{ _id: string; n: number }>([
       { $match: periode },
@@ -43,6 +61,16 @@ async function statsSeances(from: Date, to: Date): Promise<StatsSeances> {
     Seance.aggregate<{ _id: Types.ObjectId | null; n: number }>([
       { $match: periode },
       { $group: { _id: { $ifNull: ["$pack", null] }, n: { $sum: 1 } } },
+    ]),
+    // Weekday profile: confirmed + completed sessions only (PLANIFIEE excluded, ANNULEE/DEMANDE_RECUE excluded)
+    Seance.aggregate<{ _id: number; n: number }>([
+      { $match: { ...periode, statut: { $in: ["CONFIRMEE", "EN_COURS", "TERMINEE"] } } },
+      {
+        $group: {
+          _id: { $dayOfWeek: { date: "$dateDebut", timezone: TZ } },
+          n: { $sum: 1 },
+        },
+      },
     ]),
     Seance.aggregate<{ _id: null; total: number; annulees: number; reportees: number }>([
       { $match: { ...periode, statut: { $ne: "DEMANDE_RECUE" } } },
@@ -74,9 +102,11 @@ async function statsSeances(from: Date, to: Date): Promise<StatsSeances> {
 
   const typeIds = [...new Set(parTypeStatut.map((g) => g._id.type.toString()))];
   const packIds = parPack.flatMap((g) => (g._id ? [g._id.toString()] : []));
-  const [types, packs] = await Promise.all([
+  const [types, packs, allPublishedPacks] = await Promise.all([
     typeIds.length ? TypeEvenement.find({ _id: { $in: typeIds } }).select("nom").lean<{ _id: Types.ObjectId; nom: string }[]>() : [],
     packIds.length ? Pack.find({ _id: { $in: packIds } }).select("nom").lean<{ _id: Types.ObjectId; nom: string }[]>() : [],
+    // All published packs to find those without any request in the period
+    Pack.find({ publie: true }).select("nom typeEvenement").populate<{ typeEvenement: { _id: Types.ObjectId; nom: string } }>("typeEvenement", "nom").lean(),
   ]);
   const typeNom = new Map(types.map((t) => [t._id.toString(), t.nom]));
   const packNom = new Map(packs.map((p) => [p._id.toString(), p.nom]));
@@ -96,8 +126,21 @@ async function statsSeances(from: Date, to: Date): Promise<StatsSeances> {
   const avecPack = parPack.filter((g) => g._id).reduce((s, g) => s + g.n, 0);
   const t = taux_[0] ?? { total: 0, annulees: 0, reportees: 0 };
 
+  // Packs with at least one session in the period
+  const packsAvecDemande = new Set(parPack.filter((g) => g._id).map((g) => g._id!.toString()));
+  const packsSansDemande = allPublishedPacks
+    .filter((p) => !packsAvecDemande.has((p._id as Types.ObjectId).toString()))
+    .map((p) => ({
+      id: (p._id as Types.ObjectId).toString(),
+      nom: p.nom as string,
+      type: (p.typeEvenement as { nom: string } | null)?.nom ?? "",
+    }));
+
   return {
     total,
+    parStatut: parStatut.map((g) => ({ statut: g._id, total: g.n })).sort((a, b) => b.total - a.total),
+    parJourSemaine: joursLundiPremier(parJour),
+    packsSansDemande,
     parType: [...parType.values()].sort((a, b) => b.total - a.total),
     parMois: listeMois(from, to).map((mois) => ({ mois, total: mensuel.get(mois) ?? 0 })),
     packs: {
@@ -122,6 +165,36 @@ async function statsSeances(from: Date, to: Date): Promise<StatsSeances> {
       tachesOuvertes: 0,
       tachesEnRetard: 0,
     })),
+  };
+}
+
+async function resumePeriode(from: Date, to: Date): Promise<ComparaisonPeriode> {
+  const periode = { dateDebut: { $gte: from, $lt: to } };
+  const [countResult, tauxResult] = await Promise.all([
+    Seance.countDocuments(periode),
+    Seance.aggregate<{ _id: null; total: number; annulees: number; reportees: number }>([
+      { $match: { ...periode, statut: { $ne: "DEMANDE_RECUE" } } },
+      {
+        $group: {
+          _id: null,
+          total: { $sum: 1 },
+          annulees: { $sum: { $cond: [{ $eq: ["$statut", "ANNULEE"] }, 1, 0] } },
+          reportees: {
+            $sum: {
+              $cond: [{ $or: [{ $eq: ["$statut", "REPORTEE"] }, { $gt: [{ $ifNull: ["$nombreReports", 0] }, 0] }] }, 1, 0],
+            },
+          },
+        },
+      },
+    ]),
+  ]);
+  const t = tauxResult[0] ?? { total: 0, annulees: 0, reportees: 0 };
+  return {
+    from: from.toISOString(),
+    to: to.toISOString(),
+    total: countResult,
+    tauxAnnulation: taux(t.annulees, t.total),
+    tauxReport: taux(t.reportees, t.total),
   };
 }
 
@@ -157,10 +230,12 @@ export async function getStatistiques(code: PeriodeStats, now: Date = new Date()
   const from = new Date(periode.from);
   const to = new Date(periode.to);
 
-  const [seances, { stats: tachesStats, taches }, facturation] = await Promise.all([
+  const avant = periodePrecedente(periode);
+  const [seances, { stats: tachesStats, taches }, facturation, precedent] = await Promise.all([
     statsSeances(from, to),
     statsTaches(now),
     getStatsFacturation(from, to, now),
+    avant ? resumePeriode(avant.from, avant.to) : Promise.resolve(null),
   ]);
 
   // Workload = sessions of the period + the open / late tasks of each person (as of now).
@@ -183,5 +258,17 @@ export async function getStatistiques(code: PeriodeStats, now: Date = new Date()
     })
     .sort((a, b) => b.heures - a.heures || b.tachesOuvertes - a.tachesOuvertes);
 
-  return { periode, seances: { ...seances, charge }, taches: tachesStats, facturation };
+  const seancesFinal = { ...seances, charge };
+  return {
+    periode,
+    precedent,
+    recommandations: genererRecommandations({
+      seances: seancesFinal,
+      taches: tachesStats,
+      facturationEnRetard: facturation.montants.factureEnRetard,
+    }),
+    seances: seancesFinal,
+    taches: tachesStats,
+    facturation,
+  };
 }

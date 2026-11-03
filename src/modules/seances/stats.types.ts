@@ -20,6 +20,12 @@ export type PeriodeResolue = { code: PeriodeStats; label: string; from: string; 
 
 export type StatsSeances = {
   total: number;
+  /** Sessions of the period by status (all statuses, incl. pending requests). */
+  parStatut: { statut: string; total: number }[];
+  /** Sessions by weekday, Monday first (length 7). */
+  parJourSemaine: number[];
+  /** Published packs that received no session in the period. */
+  packsSansDemande: { id: string; nom: string; type: string }[];
   parType: { id: string; nom: string; total: number; terminees: number; annulees: number }[];
   parMois: { mois: string; total: number }[];
   packs: {
@@ -59,8 +65,28 @@ export type StatsTaches = {
   }[];
 };
 
+/** The period of the same length just before the selected one (null for "next 30 days"). */
+export type ComparaisonPeriode = {
+  from: string;
+  to: string;
+  total: number;
+  tauxAnnulation: number | null;
+  tauxReport: number | null;
+};
+
+/** Rule-based suggestion computed from real figures (no AI, no invented number). */
+export type Recommandation = {
+  id: string;
+  niveau: "attention" | "opportunite" | "info";
+  titre: string;
+  detail: string;
+  lien?: { href: string; label: string };
+};
+
 export type StatistiquesDTO = {
   periode: PeriodeResolue;
+  precedent: ComparaisonPeriode | null;
+  recommandations: Recommandation[];
   seances: StatsSeances;
   taches: StatsTaches;
   facturation: StatsFacturation;
