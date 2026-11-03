@@ -1,0 +1,77 @@
+import type { Metadata, Viewport } from "next";
+import { Suspense } from "react";
+import { OfflineBanner } from "@/components/pwa/offline-banner";
+import { PwaRegister } from "@/components/pwa/pwa-register";
+import { ThemeScript } from "@/components/theme/theme";
+import { Toaster } from "@/components/ui/sonner";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import {
+  PortfolioTransitionProvider,
+  PortfolioTransitionOverlay,
+} from "@/modules/portfolio/components/transitions";
+import "./globals.css";
+
+// next/font/google removed: requires internet access at build time (fonts.gstatic.com).
+// --font-sans and --font-display are defined as CSS variables in globals.css instead.
+
+const DESCRIPTION =
+  "ReFrame, photography studio in Tunis: weddings, portraits, products and events. Book your session, discover your private gallery and approve your selection online.";
+
+export const metadata: Metadata = {
+  metadataBase: new URL(process.env.SITE_URL ?? "http://localhost:3000"),
+  applicationName: "ReFrame",
+  title: {
+    default: "ReFrame — Photography studio",
+    template: "%s · ReFrame",
+  },
+  description: DESCRIPTION,
+  openGraph: {
+    type: "website",
+    siteName: "ReFrame",
+    title: "ReFrame — Photography studio",
+    description: DESCRIPTION,
+    locale: "en_GB",
+  },
+  twitter: { card: "summary_large_image", title: "ReFrame — Photography studio" },
+  // PWA: the manifest (app/manifest.ts) is linked automatically; this covers iOS "Add to Home Screen".
+  appleWebApp: { capable: true, title: "ReFrame", statusBarStyle: "black" },
+  formatDetection: { telephone: false },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover", // lets layouts use env(safe-area-inset-*) on notched phones
+  themeColor: "#0a0a0a", // updated by ThemeScript / setTheme in light mode
+  colorScheme: "dark light",
+};
+
+export default function RootLayout({ children }: LayoutProps<"/">) {
+  return (
+    <html
+      lang="en"
+      className={`dark h-full`}
+      data-scroll-behavior="smooth"
+      // ThemeScript may switch the class to light before hydration.
+      suppressHydrationWarning
+    >
+      <head>
+        <ThemeScript />
+      </head>
+      <body className="flex min-h-full flex-col">
+        <TooltipProvider delayDuration={200}>
+          <PortfolioTransitionProvider>
+            {children}
+            <PortfolioTransitionOverlay />
+          </PortfolioTransitionProvider>
+        </TooltipProvider>
+        <Toaster position="top-right" richColors={false} closeButton />
+        <OfflineBanner />
+        {/* useSearchParams: kept out of the static render of every page */}
+        <Suspense fallback={null}>
+          <PwaRegister />
+        </Suspense>
+      </body>
+    </html>
+  );
+}
