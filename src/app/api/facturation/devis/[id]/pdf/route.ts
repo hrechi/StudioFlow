@@ -3,6 +3,7 @@ import type { NextRequest } from "next/server";
 import { getCurrentUser } from "@/lib/guards";
 import { ForbiddenError, getDevis, NotFoundError, ValidationError } from "@/modules/facturation/devis.service";
 import { renderDevisPdf, renderFacturePdf } from "@/modules/facturation/facturation.pdf";
+import { readVisaImages } from "@/modules/facturation/visa.service";
 
 /**
  * Branded PDF of a quote, or of one of its invoices with `?facture=<id>`.
@@ -20,15 +21,16 @@ export async function GET(request: NextRequest, ctx: RouteContext<"/api/facturat
   if (!devis) return new Response("Not found", { status: 404 });
 
   const factureId = request.nextUrl.searchParams.get("facture");
+  const visa = await readVisaImages();
   let bytes: Uint8Array;
   let filename: string;
   if (factureId) {
     const facture = devis.factures.find((f) => f.id === factureId);
     if (!facture) return new Response("Not found", { status: 404 });
-    bytes = await renderFacturePdf(devis, facture);
+    bytes = await renderFacturePdf(devis, facture, visa);
     filename = `${facture.numero}.pdf`;
   } else {
-    bytes = await renderDevisPdf(devis);
+    bytes = await renderDevisPdf(devis, visa);
     filename = `${devis.numero}.pdf`;
   }
 

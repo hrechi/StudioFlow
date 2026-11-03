@@ -9,6 +9,7 @@
     "lint": "eslint .",
     "typecheck": "next typegen && tsc --noEmit",
     "test:portfolio": "vitest run src/modules/portfolio/tests",
+    "test:facturation": "vitest run src/modules/facturation/tests",
     "test:e2e": "playwright test",
     "format": "prettier --write .",
     "format:check": "prettier --check .",

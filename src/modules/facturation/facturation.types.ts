@@ -55,6 +55,14 @@ export type Facture = {
   declarations?: DeclarationPaiement[];
 };
 
+/** Proposé: the studio's signature and stamp, saved once from the admin's profile, on every PDF. */
+export const CHAMPS_VISA = ["signature", "cachet"] as const;
+export type ChampVisa = (typeof CHAMPS_VISA)[number];
+export type VisaStudioView = { signature?: string; cachet?: string };
+
+export const SIGNATURE_TYPES = ["image/png", "image/jpeg", "image/webp"] as const;
+export const SIGNATURE_TAILLE_MAX = 2 * 1024 * 1024;
+
 /** Proposé: status of a payment the client declared (transfer, cheque, cash) with its proof. */
 export const STATUTS_DECLARATION = ["EN_ATTENTE", "VALIDEE", "REJETEE"] as const;
 export type StatutDeclaration = (typeof STATUTS_DECLARATION)[number];

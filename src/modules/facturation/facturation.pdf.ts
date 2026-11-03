@@ -257,6 +257,34 @@ function paidStamp(w: Writer, top: number, datePaiement?: string) {
   }
 }
 
+export type SignatureImages = { studioSignature?: Uint8Array; studioCachet?: Uint8Array };
+
+/** The studio's signature and stamp, saved once on the admin's profile. */
+async function signatureBlock(doc: PDFDocument, w: Writer, images: SignatureImages) {
+  if (!images.studioSignature && !images.studioCachet) return;
+  const gap = 20;
+  const boxW = (A4.w - 2 * M - gap) / 2;
+  const boxH = 90;
+  w.ensure(boxH + 50);
+  w.y -= 12;
+  const cases: [string, Uint8Array | undefined, number][] = [
+    ["Studio signature", images.studioSignature, M],
+    ["Company stamp", images.studioCachet, M + boxW + gap],
+  ];
+  for (const [titre, bytes, x] of cases) {
+    if (bytes) w.label(titre, x);
+  }
+  w.y -= 8;
+  for (const [, bytes, x] of cases) {
+    if (!bytes) continue;
+    w.page.drawRectangle({ x, y: w.y - boxH, width: boxW, height: boxH, borderColor: C.border, borderWidth: 0.6 });
+    const image = await doc.embedPng(bytes);
+    const { width, height } = image.scaleToFit(boxW - 16, boxH - 12);
+    w.page.drawImage(image, { x: x + (boxW - width) / 2, y: w.y - boxH + (boxH - height) / 2, width, height });
+  }
+  w.y -= boxH + 14;
+}
+
 async function create(titre: string, numero: string) {
   const doc = await PDFDocument.create();
   doc.setTitle(`${titre} ${numero} — ${STUDIO.nom}`);
@@ -267,7 +295,7 @@ async function create(titre: string, numero: string) {
 }
 
 /** Quote PDF (cahier: Devis) with services, totals and the client's payment choice. */
-export async function renderDevisPdf(devis: Devis): Promise<Uint8Array> {
+export async function renderDevisPdf(devis: Devis, signatures: SignatureImages = {}): Promise<Uint8Array> {
   const { doc, w } = await create("QUOTE", devis.numero);
   parties(w, devis, [
     ["Issued", date(devis.dateEmission)],
@@ -290,11 +318,12 @@ export async function renderDevisPdf(devis: Devis): Promise<Uint8Array> {
     note(w, "How to accept", `Accept this quote from your client space before ${date(devis.dateValidite)} and choose to pay in full or with a ${devis.tauxAcompte ?? 0}% deposit.`);
   }
   if (devis.commentaire) note(w, "Note", devis.commentaire);
+  await signatureBlock(doc, w, signatures);
   return doc.save();
 }
 
 /** Invoice PDF (cahier: Facture) — amount due, payments received and what is left. */
-export async function renderFacturePdf(devis: Devis, facture: Facture): Promise<Uint8Array> {
+export async function renderFacturePdf(devis: Devis, facture: Facture, signatures: SignatureImages = {}): Promise<Uint8Array> {
   const { doc, w } = await create("INVOICE", facture.numero);
   const reste = facture.montantTTC - facture.montantPaye;
   parties(w, devis, [
@@ -336,5 +365,6 @@ export async function renderFacturePdf(devis: Devis, facture: Facture): Promise<
     const mode = devis.modePaiementPrefere ? modePaiementLabels[devis.modePaiementPrefere].toLowerCase() : "your chosen method";
     note(w, "How to pay", `Please pay ${money(reste)} by ${date(facture.dateEcheance)} (${mode}). Mention ${facture.numero} with your payment; the studio confirms it in your client space once received.`);
   }
+  await signatureBlock(doc, w, signatures);
   return doc.save();
 }
