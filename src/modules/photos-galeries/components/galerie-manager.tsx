@@ -10,12 +10,14 @@ import {
   Loader2,
   Lock,
   MessageSquare,
+  Pencil,
   Send,
   Sparkles,
   Trash2,
   Wand2,
   X,
 } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useSyncExternalStore, useTransition } from "react";
 import { toast } from "sonner";
@@ -43,15 +45,26 @@ import { deletePhotosAction, setCullingAction } from "../photo.actions";
 import { autoCullGalerieAction, storyOrderAction } from "../photo-ai.actions";
 import { AILabels } from "./photo-thumb";
 
-const TABS: { value: StatutCulling | "TOUTES"; label: string }[] = [
+export type GalerieTab = StatutCulling | "TOUTES" | "EDITEES";
+
+const TABS: { value: GalerieTab; label: string }[] = [
   { value: "TOUTES", label: "All" },
   { value: "RETENUE", label: "Kept" },
   { value: "EN_ATTENTE", label: "Pending" },
   { value: "REJETEE", label: "Rejected" },
+  { value: "EDITEES", label: "Edited" },
 ];
 
 /** /dashboard/galeries/[id] — culling view + share settings + client selection summary. */
-export function GalerieManager({ galerie, photos }: { galerie: Galerie; photos: Photo[] }) {
+export function GalerieManager({
+  galerie,
+  photos,
+  initialTab = "TOUTES",
+}: {
+  galerie: Galerie;
+  photos: Photo[];
+  initialTab?: GalerieTab;
+}) {
   const router = useRouter();
   const [culling, setCulling] = useState(() => new Map(photos.map((p) => [p.id, p.statutCulling])));
   const [toDelete, setToDelete] = useState<Photo | null>(null);
@@ -148,21 +161,23 @@ export function GalerieManager({ galerie, photos }: { galerie: Galerie; photos: 
       router.refresh();
     });
 
-  const count = (s: StatutCulling) => [...culling.values()].filter((v) => v === s).length;
+  const inTab = (photo: Photo, tab: GalerieTab) =>
+    tab === "TOUTES" || (tab === "EDITEES" ? photo.estEditee : culling.get(photo.id) === tab);
+  const count = (tab: GalerieTab) => photos.filter((p) => inTab(p, tab)).length;
   const favoris = photos.filter((p) => p.estFavori);
   const commentaires = photos.filter((p) => p.commentaireClient);
 
   return (
     <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_21rem]">
       <Card className="min-w-0 gap-0 py-0">
-        <Tabs defaultValue="TOUTES" className="gap-0">
+        <Tabs defaultValue={initialTab} className="gap-0">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b px-4 pt-2">
-            <TabsList variant="line">
+            <TabsList variant="line" className="h-auto! max-w-full flex-wrap justify-start">
               {TABS.map((tab) => (
                 <TabsTrigger key={tab.value} value={tab.value}>
                   {tab.label}
                   <span className="rounded-full bg-muted px-1.5 text-[0.7rem] font-semibold text-slate">
-                    {tab.value === "TOUTES" ? photos.length : count(tab.value)}
+                    {count(tab.value)}
                   </span>
                 </TabsTrigger>
               ))}
@@ -183,9 +198,7 @@ export function GalerieManager({ galerie, photos }: { galerie: Galerie; photos: 
             </Button>
           </div>
           {TABS.map((tab) => {
-            const list = photos.filter(
-              (p) => tab.value === "TOUTES" || culling.get(p.id) === tab.value,
-            );
+            const list = photos.filter((p) => inTab(p, tab.value));
             return (
               <TabsContent key={tab.value} value={tab.value} className="p-4">
                 {photos.length === 0 ? (
@@ -193,6 +206,12 @@ export function GalerieManager({ galerie, photos }: { galerie: Galerie; photos: 
                     icon={ImageOff}
                     title="No photos yet"
                     description="Use “Import photos” to add the session’s photos to this gallery."
+                  />
+                ) : list.length === 0 && tab.value === "EDITEES" ? (
+                  <EmptyState
+                    icon={Pencil}
+                    title="No edited photos yet"
+                    description="Use the pencil on a photo to edit it, then “Add to gallery”."
                   />
                 ) : list.length === 0 ? (
                   <p className="py-10 text-center text-sm text-muted-foreground">
@@ -225,6 +244,12 @@ export function GalerieManager({ galerie, photos }: { galerie: Galerie; photos: 
                                 Cover
                               </span>
                             )}
+                            {photo.estEditee && (
+                              <span className="absolute right-2 bottom-2 inline-flex items-center gap-1 rounded-full bg-black/70 px-2 py-0.5 text-[0.65rem] font-semibold text-bone shadow-sm backdrop-blur-sm">
+                                <Pencil className="size-3" aria-hidden />
+                                Edited
+                              </span>
+                            )}
                             {photo.estFavori && (
                               <Heart
                                 className="absolute top-2 right-2 size-5 fill-destructive text-destructive drop-shadow"
@@ -232,13 +257,26 @@ export function GalerieManager({ galerie, photos }: { galerie: Galerie; photos: 
                               />
                             )}
                           </div>
-                          <div className="flex items-center justify-between gap-1 p-2">
+                          <div className="flex flex-wrap items-center justify-between gap-1 p-2">
                             <StatusBadge
                               value={status}
                               config={statutCullingConfig}
                               className="h-5 px-2 text-[0.65rem]"
                             />
                             <div className="flex gap-0.5">
+                              <Button
+                                asChild
+                                size="icon-xs"
+                                variant="ghost"
+                                title="Edit this photo"
+                              >
+                                <Link
+                                  href={`/dashboard/photos/editeur?photo=${photo.id}`}
+                                  aria-label={`Edit ${photo.nomFichier}`}
+                                >
+                                  <Pencil aria-hidden />
+                                </Link>
+                              </Button>
                               <Button
                                 size="icon-xs"
                                 variant="ghost"

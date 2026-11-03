@@ -11,6 +11,7 @@ import { analysePhoto } from "@/modules/photos-galeries/photo-ai.service";
  * POST multipart/form-data { galerieId, file } — one photo per request so the
  * dialog can show per-file progress. A Route Handler (not a Server Action)
  * because Server Actions cap request bodies at 1 MB.
+ * The Photo Editing page also sends { photoOrigine, styleApplique }.
  */
 export async function POST(request: NextRequest) {
   const user = await getCurrentUser();
@@ -27,6 +28,8 @@ export async function POST(request: NextRequest) {
   }
   const galerieId = form.get("galerieId");
   const file = form.get("file");
+  const photoOrigine = form.get("photoOrigine");
+  const styleApplique = form.get("styleApplique");
   if (typeof galerieId !== "string" || !(file instanceof File)) {
     return NextResponse.json(failure("Choose a gallery and a file."), { status: 400 });
   }
@@ -41,6 +44,12 @@ export async function POST(request: NextRequest) {
         data: Buffer.from(await file.arrayBuffer()),
       },
       user.id,
+      typeof photoOrigine === "string" && photoOrigine
+        ? {
+            photoOrigineId: photoOrigine,
+            style: typeof styleApplique === "string" ? styleApplique : undefined,
+          }
+        : undefined,
     );
     revalidatePath("/dashboard/photos", "layout");
     revalidatePath("/dashboard/galeries", "layout");

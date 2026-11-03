@@ -10,6 +10,14 @@ import {
   isClaudeConfigured,
   type ClaudeImage,
 } from "@/lib/llm-claude";
+import {
+  ADJUST_CONTROLS,
+  FILTER_PRESETS,
+  clampAdjustment,
+  neutralAdjustments,
+  type Adjustments,
+  type AdjustKey,
+} from "./photo-edit";
 import { Photo, type IPhoto } from "./photo.model";
 import { openFile } from "./photo.storage";
 
@@ -20,7 +28,9 @@ import { openFile } from "./photo.storage";
  * - autoCullGalerie: analyses what is missing, spots near-duplicates, keeps / rejects the
  *   photos still pending (never overrides a choice made by hand);
  * - storyOrderGalerie: narrative order of the kept photos (ordreHistoire);
- * - searchPhotos: natural-language search over the AI descriptions and tags.
+ * - searchPhotos: natural-language search over the AI descriptions and tags;
+ * - suggestPhotoEdit: slider values for the Photo Editing page (Claude reads the photo and
+ *   proposes settings; the pixels are edited in the browser, Claude does not produce images).
  */
 
 /** Photos at or above this score are recommended; below the reject threshold they are culled. */
@@ -381,6 +391,71 @@ export async function searchPhotos(query: string, limit = 400): Promise<PhotoSea
         relevance: clamp(m.relevance) / 100,
       }));
     return { matches, understood: result.understood.slice(0, 6) };
+  } catch (error) {
+    toServiceError(error);
+  }
+}
+
+// ── 5. Edit suggestions (Photo Editing page) ────────────────────────────────
+
+const adjustShape = Object.fromEntries(
+  ADJUST_CONTROLS.map((c) => [
+    c.key,
+    z.number().describe(`${c.label}, ${c.min} to ${c.max}. 0 = unchanged.`),
+  ]),
+) as Record<AdjustKey, z.ZodNumber>;
+
+const FILTER_IDS = FILTER_PRESETS.map((f) => f.id) as [string, ...string[]];
+
+const editSuggestionSchema = z.object({
+  adjustments: z.object(adjustShape),
+  filter: z.enum(["none", ...FILTER_IDS]).describe("A preset to apply on top, or none."),
+  filterIntensity: z.number().describe("Strength of the preset, 0 to 100."),
+  summary: z.string().describe("One short sentence telling the photographer what you changed."),
+});
+
+export type PhotoEditSuggestion = {
+  adjustments: Adjustments;
+  filter: string | null;
+  filterIntensity: number;
+  summary: string;
+};
+
+/** Claude looks at the photo and proposes editor settings: a correction, or the look requested. */
+export async function suggestPhotoEdit(
+  photoId: string,
+  instruction?: string,
+): Promise<PhotoEditSuggestion> {
+  requireClaude();
+  if (!Types.ObjectId.isValid(photoId)) throw new ServiceError("Photo not found.");
+  await connectDB();
+  const photo = await Photo.findById(photoId).select("miniature").lean<PhotoLean>();
+  const data = photo && (await readThumbnail(photo));
+  if (!data) throw new ServiceError("Photo not found.");
+  const request = instruction?.trim().slice(0, 300);
+  try {
+    const result = await claudeJson({
+      system: `You are a senior photo retoucher at ReFrame, a professional photography studio.
+You see a photo and choose settings for a slider-based editor. Be subtle and natural: most values
+stay between -30 and 30, skin tones must stay believable, and a slider the photo does not need stays
+at 0. Use a filter preset only when it serves the photo or the request.`,
+      prompt: request
+        ? `The photographer wants this look: "${request}". Choose the settings that achieve it on this photo.`
+        : "Auto-enhance this photo: correct exposure, white balance and contrast, as a retoucher would before delivery. Use no filter preset unless it is clearly needed.",
+      images: [{ data, mediaType: "image/webp" }],
+      schema: editSuggestionSchema,
+      maxTokens: 2000,
+    });
+    const adjustments = neutralAdjustments();
+    for (const { key } of ADJUST_CONTROLS) {
+      adjustments[key] = clampAdjustment(key, result.adjustments[key]);
+    }
+    return {
+      adjustments,
+      filter: result.filter === "none" ? null : result.filter,
+      filterIntensity: Math.max(0, Math.min(100, Math.round(result.filterIntensity))),
+      summary: result.summary.trim().slice(0, 300),
+    };
   } catch (error) {
     toServiceError(error);
   }

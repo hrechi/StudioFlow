@@ -40,6 +40,8 @@ export type Photo = {
   ordreHistoire?: number;
   styleApplique?: string;
   urlRetouchee?: string;
+  estEditee?: boolean; // created in the Photo Editing page
+  photoOrigineId?: string; // the original this edit was made from
   dateUpload: string;
 };
 

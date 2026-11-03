@@ -6,6 +6,7 @@ import {
   Copy,
   EyeOff,
   Loader2,
+  Pencil,
   ScanEye,
   ScanSearch,
   Sparkles,
@@ -151,6 +152,12 @@ export function PhotoDetailPanel({ photo, onClose }: { photo: Photo; onClose?: (
       </section>
 
       <div className="grid grid-cols-2 gap-2">
+        <Button asChild variant="outline" className="col-span-2">
+          <Link href={`/dashboard/photos/editeur?photo=${photo.id}`}>
+            <Pencil aria-hidden />
+            Edit this photo
+          </Link>
+        </Button>
         <Button
           variant="outline"
           disabled={pending || photo.statutCulling === "RETENUE"}

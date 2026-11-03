@@ -22,9 +22,12 @@ import { listClientRefs } from "@/modules/utilisateurs/utilisateur.service";
 
 export const metadata: Metadata = { title: "Gallery" };
 
-export default async function GalerieDetailPage({ params }: PageProps<"/dashboard/galeries/[id]">) {
+export default async function GalerieDetailPage({
+  params,
+  searchParams,
+}: PageProps<"/dashboard/galeries/[id]">) {
   await requireArea("photos-galeries");
-  const { id } = await params;
+  const [{ id }, { onglet }] = await Promise.all([params, searchParams]);
   const galerie = await getGalerieById(id);
   if (!galerie) notFound();
   const [photos, clients] = await Promise.all([listPhotosOfGalerie(id), listClientRefs()]);
@@ -81,7 +84,7 @@ export default async function GalerieDetailPage({ params }: PageProps<"/dashboar
             )}
           </div>
         </div>
-        <ol className="flex items-center gap-1.5" aria-label="Gallery steps">
+        <ol className="flex flex-wrap items-center gap-1.5" aria-label="Gallery steps">
           {GALERIE_PIPELINE.map((step, index) => (
             <li key={step} className="flex items-center gap-1.5">
               <span
@@ -103,7 +106,11 @@ export default async function GalerieDetailPage({ params }: PageProps<"/dashboar
           ))}
         </ol>
       </div>
-      <GalerieManager galerie={galerie} photos={photos} />
+      <GalerieManager
+        galerie={galerie}
+        photos={photos}
+        initialTab={onglet === "editees" ? "EDITEES" : "TOUTES"}
+      />
     </div>
   );
 }

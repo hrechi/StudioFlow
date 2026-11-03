@@ -30,5 +30,5 @@
     ".next/dev/types/**/*.ts",
     "**/*.mts"
   ],
-  "exclude": ["node_modules", "externress"]
+  "exclude": ["node_modules", "externress", "src_updated"]
 }

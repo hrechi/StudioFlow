@@ -10,11 +10,17 @@ import {
   autoCullGalerie,
   searchPhotos,
   storyOrderGalerie,
+  suggestPhotoEdit,
   type CullingSummary,
+  type PhotoEditSuggestion,
   type PhotoSearchResult,
 } from "./photo-ai.service";
 
 const idSchema = z.object({ id: z.string().min(1) });
+const editSuggestionSchema = z.object({
+  id: z.string().min(1),
+  instruction: z.string().trim().max(300).optional(),
+});
 const searchSchema = z.object({ query: z.string().trim().min(2, "Describe the photos").max(300) });
 
 function revalidatePhotos() {
@@ -76,6 +82,20 @@ export async function analysePhotoAction(input: unknown): Promise<ActionResult> 
   const ok = await analysePhoto(parsed.data.id);
   revalidatePhotos();
   return ok ? success() : toFailure(new Error("The AI analysis failed. Try again in a moment."));
+}
+
+/** Editor settings proposed by Claude for one photo (auto-enhance, or a described look). */
+export async function suggestPhotoEditAction(
+  input: unknown,
+): Promise<ActionResult<PhotoEditSuggestion>> {
+  await requireArea("photos-galeries");
+  const parsed = editSuggestionSchema.safeParse(input);
+  if (!parsed.success) return validationFailure(parsed.error);
+  try {
+    return success(await suggestPhotoEdit(parsed.data.id, parsed.data.instruction));
+  } catch (error) {
+    return toFailure(error);
+  }
 }
 
 export async function searchPhotosAction(input: unknown): Promise<ActionResult<PhotoSearchResult>> {

@@ -57,6 +57,8 @@ function toPhotoDTO(doc: PhotoLean): PhotoDTO {
     ordreHistoire: doc.ordreHistoire,
     styleApplique: doc.styleApplique,
     urlRetouchee: doc.urlRetouchee,
+    estEditee: doc.estEditee ?? false,
+    photoOrigineId: doc.photoOrigine?.toString(),
     dateUpload: doc.createdAt.toISOString(),
   };
 }
@@ -79,6 +81,14 @@ export async function listPhotosOfGalerie(galerieId: string): Promise<PhotoDTO[]
     .sort({ ordreHistoire: 1, createdAt: 1 })
     .lean<PhotoLean[]>();
   return docs.map(toPhotoDTO);
+}
+
+export async function getPhotoById(id: string): Promise<PhotoDTO | null> {
+  const _id = toObjectId(id);
+  if (!_id) return null;
+  await connectDB();
+  const doc = await Photo.findById(_id).lean<PhotoLean>();
+  return doc ? toPhotoDTO(doc) : null;
 }
 
 /** Photo library: newest photos of every gallery. */
@@ -180,11 +190,38 @@ export async function listDownloadablePhotos(galerieId: string): Promise<Downloa
 
 export type UploadedFile = { name: string; type: string; size: number; data: Buffer };
 
+/** Set when the file comes from the Photo Editing page. */
+export type PhotoEdition = { photoOrigineId: string; style?: string };
+
+/**
+ * What an edited photo inherits from the photo it was made from. It starts as kept (the
+ * photographer chose to add it, and auto-cull must not reject it as a duplicate of its original)
+ * and sits right after its original. Editing an edit links to the root original.
+ */
+async function editedPhotoFields(galerie: Types.ObjectId, edition: PhotoEdition) {
+  const _id = toObjectId(edition.photoOrigineId);
+  const source = _id
+    ? await Photo.findOne({ _id, galerie })
+        .select("photoOrigine datePrise ordreHistoire")
+        .lean<Pick<PhotoLean, "_id" | "photoOrigine" | "datePrise" | "ordreHistoire">>()
+    : null;
+  if (!source) throw new ServiceError("The original photo is not in this gallery.");
+  return {
+    estEditee: true,
+    photoOrigine: source.photoOrigine ?? source._id,
+    statutCulling: "RETENUE" as const,
+    datePrise: source.datePrise,
+    ordreHistoire: source.ordreHistoire === undefined ? undefined : source.ordreHistoire + 0.5,
+    styleApplique: edition.style?.trim().slice(0, 60) || undefined,
+  };
+}
+
 /** Stores one photo (original + thumbnail in GridFS) and makes it the cover if none is set. */
 export async function uploadPhoto(
   galerieId: string,
   file: UploadedFile,
   userId: string,
+  edition?: PhotoEdition,
 ): Promise<PhotoDTO> {
   if (!(PHOTO_MIME_TYPES as readonly string[]).includes(file.type)) {
     throw new ServiceError(`${file.name}: only JPG, PNG and WebP files are accepted.`);
@@ -197,6 +234,7 @@ export async function uploadPhoto(
   await connectDB();
   const galerieDoc = await Galerie.findById(galerie).select("photoCouverture").lean();
   if (!galerieDoc) throw new ServiceError("Gallery not found.");
+  const editedFields = edition ? await editedPhotoFields(galerie, edition) : {};
 
   let miniatureData: Buffer;
   try {
@@ -217,6 +255,7 @@ export async function uploadPhoto(
       fichier,
       miniature,
       uploadePar: new Types.ObjectId(userId),
+      ...editedFields,
     });
     if (!galerieDoc.photoCouverture) {
       await Galerie.updateOne(

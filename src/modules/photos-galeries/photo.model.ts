@@ -28,6 +28,8 @@ export interface IPhoto {
   ordreHistoire?: number;
   styleApplique?: string;
   urlRetouchee?: string;
+  estEditee: boolean; // created in the Photo Editing page
+  photoOrigine?: Types.ObjectId; // the original this edit was made from
   uploadePar: Types.ObjectId;
   createdAt: Date; // = dateUpload
   updatedAt: Date;
@@ -62,6 +64,8 @@ const photoSchema = new Schema<IPhoto>(
     ordreHistoire: { type: Number },
     styleApplique: { type: String, trim: true, maxlength: 60 },
     urlRetouchee: { type: String, trim: true, maxlength: 500 },
+    estEditee: { type: Boolean, default: false },
+    photoOrigine: { type: Schema.Types.ObjectId, ref: "Photo" },
     uploadePar: { type: Schema.Types.ObjectId, ref: "Utilisateur", required: true },
   },
   { timestamps: true, collection: "photos" },
