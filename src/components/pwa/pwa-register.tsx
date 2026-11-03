@@ -19,6 +19,9 @@ export function PwaRegister() {
     if (process.env.NODE_ENV !== "production" || !("serviceWorker" in navigator)) return;
     navigator.serviceWorker
       .register("/sw.js", { scope: "/", updateViaCache: "none" })
+      // Keeps home and /portfolio saved and recent for offline use (see sw.js).
+      .then(() => navigator.serviceWorker.ready)
+      .then((registration) => registration.active?.postMessage("REFRESH_PAGES"))
       .catch((error) => console.warn("[pwa] service worker registration failed", error));
   }, []);
 
@@ -26,7 +29,7 @@ export function PwaRegister() {
   useEffect(() => {
     if (!("serviceWorker" in navigator)) return;
     if (signedOut || SESSION_CHANGE_PATHS.includes(pathname)) {
-      navigator.serviceWorker.controller?.postMessage("CLEAR_PAGES");
+      navigator.serviceWorker.ready.then((r) => r.active?.postMessage("CLEAR_PAGES"));
     }
   }, [pathname, signedOut]);
 

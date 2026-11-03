@@ -2,14 +2,30 @@
 
 import { WifiOff } from "lucide-react";
 import { useOffline } from "next/offline";
+import { useSyncExternalStore } from "react";
+
+function subscribe(onChange: () => void) {
+  window.addEventListener("online", onChange);
+  window.addEventListener("offline", onChange);
+  return () => {
+    window.removeEventListener("online", onChange);
+    window.removeEventListener("offline", onChange);
+  };
+}
 
 /**
  * Shown on every page while the connection is down (next.config.ts → experimental.useOffline).
  * Navigations and Server Actions started offline wait, then run once the connection is back.
+ * navigator.onLine covers a page opened offline from the device (sw.js), before any request fails.
  */
 export function OfflineBanner() {
-  const isOffline = useOffline();
-  if (!isOffline) return null;
+  const requestsFailing = useOffline();
+  const deviceOffline = useSyncExternalStore(
+    subscribe,
+    () => !navigator.onLine,
+    () => false,
+  );
+  if (!requestsFailing && !deviceOffline) return null;
   return (
     <div
       role="status"

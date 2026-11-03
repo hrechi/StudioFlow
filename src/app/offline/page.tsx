@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { WifiOff } from "lucide-react";
 import { Logo } from "@/components/shared/logo";
 import { Button } from "@/components/ui/button";
@@ -29,8 +28,11 @@ export default function OfflinePage() {
       </div>
       <div className="flex w-full max-w-xs flex-col gap-3 sm:max-w-none sm:flex-row sm:justify-center">
         <RetryButton />
+        {/* Plain <a>, not <Link>: a full page load is answered by the service worker
+            with the saved home page, while an in-app navigation would wait for the network. */}
         <Button asChild variant="outline">
-          <Link href="/">Back to home</Link>
+          {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
+          <a href="/">Back to home</a>
         </Button>
       </div>
     </main>

@@ -204,7 +204,7 @@ Your module already has `xxx.types.ts` (types and enums from the class diagram),
 - Template photos come from `images.unsplash.com` (allowed in `next.config.ts`); `SafeImage` falls back to `/images/placeholder.svg`. Uploaded photos are stored in MongoDB (GridFS) and served by `/api/photos/...`; `SafeImage` loads those `/api/` URLs unoptimized because the image optimizer does not forward the session cookie.
 - **PWA** (installable, offline mode, mobile first):
   - `src/app/manifest.ts` → `/manifest.webmanifest` (name, colors, icons in `public/icons/`).
-  - `public/sw.js` is the service worker. Public pages already opened stay readable offline; private areas (dashboard, client space) are never stored on the device and show `/offline`. Bump `VERSION` in it to reset every cache.
+  - `public/sw.js` is the service worker. Home (`/`) and `/portfolio` are always saved on the device (with their CSS/JS and photos, refreshed every 10 min when online); other public pages already opened stay readable offline; private areas (dashboard, client space) are never stored on the device and show `/offline`. Bump `VERSION` in it to reset every cache.
   - `experimental.useOffline` + `components/pwa/offline-banner.tsx`: banner while offline; navigations and Server Actions wait and retry once back online.
   - The service worker only runs in production: test with `npm run build && npm run start`, then Chrome DevTools → Application (Manifest, Service workers) and Network → Offline.
 
