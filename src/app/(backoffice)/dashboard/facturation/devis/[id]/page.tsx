@@ -60,9 +60,13 @@ export default async function DevisDetailPage({ params }: { params: Promise<{ id
             {devis.genereParIA && <AIBadge />}
             <span>
               {devis.client.prenom} {devis.client.nom} ·{" "}
-              <Link href={`/dashboard/seances/${devis.seance.id}`} className="underline-offset-2 hover:underline">
-                {devis.seance.titre}
-              </Link>
+              {devis.objet === "INVITATION" ? (
+                devis.seance.titre
+              ) : (
+                <Link href={`/dashboard/seances/${devis.seance.id}`} className="underline-offset-2 hover:underline">
+                  {devis.seance.titre}
+                </Link>
+              )}
             </span>
           </span>
         }

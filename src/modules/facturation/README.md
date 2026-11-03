@@ -57,6 +57,9 @@ their own non-draft quotes, and other staff roles are denied management access.
 6. Quotes and invoices download as branded PDFs (`facturation.pdf.ts`, route
    `/api/facturation/devis/[id]/pdf[?facture=<id>]`), for the admin and the client.
 
+A quote can also sell the invitation editor (`objet: "INVITATION"`, no session, no deposit): the client
+requests it, then accepts and pays it through the same flow. See `modules/invitations/README.md`.
+
 "Generate with AI" reuses the latest accepted quote for the same event type,
 falling back to the session's agreed or pack price. The late-payment risk is a
 heuristic from the client's payment history.

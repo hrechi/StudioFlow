@@ -10,6 +10,7 @@ import {
   Images,
   Layers,
   ListChecks,
+  Mail,
   Tags,
   LayoutDashboard,
   MapPin,
@@ -108,6 +109,12 @@ export const BACKOFFICE_NAV: NavGroup[] = [
         icon: Receipt,
         area: "facturation",
       },
+      {
+        label: "Invitations",
+        href: "/dashboard/facturation/invitations",
+        icon: Mail,
+        area: "facturation",
+      },
     ],
   },
   {
@@ -183,6 +190,7 @@ export const SEGMENT_LABELS: Record<string, string> = {
   facturation: "Billing",
   devis: "Quotes",
   factures: "Invoices",
+  invitations: "Invitations",
   portfolio: "Portfolio",
   avis: "Reviews",
   reclamations: "Complaints",

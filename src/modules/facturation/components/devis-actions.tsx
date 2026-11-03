@@ -74,12 +74,14 @@ export function DevisActions({ devis }: { devis: Devis }) {
     <div className="flex flex-wrap gap-2">
       {devis.statut === "BROUILLON" && (
         <>
-          <Button variant="outline" asChild>
-            <Link href={`/dashboard/facturation/devis/${devis.id}/modifier`}>
-              <FilePen aria-hidden />
-              Edit
-            </Link>
-          </Button>
+          {devis.objet !== "INVITATION" && (
+            <Button variant="outline" asChild>
+              <Link href={`/dashboard/facturation/devis/${devis.id}/modifier`}>
+                <FilePen aria-hidden />
+                Edit
+              </Link>
+            </Button>
+          )}
           <Button onClick={() => commands.send(devis)} disabled={!!commands.pending}>
             {spinner("send", Send)}
             Send to client
@@ -104,10 +106,12 @@ export function DevisActions({ devis }: { devis: Devis }) {
           PDF
         </a>
       </Button>
-      <Button variant="outline" onClick={() => commands.duplicate(devis)} disabled={!!commands.pending}>
-        {spinner("duplicate", Copy)}
-        Duplicate
-      </Button>
+      {devis.objet !== "INVITATION" && (
+        <Button variant="outline" onClick={() => commands.duplicate(devis)} disabled={!!commands.pending}>
+          {spinner("duplicate", Copy)}
+          Duplicate
+        </Button>
+      )}
       {devis.factures.length === 0 && (
         <Button variant="ghost" onClick={() => setConfirmDelete(true)} disabled={!!commands.pending}>
           <Trash2 aria-hidden />

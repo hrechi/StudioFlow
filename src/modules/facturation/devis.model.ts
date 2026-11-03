@@ -1,6 +1,7 @@
 import { Schema, Types, model, models, type Model } from "mongoose";
 import {
   MODES_PAIEMENT,
+  OBJETS_DEVIS,
   PLANS_PAIEMENT,
   STATUTS_DECLARATION,
   STATUTS_DEVIS,
@@ -134,8 +135,10 @@ export interface IFacture {
 
 export interface IDevis {
   numero: string;
+  objet: (typeof OBJETS_DEVIS)[number];
   client: Types.ObjectId;
-  seance: Types.ObjectId;
+  /** Absent when the quote sells the invitation editor. */
+  seance?: Types.ObjectId;
   clientSnapshot: { nom: string; email: string };
   seanceSnapshot: { titre: string; type?: string; date?: Date };
   lignes: Array<{ designation: string; quantite: number; prixUnitaireHT: number }>;
@@ -167,8 +170,9 @@ export interface IDevis {
 
 const devisSchema = new Schema<IDevis>({
   numero: { type: String, required: true, unique: true, match: /^DEV-\d{4}-\d{4}$/ },
+  objet: { type: String, enum: OBJETS_DEVIS, default: "SEANCE", required: true },
   client: { type: Schema.Types.ObjectId, ref: "utilisateurs", required: true, index: true },
-  seance: { type: Schema.Types.ObjectId, ref: "seances", required: true },
+  seance: { type: Schema.Types.ObjectId, ref: "seances", required: function (this: IDevis) { return this.objet !== "INVITATION"; } },
   clientSnapshot: { nom: { type: String, required: true }, email: { type: String, required: true } },
   // `type` must be wrapped: a bare `type: String` key would make Mongoose treat the whole snapshot as a String.
   seanceSnapshot: { titre: { type: String, required: true }, type: { type: String }, date: Date },
@@ -199,5 +203,7 @@ const devisSchema = new Schema<IDevis>({
 
 devisSchema.index({ client: 1, statut: 1 });
 devisSchema.index({ "factures.paiementsEnLigne.ref": 1 });
+// One open invitation quote per client: a double click cannot end up in two invoices.
+devisSchema.index({ client: 1 }, { unique: true, partialFilterExpression: { objet: "INVITATION", statut: "ENVOYE" }, name: "un_devis_invitation_ouvert" });
 
 export const Devis: Model<IDevis> = (models.Devis as Model<IDevis> | undefined) ?? model<IDevis>("Devis", devisSchema);

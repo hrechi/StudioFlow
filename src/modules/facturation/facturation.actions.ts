@@ -43,6 +43,8 @@ function revalidateBilling(devisId?: string) {
   revalidatePath("/dashboard/facturation/factures");
   revalidatePath("/espace-client/factures");
   revalidatePath("/espace-client");
+  revalidatePath("/espace-client/invitations");
+  revalidatePath("/dashboard/facturation/invitations");
 }
 
 export async function createDevisAction(input: unknown): Promise<ActionResult<{ id: string }>> {

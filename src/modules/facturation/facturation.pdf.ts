@@ -168,7 +168,7 @@ function parties(w: Writer, devis: Devis, meta: [string, string][]) {
   w.text(`${devis.client.prenom} ${devis.client.nom}`.trim(), right, { bold: true, size: 11, color: C.ink });
   w.y -= 13;
   w.text(STUDIO.adresse, M, { size: 8.5 });
-  w.text(`Session: ${devis.seance.titre}`, right, { size: 8.5 });
+  w.text(devis.objet === "INVITATION" ? devis.seance.titre : `Session: ${devis.seance.titre}`, right, { size: 8.5 });
   w.y -= 11;
   w.text(STUDIO.contact, M, { size: 8.5 });
   if (devis.seance.date) w.text(`Session date: ${date(devis.seance.date)}`, right, { size: 8.5 });

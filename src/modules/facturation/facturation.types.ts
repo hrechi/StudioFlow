@@ -9,6 +9,10 @@ import type { UtilisateurRef } from "@/modules/utilisateurs/utilisateur.types";
 export const STATUTS_DEVIS = ["BROUILLON", "ENVOYE", "ACCEPTE", "REFUSE", "EXPIRE"] as const;
 export type StatutDevis = (typeof STATUTS_DEVIS)[number];
 
+/** What a quote sells: a session (the default), or the invitation editor (no session behind it). */
+export const OBJETS_DEVIS = ["SEANCE", "INVITATION"] as const;
+export type ObjetDevis = (typeof OBJETS_DEVIS)[number];
+
 export const TYPES_FACTURE = ["ACOMPTE", "SOLDE"] as const;
 export type TypeFacture = (typeof TYPES_FACTURE)[number];
 
@@ -149,6 +153,8 @@ export type FactureAvecContexte = Facture & {
 /** Collection `devis`. */
 export type Devis = {
   id: string;
+  /** Absent = a session quote. */
+  objet?: ObjetDevis;
   numero: string;
   dateEmission: string;
   dateValidite: string;

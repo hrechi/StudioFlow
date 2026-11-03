@@ -5,6 +5,7 @@ import {
   ExternalLink,
   Home,
   Images,
+  Mail,
   Menu,
   MessageSquareHeart,
   Receipt,
@@ -28,6 +29,7 @@ const CLIENT_NAV = [
   { label: "My sessions", href: "/espace-client/seances", icon: CalendarDays },
   { label: "My galleries", href: "/espace-client/galeries", icon: Images },
   { label: "Quotes & invoices", href: "/espace-client/factures", icon: Receipt },
+  { label: "Invitations", href: "/espace-client/invitations", icon: Mail },
   { label: "Reviews & complaints", href: "/espace-client/avis", icon: MessageSquareHeart },
   { label: "Profile", href: "/espace-client/profil", icon: UserRound },
 ];
@@ -75,8 +77,8 @@ export function ClientShell({
                       href={item.href}
                       aria-current={active ? "page" : undefined}
                       className={cn(
-                        "relative px-3 py-2 font-heading text-[0.66rem] font-medium tracking-[0.22em] uppercase transition-colors",
-                        "after:absolute after:inset-x-3 after:bottom-0 after:h-px after:origin-left after:bg-gold after:transition-transform after:duration-500",
+                        "relative px-2.5 py-2 font-heading text-[0.66rem] font-medium tracking-[0.16em] whitespace-nowrap uppercase transition-colors",
+                        "after:absolute after:inset-x-2.5 after:bottom-0 after:h-px after:origin-left after:bg-gold after:transition-transform after:duration-500",
                         active
                           ? "text-foreground after:scale-x-100"
                           : "text-foreground/60 after:scale-x-0 hover:text-foreground",

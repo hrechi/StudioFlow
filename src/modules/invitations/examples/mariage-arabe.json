@@ -1,0 +1,9 @@
+{
+  "size": { "width": 500, "height": 500 },
+  "background": { "color": "#f6f1e4" },
+  "details": { "nomA": "سارة", "nomB": "آدم", "date": "2027-07-03", "heure": "20:30", "lieu": "قصر الياسمين، تونس", "message": "يتشرفان بدعوتكم لحضور حفل زفافهما.", "langue": "ar" },
+  "elements": [
+    { "id": "coeur", "type": "shape", "shape": "heart", "x": 225, "y": 40, "width": 50, "height": 50, "rotation": 0, "layer": 1, "style": { "fill": "#2f5d50", "stroke": null, "strokeWidth": 0, "opacity": 1 } },
+    { "id": "noms", "type": "text", "text": "سارة & آدم", "linkedTo": "noms", "x": 60, "y": 120, "width": 380, "height": 70, "rotation": 0, "layer": 2, "style": { "fontFamily": "Amiri", "fontSize": 44, "color": "#2f5d50", "align": "center", "opacity": 1, "bold": true, "italic": false, "letterSpacing": 0 } }
+  ]
+}

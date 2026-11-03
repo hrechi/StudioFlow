@@ -131,9 +131,11 @@ export function DevisList({ devis }: { devis: Devis[] }) {
                         </DropdownMenuItem>
                         {d.statut === "BROUILLON" && (
                           <>
-                            <DropdownMenuItem asChild>
-                              <Link href={`/dashboard/facturation/devis/${d.id}/modifier`}>Edit</Link>
-                            </DropdownMenuItem>
+                            {d.objet !== "INVITATION" && (
+                              <DropdownMenuItem asChild>
+                                <Link href={`/dashboard/facturation/devis/${d.id}/modifier`}>Edit</Link>
+                              </DropdownMenuItem>
+                            )}
                             <DropdownMenuItem onSelect={() => commands.send(d)}>
                               Send to client
                             </DropdownMenuItem>
@@ -144,9 +146,11 @@ export function DevisList({ devis }: { devis: Devis[] }) {
                             Back to draft
                           </DropdownMenuItem>
                         )}
-                        <DropdownMenuItem onSelect={() => commands.duplicate(d)}>
-                          Duplicate
-                        </DropdownMenuItem>
+                        {d.objet !== "INVITATION" && (
+                          <DropdownMenuItem onSelect={() => commands.duplicate(d)}>
+                            Duplicate
+                          </DropdownMenuItem>
+                        )}
                         <DropdownMenuItem asChild>
                           <a href={pdfHref(d.id)} download>
                             Download PDF
