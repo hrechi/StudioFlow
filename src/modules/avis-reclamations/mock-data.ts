@@ -113,6 +113,9 @@ export const RECLAMATIONS: Reclamation[] = [
     dateCreation: inDays(0, 9, 12),
     client: omar,
     seance: { id: "seance-x5", titre: "Haddad family portrait (2025)" },
+    messages: [],
+    nombreReouvertures: 0,
+    peutRouvrir: false,
   },
   {
     id: "rec-2",
@@ -126,6 +129,9 @@ export const RECLAMATIONS: Reclamation[] = [
     client: medina,
     seance: { id: "seance-2", titre: "Corporate portraits — Atelier Médina" },
     traitePar: { id: "u-admin", prenom: "Admin", nom: "ReFrame" },
+    messages: [],
+    nombreReouvertures: 0,
+    peutRouvrir: false,
   },
   {
     id: "rec-3",
@@ -140,6 +146,9 @@ export const RECLAMATIONS: Reclamation[] = [
     client: nour,
     seance: { id: "seance-x3", titre: "Nour Cosmetics party 2025" },
     traitePar: MOCK_PHOTOGRAPHES[3],
+    messages: [],
+    nombreReouvertures: 0,
+    peutRouvrir: false,
   },
   {
     id: "rec-4",
@@ -155,6 +164,9 @@ export const RECLAMATIONS: Reclamation[] = [
     client: omar,
     seance: { id: "seance-x5", titre: "Haddad family portrait (2025)" },
     traitePar: MOCK_PHOTOGRAPHES[1],
+    messages: [],
+    nombreReouvertures: 0,
+    peutRouvrir: false,
   },
   {
     id: "rec-5",
@@ -169,6 +181,9 @@ export const RECLAMATIONS: Reclamation[] = [
     dateResolution: inDays(-24),
     client: sarra,
     seance: { id: "seance-8", titre: "Sarra maternity session" },
+    messages: [],
+    nombreReouvertures: 0,
+    peutRouvrir: false,
   },
   {
     id: "rec-6",
@@ -181,6 +196,9 @@ export const RECLAMATIONS: Reclamation[] = [
     dateCreation: inDays(-2),
     client: sarra,
     seance: { id: "seance-8", titre: "Sarra maternity session" },
+    messages: [],
+    nombreReouvertures: 0,
+    peutRouvrir: false,
   },
 ];
 

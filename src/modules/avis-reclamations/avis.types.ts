@@ -4,7 +4,7 @@
  * Enums marked "proposé" are not in cahier §4.4: confirm them before creating the models.
  */
 import type { StatusConfig } from "@/components/shared/status-badge";
-import type { UtilisateurRef } from "@/modules/utilisateurs/utilisateur.types";
+import type { Role, UtilisateurRef } from "@/modules/utilisateurs/utilisateur.types";
 
 export const SENTIMENTS = ["POSITIF", "NEUTRE", "NEGATIF"] as const;
 export type Sentiment = (typeof SENTIMENTS)[number];
@@ -64,6 +64,39 @@ export type Avis = {
   seance: { id: string; titre: string; type: string };
 };
 
+/** Days during which the client may reopen a resolved complaint. */
+export const REOPEN_DAYS = 7;
+
+/** Thread events rendered as a centered line instead of a bubble. */
+export const EVENEMENTS_RECLAMATION = [
+  "REOUVERTURE",
+  "SATISFAIT",
+  "INSATISFAIT",
+  "ESCALADE",
+] as const;
+export type EvenementReclamation = (typeof EVENEMENTS_RECLAMATION)[number];
+
+/** One bubble of the conversation under a complaint (embedded in `reclamations`). */
+export type ReclamationMessage = {
+  id: string;
+  auteur: UtilisateurRef;
+  auteurRole: Role;
+  contenu: string;
+  dateEnvoi: string;
+  evenement?: EvenementReclamation;
+  /** AI sentiment of a client message — staff view only. */
+  sentimentIA?: Sentiment;
+};
+
+/** AI digest of a complaint conversation — staff view only. */
+export type ResumeReclamation = {
+  demande: string; // what the client asked for
+  engagements: string; // what the studio promised
+  enSuspens: string; // what is still open
+  dateGeneration: string;
+  nbMessages: number; // thread length it was generated from (cache key)
+};
+
 /** Collection `reclamations`. */
 export type Reclamation = {
   id: string;
@@ -79,6 +112,23 @@ export type Reclamation = {
   client: UtilisateurRef;
   seance: { id: string; titre: string };
   traitePar?: UtilisateurRef;
+  messages: ReclamationMessage[];
+  /** Client's verdict once resolved (null until they answer). */
+  satisfaction?: { satisfait: boolean; date: string };
+  nombreReouvertures: number;
+  /** Resolved less than REOPEN_DAYS ago — the client may still reopen it. */
+  peutRouvrir: boolean;
+  /** Set when the AI sees the client getting angrier — staff view only. */
+  escaladeIA?: string;
+  resumeIA?: ResumeReclamation;
+};
+
+/** Complaint KPIs for /dashboard/reclamations. */
+export type ReclamationStats = {
+  satisfactionRate: number | null; // 0–1, null while nobody has rated
+  rated: number;
+  satisfied: number;
+  reopened: number;
 };
 
 export type AvisListResult = {

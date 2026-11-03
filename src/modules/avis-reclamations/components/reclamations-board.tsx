@@ -1,6 +1,17 @@
 "use client";
 
-import { Ban, CheckCircle2, Hand, Inbox, Send, Sparkles } from "lucide-react";
+import {
+  Ban,
+  CheckCircle2,
+  Hand,
+  Inbox,
+  RotateCcw,
+  ScrollText,
+  Sparkles,
+  ThumbsDown,
+  ThumbsUp,
+  TriangleAlert,
+} from "lucide-react";
 import { useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -16,7 +27,6 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { Textarea } from "@/components/ui/textarea";
 import { fullName } from "@/lib/mock-data-helpers";
 import { cn, formatDateTime, formatRelative } from "@/lib/utils";
 import {
@@ -25,13 +35,19 @@ import {
   statutReclamationConfig,
   type Priorite,
   type Reclamation,
+  type ResumeReclamation,
   type StatutReclamation,
 } from "../avis.types";
-import { generateFeedbackReplyAction, updateReclamationAction } from "../avis.actions";
+import {
+  generateFeedbackReplyAction,
+  summarizeReclamationAction,
+  updateReclamationAction,
+} from "../avis.actions";
+import { ReclamationThread } from "./reclamation-thread";
 
 const PRIORITY_ORDER: Record<Priorite, number> = { URGENTE: 0, HAUTE: 1, MOYENNE: 2, BASSE: 3 };
 
-/** /dashboard/reclamations — complaints table + detail drawer (take charge / answer / resolve / reject). */
+/** /dashboard/reclamations — complaints table + detail drawer (take charge / chat with the client / resolve / reject). */
 export function ReclamationsBoard({ reclamations }: { reclamations: Reclamation[] }) {
   const [items, setItems] = useState(reclamations);
   const [statut, setStatut] = useState<StatutReclamation | typeof ALL>(ALL);
@@ -53,6 +69,17 @@ export function ReclamationsBoard({ reclamations }: { reclamations: Reclamation[
     [items, statut, priorite],
   );
   const current = items.find((r) => r.id === openId) ?? null;
+
+  const changeStatut = (id: string, next: StatutReclamation, done: string) =>
+    startTransition(async () => {
+      const result = await updateReclamationAction({ id, statut: next });
+      if (!result.ok) {
+        toast.error(result.error);
+        return;
+      }
+      setItems((prev) => prev.map((item) => (item.id === id ? { ...item, statut: next } : item)));
+      toast.success(done);
+    });
   const closed = current && (current.statut === "RESOLUE" || current.statut === "REJETEE");
 
   return (
@@ -108,7 +135,7 @@ export function ReclamationsBoard({ reclamations }: { reclamations: Reclamation[
                       type="button"
                       onClick={() => {
                         setOpenId(r.id);
-                        setReponse(r.reponse ?? "");
+                        setReponse("");
                       }}
                       className="text-left font-semibold text-foreground hover:text-primary-text hover:underline"
                     >
@@ -134,7 +161,15 @@ export function ReclamationsBoard({ reclamations }: { reclamations: Reclamation[
                     </span>
                   </td>
                   <td className="px-4 py-3">
-                    <StatusBadge value={r.priorite} config={prioriteConfig} />
+                    <span className="inline-flex items-center gap-1.5">
+                      <StatusBadge value={r.priorite} config={prioriteConfig} />
+                      {r.escaladeIA && r.statut !== "RESOLUE" && r.statut !== "REJETEE" && (
+                        <TriangleAlert
+                          className="size-4 text-ai"
+                          aria-label="AI: client frustration rising"
+                        />
+                      )}
+                    </span>
                   </td>
                   <td className="px-4 py-3">
                     <StatusBadge value={r.statut} config={statutReclamationConfig} />
@@ -173,9 +208,6 @@ export function ReclamationsBoard({ reclamations }: { reclamations: Reclamation[
                     <p className="text-xs text-muted-foreground">Client</p>
                   </div>
                 </div>
-                <p className="rounded-lg bg-surface p-4 text-sm leading-relaxed text-slate">
-                  {current.description}
-                </p>
 
                 <div className="rounded-lg bg-ai-soft p-3 text-sm ring-1 ring-ai/20">
                   <p className="flex items-center gap-1.5 font-semibold text-ai-text">
@@ -190,20 +222,55 @@ export function ReclamationsBoard({ reclamations }: { reclamations: Reclamation[
                     . Suggested priority:{" "}
                     <strong>{prioriteConfig[current.priorite].label.toLowerCase()}</strong>.
                   </p>
+                  {current.escaladeIA && (
+                    <p className="mt-2 flex items-center gap-1.5 font-medium text-ai-text">
+                      <TriangleAlert className="size-4" aria-hidden />
+                      Frustration rising — flagged {formatRelative(current.escaladeIA)}
+                    </p>
+                  )}
                 </div>
 
-                {current.traitePar && (
-                  <p className="text-sm text-muted-foreground">
-                    Handled by{" "}
-                    <span className="font-medium text-slate">{fullName(current.traitePar)}</span>
-                  </p>
+                <ThreadSummary
+                  reclamation={current}
+                  onSummary={(resumeIA) =>
+                    setItems((prev) =>
+                      prev.map((item) => (item.id === current.id ? { ...item, resumeIA } : item)),
+                    )
+                  }
+                />
+
+                {(current.traitePar || current.satisfaction || current.nombreReouvertures > 0) && (
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
+                    {current.traitePar && (
+                      <p>
+                        Handled by{" "}
+                        <span className="font-medium text-slate">
+                          {fullName(current.traitePar)}
+                        </span>
+                      </p>
+                    )}
+                    {current.satisfaction && (
+                      <p className="flex items-center gap-1">
+                        {current.satisfaction.satisfait ? (
+                          <ThumbsUp className="size-4 text-success" aria-hidden />
+                        ) : (
+                          <ThumbsDown className="size-4 text-destructive" aria-hidden />
+                        )}
+                        Client {current.satisfaction.satisfait ? "satisfied" : "not satisfied"}
+                      </p>
+                    )}
+                    {current.nombreReouvertures > 0 && (
+                      <p className="flex items-center gap-1">
+                        <RotateCcw className="size-4" aria-hidden />
+                        Reopened {current.nombreReouvertures}×
+                      </p>
+                    )}
+                  </div>
                 )}
 
                 <div className="space-y-2">
                   <div className="flex items-center justify-between gap-2">
-                    <label htmlFor="reponse-reclamation" className="text-sm font-medium text-slate">
-                      Reply to the client
-                    </label>
+                    <p className="text-sm font-medium text-slate">Conversation with the client</p>
                     {!closed && (
                       <Button
                         variant="ai-soft"
@@ -229,14 +296,25 @@ export function ReclamationsBoard({ reclamations }: { reclamations: Reclamation[
                       </Button>
                     )}
                   </div>
-                  <Textarea
-                    id="reponse-reclamation"
-                    rows={6}
-                    value={reponse}
-                    onChange={(e) => setReponse(e.target.value)}
-                    disabled={!!closed}
-                    placeholder="Explain the solution offered to the client…"
-                    className="bg-card"
+                  <ReclamationThread
+                    reclamation={current}
+                    viewer="staff"
+                    draft={reponse}
+                    onDraftChange={setReponse}
+                    onSent={(message) =>
+                      setItems((prev) =>
+                        prev.map((item) =>
+                          item.id === current.id
+                            ? {
+                                ...item,
+                                messages: [...item.messages, message],
+                                reponse: message.contenu,
+                                statut: item.statut === "OUVERTE" ? "EN_COURS" : item.statut,
+                              }
+                            : item,
+                        ),
+                      )
+                    }
                   />
                 </div>
 
@@ -246,30 +324,9 @@ export function ReclamationsBoard({ reclamations }: { reclamations: Reclamation[
                       <Button
                         variant="outline"
                         className="col-span-2"
+                        disabled={isPending}
                         onClick={() =>
-                          startTransition(async () => {
-                            const result = await updateReclamationAction({
-                              id: current.id,
-                              statut: "EN_COURS",
-                              reponse,
-                            });
-                            if (!result.ok) {
-                              toast.error(result.error);
-                              return;
-                            }
-                            setItems((prev) =>
-                              prev.map((item) =>
-                                item.id === current.id
-                                  ? {
-                                      ...item,
-                                      statut: "EN_COURS",
-                                      reponse: reponse.trim() || item.reponse,
-                                    }
-                                  : item,
-                              ),
-                            );
-                            toast.success("Complaint taken in charge");
-                          })
+                          changeStatut(current.id, "EN_COURS", "Complaint taken in charge")
                         }
                       >
                         <Hand aria-hidden />
@@ -277,96 +334,16 @@ export function ReclamationsBoard({ reclamations }: { reclamations: Reclamation[
                       </Button>
                     )}
                     <Button
-                      variant="outline"
-                      className="col-span-2"
-                      disabled={!reponse.trim() || isPending}
-                      onClick={() =>
-                        startTransition(async () => {
-                          const result = await updateReclamationAction({
-                            id: current.id,
-                            statut: current.statut === "OUVERTE" ? "EN_COURS" : current.statut,
-                            reponse,
-                          });
-                          if (!result.ok) {
-                            toast.error(result.error);
-                            return;
-                          }
-                          setItems((prev) =>
-                            prev.map((item) =>
-                              item.id === current.id
-                                ? {
-                                    ...item,
-                                    reponse: reponse.trim(),
-                                    statut: item.statut === "OUVERTE" ? "EN_COURS" : item.statut,
-                                  }
-                                : item,
-                            ),
-                          );
-                          toast.success("Reply sent");
-                        })
-                      }
-                    >
-                      <Send aria-hidden />
-                      Send reply
-                    </Button>
-                    <Button
-                      onClick={() =>
-                        startTransition(async () => {
-                          const result = await updateReclamationAction({
-                            id: current.id,
-                            statut: "RESOLUE",
-                            reponse,
-                          });
-                          if (!result.ok) {
-                            toast.error(result.error);
-                            return;
-                          }
-                          setItems((prev) =>
-                            prev.map((item) =>
-                              item.id === current.id
-                                ? {
-                                    ...item,
-                                    statut: "RESOLUE",
-                                    reponse: reponse.trim() || item.reponse,
-                                  }
-                                : item,
-                            ),
-                          );
-                          toast.success("Complaint resolved");
-                        })
-                      }
-                      disabled={!reponse.trim() || isPending}
+                      disabled={isPending}
+                      onClick={() => changeStatut(current.id, "RESOLUE", "Complaint resolved")}
                     >
                       <CheckCircle2 aria-hidden />
                       Resolve
                     </Button>
                     <Button
                       variant="destructive-soft"
-                      onClick={() =>
-                        startTransition(async () => {
-                          const result = await updateReclamationAction({
-                            id: current.id,
-                            statut: "REJETEE",
-                            reponse,
-                          });
-                          if (!result.ok) {
-                            toast.error(result.error);
-                            return;
-                          }
-                          setItems((prev) =>
-                            prev.map((item) =>
-                              item.id === current.id
-                                ? {
-                                    ...item,
-                                    statut: "REJETEE",
-                                    reponse: reponse.trim() || item.reponse,
-                                  }
-                                : item,
-                            ),
-                          );
-                          toast.success("Complaint rejected");
-                        })
-                      }
+                      disabled={isPending}
+                      onClick={() => changeStatut(current.id, "REJETEE", "Complaint rejected")}
                     >
                       <Ban aria-hidden />
                       Reject
@@ -379,5 +356,69 @@ export function ReclamationsBoard({ reclamations }: { reclamations: Reclamation[
         </SheetContent>
       </Sheet>
     </Card>
+  );
+}
+
+/** "Summarize" — AI digest (asked / promised / still open), cached until the thread grows. */
+function ThreadSummary({
+  reclamation: r,
+  onSummary,
+}: {
+  reclamation: Reclamation;
+  onSummary: (resume: ResumeReclamation) => void;
+}) {
+  const [isPending, startTransition] = useTransition();
+  const resume = r.resumeIA;
+  const stale = !!resume && resume.nbMessages < r.messages.length;
+
+  const summarize = () =>
+    startTransition(async () => {
+      const result = await summarizeReclamationAction({ id: r.id });
+      if (!result.ok) {
+        toast.error(result.error);
+        return;
+      }
+      onSummary(result.data);
+    });
+
+  return (
+    <div className="space-y-2 rounded-lg border p-3">
+      <div className="flex items-center justify-between gap-2">
+        <p className="flex items-center gap-1.5 text-sm font-medium text-slate">
+          <ScrollText className="size-4" aria-hidden />
+          Thread summary
+        </p>
+        {(!resume || stale) && (
+          <Button variant="ai-soft" size="sm" disabled={isPending} onClick={summarize}>
+            <Sparkles aria-hidden />
+            {resume ? "Refresh" : "Summarize"}
+          </Button>
+        )}
+      </div>
+      {resume ? (
+        <dl className={cn("grid gap-1.5 text-sm", stale && "opacity-60")}>
+          {(
+            [
+              ["Asked", resume.demande],
+              ["Promised", resume.engagements],
+              ["Still open", resume.enSuspens],
+            ] as const
+          ).map(([label, text]) => (
+            <div key={label} className="grid grid-cols-[5.5rem_1fr] gap-2">
+              <dt className="font-medium text-foreground">{label}</dt>
+              <dd className="text-slate">{text}</dd>
+            </div>
+          ))}
+          <p className="text-xs text-muted-foreground">
+            {stale ? "New messages since this summary · " : ""}Generated{" "}
+            {formatRelative(resume.dateGeneration)}
+          </p>
+        </dl>
+      ) : (
+        <p className="text-xs text-muted-foreground">
+          What was asked, what was promised and what is still open — in three lines.
+        </p>
+      )}
+    </div>
   );
 }

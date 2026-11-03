@@ -1,6 +1,6 @@
 "use client";
 
-import { Loader2, Pencil, Save, Trash2, X } from "lucide-react";
+import { Loader2, MessagesSquare, Pencil, Save, Trash2, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition, type ReactNode } from "react";
 import { toast } from "sonner";
@@ -33,6 +33,7 @@ import {
   type CategorieReclamation,
   type Reclamation,
 } from "../avis.types";
+import { ReclamationThread } from "./reclamation-thread";
 
 /** Edit / Delete buttons shared by both item types. */
 function ItemActions({
@@ -232,6 +233,7 @@ export function MyComplaintItem({
 }) {
   const [editing, setEditing] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [threadOpen, setThreadOpen] = useState(false);
   const [objet, setObjet] = useState(r.objet);
   const [description, setDescription] = useState(r.description);
   const [categorie, setCategorie] = useState<CategorieReclamation>(r.categorie);
@@ -258,10 +260,17 @@ export function MyComplaintItem({
             {formatDate(r.dateCreation)}
           </p>
           {!editing && <p className="mt-2 text-sm text-slate">{r.description}</p>}
-          {r.reponse && (
-            <p className="mt-2 rounded-lg bg-surface p-2.5 text-sm text-slate">
-              Studio: {r.reponse}
-            </p>
+          {!editing && (
+            <button
+              type="button"
+              onClick={() => setThreadOpen((open) => !open)}
+              aria-expanded={threadOpen}
+              className="mt-2 inline-flex items-center gap-1.5 text-sm font-medium text-primary-text hover:underline"
+            >
+              <MessagesSquare className="size-4" aria-hidden />
+              {threadOpen ? "Hide conversation" : "Conversation"}
+              {r.messages.length > 0 && ` (${r.messages.length})`}
+            </button>
           )}
         </div>
         {!editing && (
@@ -274,6 +283,11 @@ export function MyComplaintItem({
           />
         )}
       </div>
+
+      {threadOpen && !editing && (
+        // The action revalidates this page, so new bubbles arrive via props.
+        <ReclamationThread reclamation={r} viewer="client" />
+      )}
 
       {editing && (
         <form
