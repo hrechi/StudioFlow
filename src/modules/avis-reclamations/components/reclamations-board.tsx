@@ -1,6 +1,17 @@
 "use client";
 
-import { Ban, CheckCircle2, Hand, Inbox, Sparkles } from "lucide-react";
+import {
+  Ban,
+  CheckCircle2,
+  Hand,
+  Inbox,
+  RotateCcw,
+  ScrollText,
+  Sparkles,
+  ThumbsDown,
+  ThumbsUp,
+  TriangleAlert,
+} from "lucide-react";
 import { useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -24,9 +35,14 @@ import {
   statutReclamationConfig,
   type Priorite,
   type Reclamation,
+  type ResumeReclamation,
   type StatutReclamation,
 } from "../avis.types";
-import { generateFeedbackReplyAction, updateReclamationAction } from "../avis.actions";
+import {
+  generateFeedbackReplyAction,
+  summarizeReclamationAction,
+  updateReclamationAction,
+} from "../avis.actions";
 import { ReclamationThread } from "./reclamation-thread";
 
 const PRIORITY_ORDER: Record<Priorite, number> = { URGENTE: 0, HAUTE: 1, MOYENNE: 2, BASSE: 3 };
@@ -145,7 +161,15 @@ export function ReclamationsBoard({ reclamations }: { reclamations: Reclamation[
                     </span>
                   </td>
                   <td className="px-4 py-3">
-                    <StatusBadge value={r.priorite} config={prioriteConfig} />
+                    <span className="inline-flex items-center gap-1.5">
+                      <StatusBadge value={r.priorite} config={prioriteConfig} />
+                      {r.escaladeIA && r.statut !== "RESOLUE" && r.statut !== "REJETEE" && (
+                        <TriangleAlert
+                          className="size-4 text-ai"
+                          aria-label="AI: client frustration rising"
+                        />
+                      )}
+                    </span>
                   </td>
                   <td className="px-4 py-3">
                     <StatusBadge value={r.statut} config={statutReclamationConfig} />
@@ -198,13 +222,50 @@ export function ReclamationsBoard({ reclamations }: { reclamations: Reclamation[
                     . Suggested priority:{" "}
                     <strong>{prioriteConfig[current.priorite].label.toLowerCase()}</strong>.
                   </p>
+                  {current.escaladeIA && (
+                    <p className="mt-2 flex items-center gap-1.5 font-medium text-ai-text">
+                      <TriangleAlert className="size-4" aria-hidden />
+                      Frustration rising — flagged {formatRelative(current.escaladeIA)}
+                    </p>
+                  )}
                 </div>
 
-                {current.traitePar && (
-                  <p className="text-sm text-muted-foreground">
-                    Handled by{" "}
-                    <span className="font-medium text-slate">{fullName(current.traitePar)}</span>
-                  </p>
+                <ThreadSummary
+                  reclamation={current}
+                  onSummary={(resumeIA) =>
+                    setItems((prev) =>
+                      prev.map((item) => (item.id === current.id ? { ...item, resumeIA } : item)),
+                    )
+                  }
+                />
+
+                {(current.traitePar || current.satisfaction || current.nombreReouvertures > 0) && (
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
+                    {current.traitePar && (
+                      <p>
+                        Handled by{" "}
+                        <span className="font-medium text-slate">
+                          {fullName(current.traitePar)}
+                        </span>
+                      </p>
+                    )}
+                    {current.satisfaction && (
+                      <p className="flex items-center gap-1">
+                        {current.satisfaction.satisfait ? (
+                          <ThumbsUp className="size-4 text-success" aria-hidden />
+                        ) : (
+                          <ThumbsDown className="size-4 text-destructive" aria-hidden />
+                        )}
+                        Client {current.satisfaction.satisfait ? "satisfied" : "not satisfied"}
+                      </p>
+                    )}
+                    {current.nombreReouvertures > 0 && (
+                      <p className="flex items-center gap-1">
+                        <RotateCcw className="size-4" aria-hidden />
+                        Reopened {current.nombreReouvertures}×
+                      </p>
+                    )}
+                  </div>
                 )}
 
                 <div className="space-y-2">
@@ -295,5 +356,69 @@ export function ReclamationsBoard({ reclamations }: { reclamations: Reclamation[
         </SheetContent>
       </Sheet>
     </Card>
+  );
+}
+
+/** "Summarize" — AI digest (asked / promised / still open), cached until the thread grows. */
+function ThreadSummary({
+  reclamation: r,
+  onSummary,
+}: {
+  reclamation: Reclamation;
+  onSummary: (resume: ResumeReclamation) => void;
+}) {
+  const [isPending, startTransition] = useTransition();
+  const resume = r.resumeIA;
+  const stale = !!resume && resume.nbMessages < r.messages.length;
+
+  const summarize = () =>
+    startTransition(async () => {
+      const result = await summarizeReclamationAction({ id: r.id });
+      if (!result.ok) {
+        toast.error(result.error);
+        return;
+      }
+      onSummary(result.data);
+    });
+
+  return (
+    <div className="space-y-2 rounded-lg border p-3">
+      <div className="flex items-center justify-between gap-2">
+        <p className="flex items-center gap-1.5 text-sm font-medium text-slate">
+          <ScrollText className="size-4" aria-hidden />
+          Thread summary
+        </p>
+        {(!resume || stale) && (
+          <Button variant="ai-soft" size="sm" disabled={isPending} onClick={summarize}>
+            <Sparkles aria-hidden />
+            {resume ? "Refresh" : "Summarize"}
+          </Button>
+        )}
+      </div>
+      {resume ? (
+        <dl className={cn("grid gap-1.5 text-sm", stale && "opacity-60")}>
+          {(
+            [
+              ["Asked", resume.demande],
+              ["Promised", resume.engagements],
+              ["Still open", resume.enSuspens],
+            ] as const
+          ).map(([label, text]) => (
+            <div key={label} className="grid grid-cols-[5.5rem_1fr] gap-2">
+              <dt className="font-medium text-foreground">{label}</dt>
+              <dd className="text-slate">{text}</dd>
+            </div>
+          ))}
+          <p className="text-xs text-muted-foreground">
+            {stale ? "New messages since this summary · " : ""}Generated{" "}
+            {formatRelative(resume.dateGeneration)}
+          </p>
+        </dl>
+      ) : (
+        <p className="text-xs text-muted-foreground">
+          What was asked, what was promised and what is still open — in three lines.
+        </p>
+      )}
+    </div>
   );
 }

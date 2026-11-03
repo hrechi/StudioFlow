@@ -5,17 +5,25 @@ import { ServiceError } from "@/lib/action-result";
 import { connectDB } from "@/lib/db";
 import { createNotification } from "@/modules/utilisateurs/notification.service";
 import { findUtilisateurRefs, listAdminRefs } from "@/modules/utilisateurs/utilisateur.service";
-import { analyzeComplaint, containsProfanity } from "./ai.service";
+import {
+  analyzeClientMessage,
+  analyzeComplaint,
+  containsProfanity,
+  summarizeComplaintThread,
+} from "./ai.service";
 import { Reclamation, type IReclamation } from "./reclamation.model";
 import type { CreateReclamationInput, UpdateOwnReclamationInput } from "./avis.schemas";
 import type { Role } from "@/modules/utilisateurs/utilisateur.types";
-import type {
-  CategorieReclamation,
-  Priorite,
-  Reclamation as ReclamationDTO,
-  ReclamationListResult,
-  ReclamationMessage,
-  StatutReclamation,
+import {
+  PRIORITES,
+  REOPEN_DAYS,
+  type CategorieReclamation,
+  type Priorite,
+  type Reclamation as ReclamationDTO,
+  type ReclamationListResult,
+  type ReclamationMessage,
+  type ResumeReclamation,
+  type StatutReclamation,
 } from "./avis.types";
 
 export const RECLAMATIONS_PAGE_SIZE = 12;
@@ -32,19 +40,27 @@ function isClosed(statut: StatutReclamation): boolean {
   return statut === "RESOLUE" || statut === "REJETEE";
 }
 
+/** Staff see the AI signals (sentiment, escalation, digest); the client never does. */
+type View = { staff: boolean };
+
 /** Thread shown under a complaint; a legacy single `reponse` becomes the studio's first bubble. */
 function threadOf(
   doc: ReclamationLean,
   refs: Map<string, ReclamationDTO["client"]>,
+  { staff }: View,
 ): ReclamationMessage[] {
   const ref = (id: string) => refs.get(id) ?? { id, ...DELETED_USER };
-  const messages = (doc.messages ?? []).map((m) => ({
-    id: m._id.toString(),
-    auteur: ref(m.auteur.toString()),
-    auteurRole: m.auteurRole,
-    contenu: m.contenu,
-    dateEnvoi: m.createdAt.toISOString(),
-  }));
+  const messages: ReclamationMessage[] = (doc.messages ?? [])
+    .filter((m) => staff || m.evenement !== "ESCALADE")
+    .map((m) => ({
+      id: m._id.toString(),
+      auteur: ref(m.auteur.toString()),
+      auteurRole: m.auteurRole,
+      contenu: m.contenu,
+      dateEnvoi: m.createdAt.toISOString(),
+      evenement: m.evenement,
+      sentimentIA: staff ? m.sentimentIA : undefined,
+    }));
   if (!messages.length && doc.reponse && doc.traitePar) {
     messages.push({
       id: `${doc._id.toString()}-reponse`,
@@ -57,7 +73,10 @@ function threadOf(
   return messages;
 }
 
-async function toDTOs(docs: ReclamationLean[]): Promise<ReclamationDTO[]> {
+async function toDTOs(
+  docs: ReclamationLean[],
+  view: View = { staff: true },
+): Promise<ReclamationDTO[]> {
   const ids = docs
     .flatMap((doc) => [
       doc.auteur.toString(),
@@ -80,8 +99,43 @@ async function toDTOs(docs: ReclamationLean[]): Promise<ReclamationDTO[]> {
     client: refs.get(doc.auteur.toString()) ?? { id: doc.auteur.toString(), ...DELETED_USER },
     seance: { id: doc.seance?.toString() ?? "", titre: doc.seanceTitre ?? "Studio session" },
     traitePar: doc.traitePar ? refs.get(doc.traitePar.toString()) : undefined,
-    messages: threadOf(doc, refs),
+    messages: threadOf(doc, refs, view),
+    satisfaction: doc.satisfaction && {
+      satisfait: doc.satisfaction.satisfait,
+      date: doc.satisfaction.date.toISOString(),
+    },
+    nombreReouvertures: doc.nombreReouvertures ?? 0,
+    peutRouvrir: doc.statut === "RESOLUE" && canReopen(doc.dateResolution),
+    escaladeIA: view.staff ? doc.escaladeIA?.toISOString() : undefined,
+    resumeIA: view.staff && doc.resumeIA ? resumeDTO(doc.resumeIA) : undefined,
   }));
+}
+
+function resumeDTO(resume: NonNullable<IReclamation["resumeIA"]>): ResumeReclamation {
+  return {
+    demande: resume.demande,
+    engagements: resume.engagements,
+    enSuspens: resume.enSuspens,
+    dateGeneration: resume.dateGeneration.toISOString(),
+    nbMessages: resume.nbMessages,
+  };
+}
+
+/** Plain-text conversation (description first) handed to the AI; events are skipped. */
+async function transcriptOf(doc: ReclamationLean, lastMessages = 20): Promise<string> {
+  const messages = (doc.messages ?? []).filter((m) => !m.evenement).slice(-lastMessages);
+  const refs = await findUtilisateurRefs([
+    doc.auteur.toString(),
+    ...messages.map((m) => m.auteur.toString()),
+  ]);
+  const who = (id: string, role: Role) =>
+    `${role === "CLIENT" ? "Client" : "Studio"} (${refs.get(id)?.prenom ?? "unknown"})`;
+  return [
+    `${who(doc.auteur.toString(), "CLIENT")}: ${doc.description}`,
+    ...messages.map(
+      (m) => `${who(m.auteur.toString(), m.auteurRole)}: ${m.contenu.slice(0, 1000)}`,
+    ),
+  ].join("\n\n");
 }
 
 export async function createReclamation(
@@ -228,7 +282,8 @@ export async function listReclamations({
     .limit(RECLAMATIONS_PAGE_SIZE)
     .lean<ReclamationLean[]>();
   return {
-    items: await toDTOs(docs),
+    // A client listing their own complaints gets the client view.
+    items: await toDTOs(docs, { staff: !auteurId }),
     total,
     page: safePage,
     pageCount,
@@ -336,20 +391,11 @@ export async function addReclamationMessage(
   );
 
   if (isClient) {
-    const recipient = complaint.traitePar?.toString();
-    const titre = "New message on a complaint";
-    const message = `The client replied about: ${complaint.objet}`;
-    if (recipient) {
-      await createNotification({
-        utilisateurId: recipient,
-        titre,
-        message,
-        type: "RECLAMATION",
-        lienCible: "/dashboard/reclamations",
-      });
-    } else {
-      await notifyAdmins(titre, message, "/dashboard/reclamations");
-    }
+    await notifyHandler(
+      complaint,
+      "New message on a complaint",
+      `The client replied about: ${complaint.objet}`,
+    );
   } else {
     await createNotification({
       utilisateurId: complaint.auteur.toString(),
@@ -372,17 +418,226 @@ export async function addReclamationMessage(
 
 export async function getReclamationReplyContext(id: string): Promise<string> {
   await connectDB();
-  const doc = await Reclamation.findById(objectId(id)).lean<
-    Pick<IReclamation, "auteur" | "objet" | "description" | "seanceTitre">
-  >();
+  const doc = await Reclamation.findById(objectId(id)).lean<ReclamationLean>();
   if (!doc) throw new ServiceError("Complaint not found.");
   const client = (await findUtilisateurRefs([doc.auteur.toString()])).get(doc.auteur.toString());
+  const hasThread = (doc.messages ?? []).some((m) => !m.evenement);
   return [
     `Client first name: ${client?.prenom ?? "unknown"}`,
     `Session: ${doc.seanceTitre ?? "studio session"}`,
     `Subject: ${doc.objet}`,
-    `Complaint:\n${doc.description}`,
+    hasThread
+      ? `Conversation so far (oldest first):\n${await transcriptOf(doc)}`
+      : `Complaint:\n${doc.description}`,
   ].join("\n");
+}
+
+/** AI digest of the thread, cached until a new message arrives. */
+export async function summarizeReclamation(id: string): Promise<ResumeReclamation> {
+  await connectDB();
+  const doc = await Reclamation.findById(objectId(id)).lean<ReclamationLean>();
+  if (!doc) throw new ServiceError("Complaint not found.");
+  const nbMessages = (doc.messages ?? []).length;
+  if (doc.resumeIA && doc.resumeIA.nbMessages === nbMessages) return resumeDTO(doc.resumeIA);
+  const summary = await summarizeComplaintThread(
+    `Subject: ${doc.objet}\nStatus: ${doc.statut}\n\n${await transcriptOf(doc)}`,
+  );
+  const resumeIA = {
+    demande: summary.asked,
+    engagements: summary.promised,
+    enSuspens: summary.open,
+    dateGeneration: new Date(),
+    nbMessages,
+  };
+  await Reclamation.updateOne({ _id: doc._id }, { $set: { resumeIA } });
+  return resumeDTO(resumeIA);
+}
+
+const ESCALATION_THRESHOLD = 0.8;
+const RISING_STEP = 0.15;
+
+/**
+ * Runs after a client message is saved (via `after()`): stores its AI sentiment and, when the
+ * client is clearly upset or getting angrier, raises the priority one step and alerts the staff.
+ * Best-effort — any AI failure leaves the thread untouched.
+ */
+export async function analyzeClientMessageInThread(id: string, messageId: string): Promise<void> {
+  await connectDB();
+  const doc = await Reclamation.findById(objectId(id)).lean<ReclamationLean>();
+  const index = doc?.messages.findIndex((m) => m._id.toString() === messageId) ?? -1;
+  if (!doc || index < 0) return;
+  const message = doc.messages[index];
+  const earlier = { ...doc, messages: doc.messages.slice(0, index) };
+
+  let analysis;
+  try {
+    analysis = await analyzeClientMessage(message.contenu, await transcriptOf(earlier, 10));
+  } catch {
+    return;
+  }
+
+  const previous = earlier.messages
+    .filter((m) => m.auteurRole === "CLIENT" && m.scoreFrustrationIA !== undefined)
+    .at(-1);
+  const rising =
+    previous?.scoreFrustrationIA !== undefined &&
+    analysis.frustration >= previous.scoreFrustrationIA + RISING_STEP;
+  const escalate =
+    analysis.sentiment === "NEGATIF" &&
+    (analysis.frustration >= ESCALATION_THRESHOLD || (rising && analysis.frustration >= 0.5));
+  const nextPriority =
+    PRIORITES[Math.min(PRIORITES.indexOf(doc.priorite) + 1, PRIORITES.length - 1)];
+  // Already urgent and already flagged: nothing new to tell the staff.
+  const shouldEscalate = escalate && !(nextPriority === doc.priorite && doc.escaladeIA);
+
+  await Reclamation.updateOne(
+    { _id: doc._id, "messages._id": message._id },
+    {
+      $set: {
+        "messages.$.sentimentIA": analysis.sentiment,
+        "messages.$.scoreFrustrationIA": analysis.frustration,
+        ...(shouldEscalate ? { priorite: nextPriority, escaladeIA: new Date() } : {}),
+      },
+    },
+  );
+  if (!shouldEscalate) return;
+
+  await Reclamation.updateOne(
+    { _id: doc._id },
+    {
+      $push: {
+        messages: {
+          auteur: doc.auteur,
+          auteurRole: "CLIENT",
+          evenement: "ESCALADE",
+          contenu:
+            nextPriority === doc.priorite
+              ? "AI: the client is getting more frustrated."
+              : `AI: the client is getting more frustrated — priority raised to ${nextPriority}.`,
+          createdAt: new Date(),
+        },
+      },
+    },
+  );
+  await notifyHandler(
+    doc,
+    "Client frustration rising",
+    `The AI flagged growing frustration on: ${doc.objet}`,
+  );
+}
+
+function assertOwnResolved(doc: ReclamationLean | null, clientId: string): ReclamationLean {
+  if (!doc || doc.auteur.toString() !== clientId) throw new ServiceError("Complaint not found.");
+  if (doc.statut !== "RESOLUE") throw new ServiceError("This complaint is not resolved.");
+  return doc;
+}
+
+/** The client says whether the resolution suited them (once per resolution). */
+export async function rateReclamationResolution(
+  clientId: string,
+  id: string,
+  satisfait: boolean,
+): Promise<void> {
+  await connectDB();
+  const doc = assertOwnResolved(
+    await Reclamation.findById(objectId(id)).lean<ReclamationLean>(),
+    clientId,
+  );
+  if (doc.satisfaction) throw new ServiceError("You already rated this resolution.");
+  const now = new Date();
+  await Reclamation.updateOne(
+    { _id: doc._id, satisfaction: { $exists: false } },
+    {
+      $set: { satisfaction: { satisfait, date: now } },
+      $push: {
+        messages: {
+          auteur: doc.auteur,
+          auteurRole: "CLIENT",
+          evenement: satisfait ? "SATISFAIT" : "INSATISFAIT",
+          contenu: satisfait
+            ? "The client is satisfied with the resolution."
+            : "The client is not satisfied with the resolution.",
+          createdAt: now,
+        },
+      },
+    },
+  );
+  if (!satisfait) {
+    await notifyHandler(
+      doc,
+      "Resolution not satisfying",
+      `The client is not satisfied with how this was resolved: ${doc.objet}`,
+    );
+  }
+}
+
+function canReopen(dateResolution: Date | string | undefined, now = new Date()): boolean {
+  if (!dateResolution) return false;
+  return now.getTime() - new Date(dateResolution).getTime() <= REOPEN_DAYS * 86_400_000;
+}
+
+/** The client reopens a resolved complaint within REOPEN_DAYS; it goes back to "in progress". */
+export async function reopenReclamation(
+  clientId: string,
+  id: string,
+  raison: string | undefined,
+): Promise<void> {
+  await connectDB();
+  const doc = assertOwnResolved(
+    await Reclamation.findById(objectId(id)).lean<ReclamationLean>(),
+    clientId,
+  );
+  if (!canReopen(doc.dateResolution)) {
+    throw new ServiceError(
+      `A complaint can only be reopened within ${REOPEN_DAYS} days of its resolution.`,
+    );
+  }
+  const reason = raison?.trim();
+  if (reason && (await containsProfanity(reason))) {
+    throw new ServiceError(
+      "Your message contains insulting or inappropriate language. Please edit it before sending.",
+      "raison",
+    );
+  }
+  const now = new Date();
+  await Reclamation.updateOne(
+    { _id: doc._id, statut: "RESOLUE" },
+    {
+      $set: { statut: "EN_COURS" },
+      $unset: { dateResolution: "", satisfaction: "" },
+      $inc: { nombreReouvertures: 1 },
+      $push: {
+        messages: {
+          $each: [
+            {
+              auteur: doc.auteur,
+              auteurRole: "CLIENT",
+              evenement: "REOUVERTURE",
+              contenu: "The client reopened the complaint.",
+              createdAt: now,
+            },
+            ...(reason
+              ? [{ auteur: doc.auteur, auteurRole: "CLIENT", contenu: reason, createdAt: now }]
+              : []),
+          ],
+        },
+      },
+    },
+  );
+  await notifyHandler(doc, "Complaint reopened", `The client reopened: ${doc.objet}`);
+}
+
+/** Notifies whoever handles the complaint, or every admin while nobody has taken it. */
+async function notifyHandler(doc: ReclamationLean, titre: string, message: string): Promise<void> {
+  const handler = doc.traitePar?.toString();
+  if (!handler) return notifyAdmins(titre, message, "/dashboard/reclamations");
+  await createNotification({
+    utilisateurId: handler,
+    titre,
+    message,
+    type: "RECLAMATION",
+    lienCible: "/dashboard/reclamations",
+  });
 }
 
 async function notifyAdmins(titre: string, message: string, lienCible: string): Promise<void> {

@@ -70,6 +70,16 @@ export const sendReclamationMessageSchema = z.object({
   contenu: text(2000, "Message"),
 });
 
+export const rateResolutionSchema = z.object({
+  id: z.string().min(1),
+  satisfait: z.boolean(),
+});
+
+export const reopenReclamationSchema = z.object({
+  id: z.string().min(1),
+  raison: z.string().trim().max(2000).optional(),
+});
+
 export const generateReplySchema = z.object({
   id: z.string().min(1),
   kind: z.enum(["avis", "reclamation"]),

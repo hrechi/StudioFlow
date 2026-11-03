@@ -2,8 +2,9 @@ import "server-only";
 
 import { connectDB } from "@/lib/db";
 import { Avis } from "./avis.model";
+import { Reclamation } from "./reclamation.model";
 import type { AnalyticsQuery } from "./avis.schemas";
-import type { AvisInsights, Sentiment, TopicAvis } from "./avis.types";
+import type { AvisInsights, ReclamationStats, Sentiment, TopicAvis } from "./avis.types";
 
 const TIMEZONE = "Africa/Tunis";
 
@@ -126,4 +127,22 @@ export async function getAvisInsights(): Promise<AvisInsights> {
       ...perTopic.map((row) => ({ ...row._id, count: row.count })),
     ],
   };
+}
+
+/** Resolution satisfaction (👍 / 👎 given by clients) and reopen count, all complaints. */
+export async function getReclamationStats(): Promise<ReclamationStats> {
+  await connectDB();
+  const [row] = await Reclamation.aggregate<Omit<ReclamationStats, "satisfactionRate">>([
+    {
+      $group: {
+        _id: null,
+        rated: { $sum: { $cond: [{ $ifNull: ["$satisfaction", false] }, 1, 0] } },
+        satisfied: { $sum: { $cond: [{ $eq: ["$satisfaction.satisfait", true] }, 1, 0] } },
+        reopened: { $sum: { $cond: [{ $gt: ["$nombreReouvertures", 0] }, 1, 0] } },
+      },
+    },
+    { $project: { _id: 0, rated: 1, satisfied: 1, reopened: 1 } },
+  ]);
+  const { rated = 0, satisfied = 0, reopened = 0 } = row ?? {};
+  return { rated, satisfied, reopened, satisfactionRate: rated ? satisfied / rated : null };
 }

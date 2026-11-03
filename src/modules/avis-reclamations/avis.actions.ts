@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import {
   failure,
   success,
@@ -25,6 +26,8 @@ import {
   generateReplySchema,
   moderateAvisSchema,
   repondreAvisSchema,
+  rateResolutionSchema,
+  reopenReclamationSchema,
   sendReclamationMessageSchema,
   updateOwnAvisSchema,
   updateOwnReclamationSchema,
@@ -33,12 +36,16 @@ import {
 import { generateReply } from "./ai.service";
 import {
   addReclamationMessage,
+  analyzeClientMessageInThread,
   createReclamation,
   deleteOwnReclamation,
+  rateReclamationResolution,
+  reopenReclamation,
+  summarizeReclamation,
   updateOwnReclamation,
   updateReclamation,
 } from "./reclamation.service";
-import type { ReclamationMessage } from "./avis.types";
+import type { ReclamationMessage, ResumeReclamation } from "./avis.types";
 import { getReclamationReplyContext } from "./reclamation.service";
 
 const AVIS_PATH = "/dashboard/avis";
@@ -194,11 +201,56 @@ export async function sendReclamationMessageAction(
       { id: user.id, role: user.role },
       parsed.data.contenu,
     );
-    revalidatePath(RECLAMATIONS_PATH);
-    revalidatePath("/espace-client/avis");
+    revalidateComplaints();
+    // Sentiment / escalation is AI work: it must not delay the client's send.
+    if (user.role === "CLIENT") {
+      // The staff board is rendered per request, so the result shows on its next load.
+      after(() => analyzeClientMessageInThread(parsed.data.id, message.id));
+    }
     return success(message);
   } catch (error) {
     return toFailure(error);
+  }
+}
+
+export async function rateResolutionAction(input: unknown): Promise<ActionResult> {
+  const user = await requireRole("CLIENT");
+  const parsed = rateResolutionSchema.safeParse(input);
+  if (!parsed.success) return validationFailure(parsed.error);
+  try {
+    await rateReclamationResolution(user.id, parsed.data.id, parsed.data.satisfait);
+    revalidateComplaints();
+    return success();
+  } catch (error) {
+    return toFailure(error);
+  }
+}
+
+export async function reopenReclamationAction(input: unknown): Promise<ActionResult> {
+  const user = await requireRole("CLIENT");
+  const parsed = reopenReclamationSchema.safeParse(input);
+  if (!parsed.success) return validationFailure(parsed.error);
+  try {
+    await reopenReclamation(user.id, parsed.data.id, parsed.data.raison);
+    revalidateComplaints();
+    return success();
+  } catch (error) {
+    return toFailure(error);
+  }
+}
+
+export async function summarizeReclamationAction(
+  input: unknown,
+): Promise<ActionResult<ResumeReclamation>> {
+  await requireRole("ADMIN", "PHOTOGRAPHE");
+  const parsed = feedbackIdSchema.safeParse(input);
+  if (!parsed.success) return validationFailure(parsed.error);
+  try {
+    return success(await summarizeReclamation(parsed.data.id));
+  } catch (error) {
+    return error instanceof Error && error.name === "AIConfigurationError"
+      ? failure("AI summaries are not configured.")
+      : toFailure(error);
   }
 }
 
