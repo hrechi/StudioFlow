@@ -47,8 +47,18 @@ their own non-draft quotes, and other staff roles are denied management access.
    `PARTIELLEMENT_PAYEE`, `PAYEE`, `EN_RETARD`) is computed from the amounts and
    today's date, and a paid invoice PDF carries a PAID stamp. Before any payment
    the admin can cancel the invoices and issue them again.
-5. Quotes and invoices download as branded PDFs (`facturation.pdf.ts`, route
+5. The admin adds the studio signature and company stamp once, on
+   `/dashboard/profil`, and can edit or delete them (`visa.service.ts`, one document
+   for the whole studio). They print automatically on every quote and invoice PDF,
+   already issued ones included, so the client receives them on their invoice.
+   Clients do not sign. Images are JPG, PNG or WEBP up to 2 MB; the bytes are decoded
+   to check the real format and a PNG without metadata is stored in GridFS bucket
+   `signaturesFactures`.
+6. Quotes and invoices download as branded PDFs (`facturation.pdf.ts`, route
    `/api/facturation/devis/[id]/pdf[?facture=<id>]`), for the admin and the client.
+
+A quote can also sell the invitation editor (`objet: "INVITATION"`, no session, no deposit): the client
+requests it, then accepts and pays it through the same flow. See `modules/invitations/README.md`.
 
 "Generate with AI" reuses the latest accepted quote for the same event type,
 falling back to the session's agreed or pack price. The late-payment risk is a

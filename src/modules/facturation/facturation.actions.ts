@@ -31,7 +31,8 @@ import {
   validateDeclaration,
 } from "./paiement.service";
 import { analyserDeclaration } from "./preuve.analyse";
-import type { LignePrestation } from "./facturation.types";
+import { deleteVisaImage } from "./visa.service";
+import { CHAMPS_VISA, type ChampVisa, type LignePrestation } from "./facturation.types";
 
 const PATH = "/dashboard/facturation/devis";
 
@@ -42,6 +43,8 @@ function revalidateBilling(devisId?: string) {
   revalidatePath("/dashboard/facturation/factures");
   revalidatePath("/espace-client/factures");
   revalidatePath("/espace-client");
+  revalidatePath("/espace-client/invitations");
+  revalidatePath("/dashboard/facturation/invitations");
 }
 
 export async function createDevisAction(input: unknown): Promise<ActionResult<{ id: string }>> {
@@ -173,4 +176,14 @@ export async function reanalyserPreuveAction(devisId: string, factureId: string,
     revalidateBilling(devisId);
     return success();
   } catch (error) { return toFailure(error); }
+}
+
+// ── The studio's signature and stamp ──
+
+/** Admin: removes the studio signature or stamp from their profile and from the PDFs. */
+export async function deleteVisaImageAction(champ: unknown): Promise<ActionResult> {
+  const actor = await requireRole("ADMIN");
+  if (!(CHAMPS_VISA as readonly unknown[]).includes(champ)) return failure("Invalid form.");
+  try { await deleteVisaImage(champ as ChampVisa, actor); revalidatePath("/dashboard/profil"); return success(); }
+  catch (error) { return toFailure(error); }
 }

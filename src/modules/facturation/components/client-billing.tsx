@@ -1,6 +1,7 @@
 "use client";
 
-import { Check, Download, FileText, Loader2, Receipt, X } from "lucide-react";
+import { Check, Download, FileText, Loader2, Mail, Receipt, X } from "lucide-react";
+import Link from "next/link";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -152,6 +153,14 @@ export function ClientBilling({
                           Accept
                         </Button>
                       </>
+                    )}
+                    {d.objet === "INVITATION" && d.factures.length > 0 && d.factures.every((f) => f.statut === "PAYEE") && (
+                      <Button asChild>
+                        <Link href="/espace-client/invitations">
+                          <Mail aria-hidden />
+                          Open the invitation editor
+                        </Link>
+                      </Button>
                     )}
                     <Button variant="ghost" size="sm" asChild className="ml-auto">
                       <a href={pdfHref(d.id)} download>

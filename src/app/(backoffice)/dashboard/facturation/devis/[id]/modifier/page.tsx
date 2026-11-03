@@ -19,7 +19,7 @@ export default async function ModifierDevisPage({ params }: { params: Promise<{ 
     throw error;
   });
   // Only drafts are editable: a sent quote must be taken back to draft first.
-  if (devis.statut !== "BROUILLON") redirect(`/dashboard/facturation/devis/${id}`);
+  if (devis.statut !== "BROUILLON" || devis.objet === "INVITATION") redirect(`/dashboard/facturation/devis/${id}`);
   const seances = await listFacturationSessions();
 
   return (

@@ -1,0 +1,9 @@
+{
+  "size": { "width": 420, "height": 595 },
+  "background": { "color": "#fbf7ef" },
+  "details": { "nomA": "Sarah", "nomB": "Adam", "date": "2027-06-19", "heure": "19:00", "lieu": "Jasmine Palace, Tunis", "message": "ont la joie de vous convier à leur mariage.", "langue": "fr" },
+  "elements": [
+    { "id": "cadre", "type": "image", "src": "/invitations/decorations/frame-gold.svg", "x": 16, "y": 16, "width": 388, "height": 563, "rotation": 0, "layer": 1, "style": { "opacity": 1 } },
+    { "id": "noms", "type": "text", "text": "Sarah & Adam", "linkedTo": "noms", "x": 40, "y": 150, "width": 340, "height": 70, "rotation": 0, "layer": 2, "style": { "fontFamily": "Great Vibes", "fontSize": 50, "color": "#a8843f", "align": "center", "opacity": 1, "bold": false, "italic": false, "letterSpacing": 0 } }
+  ]
+}

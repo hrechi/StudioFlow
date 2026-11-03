@@ -9,6 +9,10 @@ import type { UtilisateurRef } from "@/modules/utilisateurs/utilisateur.types";
 export const STATUTS_DEVIS = ["BROUILLON", "ENVOYE", "ACCEPTE", "REFUSE", "EXPIRE"] as const;
 export type StatutDevis = (typeof STATUTS_DEVIS)[number];
 
+/** What a quote sells: a session (the default), or the invitation editor (no session behind it). */
+export const OBJETS_DEVIS = ["SEANCE", "INVITATION"] as const;
+export type ObjetDevis = (typeof OBJETS_DEVIS)[number];
+
 export const TYPES_FACTURE = ["ACOMPTE", "SOLDE"] as const;
 export type TypeFacture = (typeof TYPES_FACTURE)[number];
 
@@ -54,6 +58,14 @@ export type Facture = {
   /** Offline payments the client declared with a proof, waiting for / checked by the studio. */
   declarations?: DeclarationPaiement[];
 };
+
+/** Proposé: the studio's signature and stamp, saved once from the admin's profile, on every PDF. */
+export const CHAMPS_VISA = ["signature", "cachet"] as const;
+export type ChampVisa = (typeof CHAMPS_VISA)[number];
+export type VisaStudioView = { signature?: string; cachet?: string };
+
+export const SIGNATURE_TYPES = ["image/png", "image/jpeg", "image/webp"] as const;
+export const SIGNATURE_TAILLE_MAX = 2 * 1024 * 1024;
 
 /** Proposé: status of a payment the client declared (transfer, cheque, cash) with its proof. */
 export const STATUTS_DECLARATION = ["EN_ATTENTE", "VALIDEE", "REJETEE"] as const;
@@ -141,6 +153,8 @@ export type FactureAvecContexte = Facture & {
 /** Collection `devis`. */
 export type Devis = {
   id: string;
+  /** Absent = a session quote. */
+  objet?: ObjetDevis;
   numero: string;
   dateEmission: string;
   dateValidite: string;

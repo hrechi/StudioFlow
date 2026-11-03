@@ -6,6 +6,7 @@ import {
   CalendarPlus,
   Clock,
   Images,
+  Mail,
   MapPin,
   MessageSquareHeart,
   Receipt,
@@ -32,6 +33,7 @@ const LINKS = [
   { label: "Book a session", href: "/espace-client/seances/reserver", icon: CalendarPlus },
   { label: "My galleries", href: "/espace-client/galeries", icon: Images },
   { label: "Quotes & invoices", href: "/espace-client/factures", icon: Receipt },
+  { label: "Invitations", href: "/espace-client/invitations", icon: Mail },
   { label: "Leave a review", href: "/espace-client/avis", icon: MessageSquareHeart },
 ];
 

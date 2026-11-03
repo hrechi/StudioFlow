@@ -123,6 +123,7 @@ function toFactureView(facture: IFacture, doc: Pick<DevisLean, "_id" | "factures
 function toView(doc: DevisLean): DevisView {
   return {
     id: doc._id.toString(),
+    objet: doc.objet ?? "SEANCE",
     numero: doc.numero,
     dateEmission: doc.dateEmission.toISOString(),
     dateValidite: doc.dateValidite.toISOString(),
@@ -141,7 +142,7 @@ function toView(doc: DevisLean): DevisView {
     dateReponse: doc.dateReponse?.toISOString(),
     client: { id: doc.client.toString(), ...splitName(doc.clientSnapshot.nom), photoProfil: undefined },
     seance: {
-      id: doc.seance.toString(),
+      id: doc.seance?.toString() ?? "",
       titre: doc.seanceSnapshot.titre,
       type: doc.seanceSnapshot.type,
       date: doc.seanceSnapshot.date?.toISOString(),
@@ -226,6 +227,7 @@ export async function getDevis(id: string, actor: Actor) {
 export async function updateDevis(id: string, input: DevisInput, actor: Actor) {
   const existing = await loadForAdmin(id, actor);
   if (existing.statut !== "BROUILLON") throw new BusinessRuleError("Only draft quotes can be edited.");
+  if (existing.objet === "INVITATION") throw new BusinessRuleError("The invitation quote comes from the editor price: change the price instead.");
   const references = await getFacturationReferences(input.client, input.seance);
   const totals = calculerTotaux(input.lignes, input.remise, input.tva);
   Object.assign(existing, {
@@ -249,6 +251,7 @@ export async function deleteDevis(id: string, actor: Actor) {
 
 export async function duplicateDevis(id: string, actor: Actor) {
   const original = await getDevis(id, { ...actor, role: "ADMIN" });
+  if (original.objet === "INVITATION") throw new BusinessRuleError("The client requests the invitation quote from their space: it cannot be duplicated.");
   const now = new Date();
   return createDevis({
     client: original.client.id,
@@ -450,7 +453,7 @@ export function applyPaiement(doc: HydratedDocument<IDevis>, facture: IFacture, 
 }
 
 /** "Payment confirmed" notification: the client can then download the updated invoice. */
-export async function notifyPaiementConfirme(doc: Pick<IDevis, "client">, facture: IFacture, montant: number) {
+export async function notifyPaiementConfirme(doc: Pick<IDevis, "client" | "objet">, facture: IFacture, montant: number) {
   const reste = facture.montantTTC - facture.montantPaye;
   await notify(
     doc.client.toString(),
@@ -460,9 +463,12 @@ export async function notifyPaiementConfirme(doc: Pick<IDevis, "client">, factur
       : `Invoice ${facture.numero} is fully paid. Thank you! You can download it from your space.`,
     CLIENT_PATH,
   );
+  if (doc.objet === "INVITATION" && reste <= 0) {
+    await notify(doc.client.toString(), "Invitation editor unlocked", "Your payment is confirmed: you can now create your invitations.", "/espace-client/invitations");
+  }
 }
 
-export { notify as notifyFacturation, objectId as toObjectId };
+export { nextNumber, notify as notifyFacturation, objectId as toObjectId };
 
 /**
  * Cancels all the invoices of a quote (e.g. wrong amounts) while nothing has been paid; the
@@ -513,7 +519,7 @@ export async function listFactures(actor: Actor): Promise<FactureAvecContexte[]>
       id: doc._id.toString(),
       numero: doc.numero,
       client: { id: doc.client.toString(), ...splitName(doc.clientSnapshot.nom) },
-      seance: { id: doc.seance.toString(), titre: doc.seanceSnapshot.titre },
+      seance: { id: doc.seance?.toString() ?? "", titre: doc.seanceSnapshot.titre },
     },
   })));
 }

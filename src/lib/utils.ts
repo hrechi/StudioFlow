@@ -18,7 +18,9 @@ const numberFormatter = new Intl.NumberFormat(LOCALE);
 const currencyFormatter = new Intl.NumberFormat(LOCALE, {
   style: "currency",
   currency: "TND",
-  maximumFractionDigits: 0,
+  // Whole amounts stay short, but a price of 59.500 must not be shown as 60.
+  minimumFractionDigits: 0,
+  maximumFractionDigits: 3,
 });
 
 export function formatDate(value: Date | string | null | undefined): string {
