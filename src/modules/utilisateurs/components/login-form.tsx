@@ -65,7 +65,7 @@ export function LoginForm({ callbackUrl, raison }: { callbackUrl?: string; raiso
         reason && <FormAlert tone={reason.tone}>{reason.text}</FormAlert>
       )}
 
-      <form onSubmit={onSubmit} noValidate className="space-y-4">
+      <form method="post" onSubmit={onSubmit} noValidate className="space-y-4">
         <FormField id="email" label="Email" error={errors.email?.message}>
           <IconInput
             id="email"

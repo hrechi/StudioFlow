@@ -75,7 +75,7 @@ export function RegisterForm() {
 
       {serverError && <FormAlert>{serverError}</FormAlert>}
 
-      <form onSubmit={onSubmit} noValidate className="space-y-4">
+      <form method="post" onSubmit={onSubmit} noValidate className="space-y-4">
         <div className="grid gap-4 sm:grid-cols-2">
           <FormField id="prenom" label="First name" required error={errors.prenom?.message}>
             <IconInput

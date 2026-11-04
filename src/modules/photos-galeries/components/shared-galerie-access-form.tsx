@@ -41,7 +41,7 @@ export function SharedGalerieAccessForm({ lien }: { lien?: string }) {
   });
 
   return (
-    <form onSubmit={onSubmit} noValidate className="space-y-4">
+    <form method="post" onSubmit={onSubmit} noValidate className="space-y-4">
       {error && <FormAlert>{error}</FormAlert>}
       {!lien && (
         <FormField

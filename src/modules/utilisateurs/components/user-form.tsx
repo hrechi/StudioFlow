@@ -118,7 +118,7 @@ export function UserForm({ mode, user, isSelf = false }: UserFormProps) {
   });
 
   return (
-    <form onSubmit={onSubmit} noValidate className="space-y-6">
+    <form method="post" onSubmit={onSubmit} noValidate className="space-y-6">
       <Card>
         <CardHeader>
           <CardTitle>Identity and contact details</CardTitle>

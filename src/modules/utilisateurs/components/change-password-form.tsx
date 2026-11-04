@@ -52,7 +52,7 @@ export function ChangePasswordForm() {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <form onSubmit={onSubmit} noValidate className="space-y-4">
+        <form method="post" onSubmit={onSubmit} noValidate className="space-y-4">
           <FormField
             id="motDePasseActuel"
             label="Current password"
