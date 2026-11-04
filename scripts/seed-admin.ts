@@ -1,6 +1,6 @@
 /**
  * npm run seed:admin
- * Creates the first ADMIN from ADMIN_EMAIL / ADMIN_PASSWORD (.env.local) if no admin exists.
+ * Creates the first ADMIN from ADMIN_EMAIL / ADMIN_PASSWORD (.env or .env.local) if no admin exists.
  * Staff accounts are then created by the admin in /dashboard/utilisateurs/nouveau.
  */
 import mongoose from "mongoose";

@@ -60,7 +60,7 @@ export default async function MaterielDetailPage({
         <Card className="gap-0 self-start overflow-hidden py-0">
           <div className="relative aspect-[4/3] bg-muted">
             <MaterielPhoto
-              src={materiel.photo}
+              src={materiel.photoUrl}
               alt={materiel.nom}
               sizes="352px"
               className="object-cover"

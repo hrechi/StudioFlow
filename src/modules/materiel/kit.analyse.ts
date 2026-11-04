@@ -21,12 +21,12 @@
  */
 import "server-only";
 import { Types } from "mongoose";
-import { z } from "zod";
 import { ServiceError } from "@/lib/action-result";
 import { connectDB } from "@/lib/db";
 import { generateJson, LlmUnavailableError } from "@/lib/llm-gemini";
 import { Materiel as MaterielModel, type IMateriel } from "./materiel.model";
 import { categorieMaterielLabels, type KitSuggereDTO } from "./materiel.types";
+import { filtrerKitIA, kitDepuisHistorique, MAX_KIT_ITEMS, type KitDisponible } from "./kit.rules";
 import { ReservationMateriel, type IReservationMateriel } from "./reservation-materiel.model";
 import { STATUTS_BLOQUANTS, seChevauchent } from "./reservation-materiel.rules";
 import { getSeanceReservable, type SeanceReservableDTO } from "./seance-source";
@@ -34,7 +34,6 @@ import { getSeanceReservable, type SeanceReservableDTO } from "./seance-source";
 type MaterielLean = IMateriel & { _id: Types.ObjectId };
 type ReservationLean = IReservationMateriel & { _id: Types.ObjectId };
 
-const MAX_ITEMS = 10;
 const TIMEOUT_MS = 15_000;
 /**
  * Lite model on purpose: gemini-3.5-flash "thinks" first and its reasoning tokens eat the
@@ -44,26 +43,13 @@ const TIMEOUT_MS = 15_000;
 const KIT_MODEL = "gemini-3.5-flash-lite";
 const HOUR = 3_600_000;
 
-/** What the model must return (validated again with Zod: the AI output is untrusted). */
-const reponseSchema = z.object({
-  items: z
-    .array(
-      z.object({
-        materielId: z.string(),
-        raison: z.string().trim().min(1).max(300),
-      }),
-    )
-    .max(30),
-  confiance: z.number().min(0).max(1),
-});
-
 /** Same shape for Gemini's structured output (responseSchema, OpenAPI style). */
 const GEMINI_SCHEMA = {
   type: "OBJECT",
   properties: {
     items: {
       type: "ARRAY",
-      description: `The suggested kit, at most ${MAX_ITEMS} items, most important first.`,
+      description: `The suggested kit, at most ${MAX_KIT_ITEMS} items, most important first.`,
       items: {
         type: "OBJECT",
         properties: {
@@ -139,27 +125,21 @@ async function historique(
   return { seances: new Set(passees.map((r) => r.seance.toString())).size, usages };
 }
 
-function plural(n: number, word: string): string {
-  return `${n} ${word}${n > 1 ? "s" : ""}`;
-}
-
 /** Fallback: the available items most used in past sessions of the same type. */
 function depuisHistorique(
   disponibles: Disponible[],
   usages: Map<string, number>,
   typeEvenement: string,
 ): KitSuggereDTO["items"] {
-  return disponibles
-    .map((m) => ({ m, n: usages.get(m._id.toString()) ?? 0 }))
-    .filter(({ n }) => n > 0)
-    .sort((a, b) => b.n - a.n || a.m.nom.localeCompare(b.m.nom))
-    .slice(0, MAX_ITEMS)
-    .map(({ m, n }) => ({
-      materielId: m._id.toString(),
+  return kitDepuisHistorique(
+    disponibles.map((m): KitDisponible => ({
+      id: m._id.toString(),
       nom: m.nom,
       categorie: m.categorie,
-      raison: `Used in ${plural(n, `past ${typeEvenement} session`)}.`,
-    }));
+    })),
+    usages,
+    typeEvenement,
+  );
 }
 
 export async function suggererKit(seanceId: string): Promise<KitSuggereDTO> {
@@ -188,7 +168,6 @@ export async function suggererKit(seanceId: string): Promise<KitSuggereDTO> {
   });
   if (disponibles.length === 0) return repli();
 
-  const byId = new Map(disponibles.map((m) => [m._id.toString(), m]));
   // Compact, non-personal data only: no client, no title, no free text from the session.
   const donnees = {
     session: {
@@ -232,19 +211,14 @@ export async function suggererKit(seanceId: string): Promise<KitSuggereDTO> {
     return repli();
   }
 
-  const parsed = reponseSchema.safeParse(brut);
-  if (!parsed.success) return repli();
-
-  const vus = new Set<string>();
-  const items: KitSuggereDTO["items"] = [];
-  for (const { materielId, raison } of parsed.data.items) {
-    const m = byId.get(materielId);
-    if (!m || vus.has(materielId)) continue; // unknown / unavailable id, or duplicate
-    vus.add(materielId);
-    items.push({ materielId, nom: m.nom, categorie: m.categorie, raison });
-    if (items.length === MAX_ITEMS) break;
-  }
-  if (items.length === 0) return repli();
-
-  return { ...base, source: "IA", confiance: parsed.data.confiance, items };
+  const filtered = filtrerKitIA(
+    brut,
+    disponibles.map((m): KitDisponible => ({
+      id: m._id.toString(),
+      nom: m.nom,
+      categorie: m.categorie,
+    })),
+  );
+  if (!filtered) return repli();
+  return { ...base, source: "IA", confiance: filtered.confiance, items: filtered.items };
 }

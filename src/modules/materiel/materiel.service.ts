@@ -25,7 +25,9 @@ export function toMaterielDTO(doc: MaterielLean): Materiel {
     dateAchat: doc.dateAchat.toISOString(),
     prix: doc.prix,
     disponible: doc.disponible,
-    photo: doc.photo || undefined,
+    photoUrl: doc.photoFileId
+      ? `/api/materiel/photo/${doc.photoFileId.toString()}?v=${doc.photoFileId.toString()}`
+      : doc.photo || undefined,
     archive: doc.archive,
   };
 }
@@ -109,7 +111,10 @@ export async function updateMateriel(id: string, input: MaterielInput): Promise<
   try {
     await MaterielModel.updateOne(
       { _id: id },
-      { $set: { ...rest, ...(photo ? { photo } : {}) }, $unset: photo ? {} : { photo: "" } },
+      {
+        $set: { ...rest, ...(photo !== undefined ? { photo } : {}) },
+        ...(photo === undefined ? {} : { $unset: { photo: "" } }),
+      },
     );
   } catch (error) {
     if (isDuplicateKey(error)) throw new ServiceError(DUPLICATE_SERIAL, "numeroSerie");

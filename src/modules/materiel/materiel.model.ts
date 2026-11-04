@@ -1,5 +1,5 @@
 /* Module : Gestion du Matériel · Responsable : Amel Mediouni */
-import { Schema, model, models, type HydratedDocument, type Model } from "mongoose";
+import { Schema, model, models, type HydratedDocument, type Model, type Types } from "mongoose";
 import {
   CATEGORIES_MATERIEL,
   ETATS_MATERIEL,
@@ -18,6 +18,7 @@ export interface IMateriel {
   prix: number;
   disponible: boolean;
   photo?: string;
+  photoFileId?: Types.ObjectId;
   archive: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -37,6 +38,7 @@ const materielSchema = new Schema<IMateriel>(
     prix: { type: Number, required: true, min: 0 },
     disponible: { type: Boolean, default: true, required: true },
     photo: { type: String, trim: true, maxlength: 500 },
+    photoFileId: { type: Schema.Types.ObjectId },
     archive: { type: Boolean, default: false, required: true },
   },
   { timestamps: true, collection: "materiels" },

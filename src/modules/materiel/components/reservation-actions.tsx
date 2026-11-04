@@ -1,11 +1,19 @@
 "use client";
 
-import { AlertTriangle, Ban, Check, PackageCheck, Play } from "lucide-react";
+import { AlertTriangle, Ban, Check, MoreHorizontal, PackageCheck, Play } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import type { ActionResult } from "@/lib/action-result";
 import type { Role } from "@/lib/rbac";
 import type { Reservation } from "../materiel.types";
@@ -49,69 +57,82 @@ export function ReservationActions({
     });
 
   return (
-    <div className="flex justify-end gap-1">
-      {canManage && peutPasser(r.statut, "CONFIRMEE") && (
-        <Button
-          size="sm"
-          variant="outline"
-          disabled={pending}
-          onClick={() =>
-            run(() => confirmerReservationAction(r.id), `${r.materiel.nom}: reservation confirmed`)
-          }
-        >
-          <Check aria-hidden />
-          Confirm
-        </Button>
-      )}
-      {isAdmin && peutPasser(r.statut, "EN_COURS") && (
-        <Button
-          size="sm"
-          variant="outline"
-          disabled={pending}
-          onClick={() =>
-            run(() => demarrerReservationAction(r.id), `${r.materiel.nom} handed over`)
-          }
-        >
-          <Play aria-hidden />
-          Start
-        </Button>
-      )}
-      {canManage && peutPasser(r.statut, "RETOURNEE") && (
-        <ReturnDialog
-          reservationId={r.id}
-          materielNom={r.materiel.nom}
-          trigger={
-            <Button size="sm" variant="outline">
-              <PackageCheck aria-hidden />
-              Return
-            </Button>
-          }
-        />
-      )}
-      {canManage && peutPasser(r.statut, "ANNULEE") && (
-        <Button
-          size="icon-sm"
-          variant="ghost"
-          disabled={pending}
-          aria-label={`Cancel the reservation: ${r.materiel.nom}`}
-          onClick={() => setCancelling(true)}
-        >
-          <Ban aria-hidden />
-        </Button>
-      )}
-      <BreakdownDialog
-        materielId={r.materiel.id}
-        materielNom={r.materiel.nom}
-        trigger={
+    <div className="flex justify-end">
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
           <Button
             size="icon-sm"
             variant="ghost"
-            aria-label={`Report a breakdown: ${r.materiel.nom}`}
+            aria-label={`Actions for ${r.materiel.nom}`}
+            disabled={pending}
           >
-            <AlertTriangle aria-hidden />
+            <MoreHorizontal aria-hidden />
           </Button>
-        }
-      />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-52">
+          <DropdownMenuLabel className="truncate text-xs text-muted-foreground">
+            {r.materiel.nom}
+          </DropdownMenuLabel>
+          {canManage && peutPasser(r.statut, "CONFIRMEE") && (
+            <DropdownMenuItem
+              disabled={pending}
+              onSelect={() =>
+                run(
+                  () => confirmerReservationAction(r.id),
+                  `${r.materiel.nom}: reservation confirmed`,
+                )
+              }
+            >
+              <Check aria-hidden />
+              Confirm
+            </DropdownMenuItem>
+          )}
+          {isAdmin && peutPasser(r.statut, "EN_COURS") && (
+            <DropdownMenuItem
+              disabled={pending}
+              onSelect={() =>
+                run(() => demarrerReservationAction(r.id), `${r.materiel.nom} handed over`)
+              }
+            >
+              <Play aria-hidden />
+              Start
+            </DropdownMenuItem>
+          )}
+          {canManage && peutPasser(r.statut, "RETOURNEE") && (
+            <ReturnDialog
+              reservationId={r.id}
+              materielNom={r.materiel.nom}
+              trigger={
+                <DropdownMenuItem onSelect={(event) => event.preventDefault()}>
+                  <PackageCheck aria-hidden />
+                  Return
+                </DropdownMenuItem>
+              }
+            />
+          )}
+          {canManage && peutPasser(r.statut, "ANNULEE") && (
+            <DropdownMenuItem
+              disabled={pending}
+              onSelect={() => setCancelling(true)}
+              className="text-destructive-text focus:bg-destructive/10 focus:text-destructive-text"
+            >
+              <Ban aria-hidden />
+              Cancel
+            </DropdownMenuItem>
+          )}
+          <DropdownMenuSeparator />
+          <BreakdownDialog
+            materielId={r.materiel.id}
+            materielNom={r.materiel.nom}
+            trigger={
+              <DropdownMenuItem onSelect={(event) => event.preventDefault()}>
+                <AlertTriangle aria-hidden />
+                Report breakdown
+              </DropdownMenuItem>
+            }
+          />
+        </DropdownMenuContent>
+      </DropdownMenu>
       <ConfirmDialog
         open={cancelling}
         onOpenChange={(open) => !open && setCancelling(false)}

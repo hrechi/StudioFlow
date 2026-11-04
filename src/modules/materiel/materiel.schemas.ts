@@ -45,6 +45,7 @@ export const materielSchema = z.object({
     .string()
     .trim()
     .max(500, "500 characters maximum")
-    .refine((v) => v === "" || isHttpUrl(v), "Enter a valid image URL (https://…)"),
+    .refine((v) => v === "" || isHttpUrl(v), "Enter a valid image URL (https://…)")
+    .optional(),
 });
 export type MaterielInput = z.infer<typeof materielSchema>;

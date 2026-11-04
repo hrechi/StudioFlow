@@ -7,6 +7,9 @@ export default defineConfig({
   },
   test: {
     environment: "node",
-    include: ["src/modules/portfolio/tests/**/*.test.ts"],
+    include: [
+      "src/modules/portfolio/tests/**/*.test.ts",
+      "src/modules/materiel/tests/**/*.test.ts",
+    ],
   },
 });

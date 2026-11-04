@@ -1,13 +1,14 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { AlertTriangle, Loader2, PackageCheck } from "lucide-react";
+import { AlertTriangle, Loader2, PackageCheck, Sparkles } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition, type ReactNode } from "react";
 import { Controller, useForm, type Resolver } from "react-hook-form";
 import { toast } from "sonner";
 import { FormField, describedBy } from "@/components/shared/form-field";
 import { applyFieldErrors } from "@/components/shared/form-utils";
+import { AIPanel } from "@/components/shared/ai-panel";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -27,7 +28,12 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { etatMaterielConfig } from "../materiel.types";
-import { enregistrerRetourAction, signalerPanneAction } from "../reservation-materiel.actions";
+import {
+  analyserPanneAction,
+  enregistrerRetourAction,
+  signalerPanneAction,
+} from "../reservation-materiel.actions";
+import type { AnalysePanne, GravitePanne } from "../panne.analyse";
 import {
   ETATS_RETOUR,
   panneSchema,
@@ -38,6 +44,8 @@ import {
 
 const RETOUR_DEFAULTS: RetourInput = { etat: "BON", remarque: "" };
 const PANNE_DEFAULTS: PanneInput = { description: "" };
+const GRAVITES: GravitePanne[] = ["MINEURE", "MAJEURE", "CRITIQUE"];
+const ETATS_ANALYSE = ["NEUF", "BON", "USE", "EN_PANNE"] as const;
 
 /** "Record return" (cahier: Reservation.enregistrerRetour(remarque)). */
 export function ReturnDialog({
@@ -161,12 +169,30 @@ export function BreakdownDialog({
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
+  const [analysing, setAnalysing] = useState(false);
+  const [analyse, setAnalyse] = useState<AnalysePanne | null>(null);
   const form = useForm<PanneInput>({
     resolver: zodResolver(panneSchema) as unknown as Resolver<PanneInput>,
     defaultValues: PANNE_DEFAULTS,
   });
   const { errors } = form.formState;
   const fieldId = `panne-${materielId}`;
+
+  const analyseDescription = () => {
+    void form.trigger("description").then((valid) => {
+      if (!valid) return;
+      setAnalysing(true);
+      void analyserPanneAction(materielId, { description: form.getValues("description") })
+        .then((result) => {
+          if (!result.ok) {
+            toast.error(result.error);
+            return;
+          }
+          setAnalyse(result.data);
+        })
+        .finally(() => setAnalysing(false));
+    });
+  };
 
   const onSubmit = form.handleSubmit((values) =>
     startTransition(async () => {
@@ -192,7 +218,10 @@ export function BreakdownDialog({
       open={open}
       onOpenChange={(next) => {
         if (pending) return;
-        if (next) form.reset(PANNE_DEFAULTS);
+        if (next) {
+          form.reset(PANNE_DEFAULTS);
+          setAnalyse(null);
+        }
         setOpen(next);
       }}
     >
@@ -225,6 +254,98 @@ export function BreakdownDialog({
               {...form.register("description")}
             />
           </FormField>
+          <Button
+            type="button"
+            variant="ai-soft"
+            onClick={analyseDescription}
+            disabled={pending || analysing}
+          >
+            {analysing ? (
+              <Loader2 className="animate-spin" aria-hidden />
+            ) : (
+              <Sparkles aria-hidden />
+            )}
+            {analysing ? "Analyzing…" : "Analyze with AI"}
+          </Button>
+          {analyse && (
+            <AIPanel
+              title="Breakdown triage"
+              description={
+                analyse.source === "IA"
+                  ? "AI suggestion based only on the equipment and this description. Review every field."
+                  : "Fallback keyword rules were used because AI was unavailable. Review every field."
+              }
+            >
+              <div className="space-y-3">
+                <label
+                  className="block text-xs font-medium text-muted-foreground"
+                  htmlFor={`${fieldId}-gravite`}
+                >
+                  Severity
+                  <select
+                    id={`${fieldId}-gravite`}
+                    className="mt-1 h-9 w-full rounded-md border bg-background px-2 text-sm text-foreground"
+                    value={analyse.gravite}
+                    onChange={(event) =>
+                      setAnalyse({ ...analyse, gravite: event.target.value as GravitePanne })
+                    }
+                  >
+                    {GRAVITES.map((value) => (
+                      <option key={value}>{value}</option>
+                    ))}
+                  </select>
+                </label>
+                <label
+                  className="block text-xs font-medium text-muted-foreground"
+                  htmlFor={`${fieldId}-etat`}
+                >
+                  Equipment condition
+                  <select
+                    id={`${fieldId}-etat`}
+                    className="mt-1 h-9 w-full rounded-md border bg-background px-2 text-sm text-foreground"
+                    value={analyse.etat}
+                    onChange={(event) =>
+                      setAnalyse({ ...analyse, etat: event.target.value as AnalysePanne["etat"] })
+                    }
+                  >
+                    {ETATS_ANALYSE.map((value) => (
+                      <option key={value}>{value}</option>
+                    ))}
+                  </select>
+                </label>
+                <label
+                  className="block text-xs font-medium text-muted-foreground"
+                  htmlFor={`${fieldId}-cause`}
+                >
+                  Probable cause
+                  <Textarea
+                    id={`${fieldId}-cause`}
+                    rows={2}
+                    className="mt-1 bg-background"
+                    value={analyse.causeProbable}
+                    onChange={(event) =>
+                      setAnalyse({ ...analyse, causeProbable: event.target.value })
+                    }
+                  />
+                </label>
+                <label
+                  className="block text-xs font-medium text-muted-foreground"
+                  htmlFor={`${fieldId}-action`}
+                >
+                  Recommended action
+                  <Textarea
+                    id={`${fieldId}-action`}
+                    rows={2}
+                    className="mt-1 bg-background"
+                    value={analyse.actionRecommandee}
+                    onChange={(event) =>
+                      setAnalyse({ ...analyse, actionRecommandee: event.target.value })
+                    }
+                  />
+                </label>
+              </div>
+            </AIPanel>
+          )}
         </form>
         <DialogFooter>
           <Button variant="outline" onClick={() => setOpen(false)} disabled={pending}>

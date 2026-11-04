@@ -43,7 +43,8 @@ export type Materiel = {
   prix: number;
   /** Manual flag: false = kept out of reservations (lent, maintenance…). Forced to false when EN_PANNE. */
   disponible: boolean;
-  photo?: string;
+  /** Uploaded GridFS image URL, or the legacy external URL when no upload exists. */
+  photoUrl?: string;
   /** Archived equipment is hidden from the inventory and cannot be reserved. */
   archive: boolean;
 };
@@ -57,10 +58,23 @@ export type Reservation = {
   dateFin: string;
   statut: StatutReservation;
   remarqueRetour?: string;
-  materiel: Pick<Materiel, "id" | "nom" | "categorie">;
-  seance: { id: string; titre: string; typeEvenement: string };
+  materiel: Pick<Materiel, "id" | "nom" | "categorie" | "numeroSerie">;
+  seance: {
+    id: string;
+    titre: string;
+    typeEvenement: string;
+    lieu?: string;
+    clientNom?: string;
+  };
   /** Who made the reservation (null if the account was deleted). */
   utilisateur: UtilisateurRef | null;
+};
+
+export type ReservationStats = {
+  activeNow: number;
+  upcoming: number;
+  pending: number;
+  overdue: number;
 };
 
 /** Outcome of one item in a multi-item reservation (the "kit"). */
@@ -97,7 +111,7 @@ export const etatMaterielConfig: StatusConfig<EtatMateriel> = {
 export const statutReservationConfig: StatusConfig<StatutReservation> = {
   EN_ATTENTE: { label: "Pending", tone: "warning" },
   CONFIRMEE: { label: "Confirmed", tone: "info" },
-  EN_COURS: { label: "In use", tone: "success" },
-  RETOURNEE: { label: "Returned", tone: "neutral" },
+  EN_COURS: { label: "In progress", tone: "ai" },
+  RETOURNEE: { label: "Returned", tone: "success" },
   ANNULEE: { label: "Cancelled", tone: "danger" },
 };
