@@ -1,46 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import { Calendar, Clock, Images, Mail, MapPin, Quote, Star } from "lucide-react";
 import {
-  Calendar,
-  Clock,
-  Globe,
-  Images,
-  Mail,
-  MapPin,
-  Play,
-  Quote,
-  Star,
-  Video,
-} from "lucide-react";
-
-function SocialIcon({ reseau }: { reseau: string }) {
-  switch (reseau) {
-    case "INSTAGRAM":
-      return (
-        <svg className="size-3.5 fill-current text-[#e8a34a]" viewBox="0 0 24 24">
-          <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z" />
-        </svg>
-      );
-    case "FACEBOOK":
-      return (
-        <svg className="size-3.5 fill-current text-[#e8a34a]" viewBox="0 0 24 24">
-          <path d="M9 8H6v4h3v12h5V12h3.642L18 8h-4V6.333C14 5.374 14.5 5 15.678 5H18V0h-3.808C10.597 0 9 1.583 9 4.615V8z" />
-        </svg>
-      );
-    case "YOUTUBE":
-      return (
-        <svg className="size-3.5 fill-current text-[#e8a34a]" viewBox="0 0 24 24">
-          <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
-        </svg>
-      );
-    case "TIKTOK":
-      return <Video className="size-3.5 text-[#e8a34a]" />;
-    default:
-      return <Globe className="size-3.5 text-[#e8a34a]" />;
-  }
-}
-import type { BlocPortfolio } from "../../../portfolio.types";
+  CATEGORIES_PORTFOLIO,
+  categoriePortfolioLabels,
+  type BlocPortfolio,
+} from "../../../portfolio.types";
 import { editorFr } from "../fr";
 import { SafeImage } from "@/components/shared/safe-image";
 
@@ -55,110 +21,96 @@ export function RenderBlockContent({
 
   switch (bloc.type) {
     case "HERO": {
-      const heading = (conf.titre as string) || "Portfolio";
-      const subHeading = (conf.sousTitre as string) || "A late-summer wedding at Château de la Rivière";
-      const buttonLabel = (conf.texteBouton as string) || editorFr.labels.enquiry;
-      const tagline = (conf.tagline as string) || "BORDEAUX · MARIAGE · PORTRAIT";
-      const cover =
-        (conf.photoCouverture as string) ||
-        bloc.elements?.[0]?.media?.url ||
-        "https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=1600&q=80";
+      const video = (conf.videoFond as string) || "";
+      const cover = (conf.photoCouverture as string) || "";
 
       return (
-        <div className="relative isolate flex min-h-[420px] w-full flex-col justify-end overflow-hidden p-8 text-white sm:min-h-[480px] sm:p-12">
-          {/* Cover image with subtle gradient overlay */}
-          <div className="absolute inset-0 z-0 bg-neutral-900">
+        <div className="relative isolate flex min-h-[420px] w-full items-end justify-end overflow-hidden bg-[#120907] p-8 text-white sm:min-h-[480px] sm:p-12">
+          {video && (
+            <video
+              aria-hidden="true"
+              autoPlay
+              muted
+              loop
+              playsInline
+              preload="metadata"
+              className="absolute inset-0 size-full object-cover"
+            >
+              <source src={video} type="video/mp4" />
+            </video>
+          )}
+          {!video && cover && (
             <SafeImage
               src={cover}
-              alt={heading}
+              alt=""
               fill
               unoptimized
-              className="object-cover object-center"
+              sizes="100vw"
+              className="absolute inset-0 size-full object-cover"
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/40 to-black/10" />
-            <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-transparent to-transparent" />
-          </div>
-
-          <div className="relative z-10 max-w-2xl">
-            <div className="font-mono text-[10px] font-semibold tracking-[0.16em] text-[#e8a34a] uppercase">
-              {tagline}
-            </div>
-            <h2 className="mt-2 text-3xl font-bold tracking-tight text-white sm:text-5xl">
-              {heading}
-            </h2>
-            <p className="mt-3 text-sm text-white/80 sm:text-base leading-relaxed">
-              {subHeading}
-            </p>
-            <div className="mt-6 flex flex-wrap items-center gap-3">
-              <span className="inline-flex items-center gap-2 rounded-full bg-[#e8a34a] px-6 py-2.5 font-sans text-xs font-semibold text-[#0f0905] shadow-lg transition-transform hover:scale-105">
-                {buttonLabel}
-              </span>
-
-              {/* Social networks in Hero */}
-              {Array.isArray(conf.liensSociaux) && conf.liensSociaux.length > 0 && (
-                <div className="flex flex-wrap items-center gap-1.5">
-                  {(conf.liensSociaux as { reseau: string; url: string }[]).map((link, idx) => (
-                    <a
-                      key={idx}
-                      href={link.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={(e) => e.stopPropagation()}
-                      className="inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-black/50 px-3 py-1 font-mono text-[10px] text-white/90 backdrop-blur-xs transition-colors hover:border-[#e8a34a] hover:text-[#e8a34a]"
-                    >
-                      <SocialIcon reseau={link.reseau} />
-                      <span className="capitalize">{link.reseau.toLowerCase()}</span>
-                    </a>
-                  ))}
-                </div>
-              )}
-            </div>
+          )}
+          <div className="absolute inset-0 bg-gradient-to-b from-black/25 via-transparent to-[#120907]/60" />
+          <div className="relative z-10 flex items-center gap-3 font-mono text-[9px] tracking-[0.18em] text-white/75 uppercase">
+            Défiler
+            <span className="h-8 w-px bg-white/70" />
           </div>
         </div>
       );
     }
 
     case "A_PROPOS": {
-      const name = (conf.titre as string) || "À propos";
-      const text = (conf.texte as string) || "Capturing delicate, candid memories in natural light...";
-      const years = (conf.anneesExperience as number) ?? 11;
-      const portrait =
-        (conf.photoPortrait as string) ||
-        "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=600&q=80";
+      const name = (conf.titre as string) || "";
+      const text = (conf.texte as string) || "";
+      const years = Number(conf.anneesExperience) || 0;
+      const portrait = (conf.photoPortrait as string) || "";
+      const facts = [
+        ["Basée à", conf.lieuBase],
+        ["Depuis", conf.depuis || (years > 0 ? `${years} ans` : "")],
+        ["Matériel", conf.materiel],
+        ["Langues", conf.langues],
+      ].filter((fact): fact is [string, string] => typeof fact[1] === "string" && fact[1] !== "");
 
       return (
-        <div className="border-b border-[#e7dfcf] bg-[#f6f1e9] p-8 text-[#1a120c] sm:p-12">
-          <div className="grid gap-8 md:grid-cols-3 md:items-center">
-            <div className="md:col-span-2">
-              <div className="font-mono text-[10px] font-semibold tracking-[0.16em] text-[#6f655a] uppercase">
-                {editorFr.blockNames.A_PROPOS}
+        <div className="bg-[#1a0705] p-6 text-[#f4e4de] sm:p-10">
+          <div className="grid gap-8 min-[940px]:grid-cols-[0.9fr_1.1fr] min-[940px]:items-center">
+            <figure className="group relative mx-auto w-full max-w-[360px] min-[940px]:mx-0">
+              <div className="absolute inset-2 translate-x-4 -translate-y-3 rotate-[3deg] rounded-xl border border-white/10 bg-white/5" />
+              <div className="absolute inset-1 translate-x-2 -translate-y-1.5 rotate-[1.5deg] rounded-xl border border-white/10 bg-[#281614]" />
+              <div className="relative aspect-[4/5] overflow-hidden rounded-[10px] border border-white/10 bg-[#281614]">
+                {portrait && (
+                  <SafeImage src={portrait} alt={name} fill unoptimized className="object-cover" />
+                )}
               </div>
-              <h3 className="mt-1 font-sans text-2xl font-bold text-[#1a120c] sm:text-3xl">
+              <figcaption className="mt-3 font-mono text-[8px] tracking-[0.16em] text-[#b78d82] uppercase">
+                {(conf.legendePortrait as string) || name || "Portrait"}
+              </figcaption>
+            </figure>
+
+            <div className="space-y-4">
+              <div className="font-mono text-[9px] font-semibold tracking-[0.16em] text-[#b78d82] uppercase">
+                01 — {editorFr.blockNames.A_PROPOS}
+              </div>
+              <h3 className="font-sans text-2xl font-semibold text-[#f4e4de] sm:text-4xl">
                 {name}
               </h3>
-              <p className="mt-4 text-sm leading-relaxed text-[#3d2f26] sm:text-base">
-                {text}
-              </p>
-              <div className="mt-6 flex items-baseline gap-3">
-                <span className="font-serif text-4xl font-bold italic text-[#e8a34a]">
-                  {years}
-                </span>
-                <span className="font-mono text-[10px] font-semibold tracking-[0.16em] text-[#6f655a] uppercase">
-                  {editorFr.labels.aboutExperience}
-                </span>
-              </div>
-            </div>
-
-            <div className="flex justify-center md:justify-end">
-              <div className="relative size-36 overflow-hidden rounded-2xl border border-black/10 bg-[#e8decd] shadow-md sm:size-44">
-                <SafeImage
-                  src={portrait}
-                  alt={name}
-                  fill
-                  unoptimized
-                  className="object-cover"
-                />
-              </div>
+              {text && <p className="text-sm leading-7 text-[#b78d82]">{text}</p>}
+              {typeof conf.citation === "string" && conf.citation && (
+                <blockquote className="border-l border-[#e0563b] pl-4 font-serif text-base text-[#f4e4de] italic">
+                  {conf.citation}
+                </blockquote>
+              )}
+              {facts.length > 0 && (
+                <dl className="grid grid-cols-2 overflow-hidden rounded-lg border border-white/10 bg-white/[0.03]">
+                  {facts.map(([label, value]) => (
+                    <div key={label} className="border-r border-b border-white/10 px-3 py-2.5">
+                      <dt className="font-mono text-[8px] tracking-[0.16em] text-[#b78d82] uppercase">
+                        {label}
+                      </dt>
+                      <dd className="mt-1 text-[11px] text-[#f4e4de]">{value}</dd>
+                    </div>
+                  ))}
+                </dl>
+              )}
             </div>
           </div>
         </div>
@@ -167,8 +119,7 @@ export function RenderBlockContent({
 
     case "GALERIE":
     case "COLLECTION": {
-      const title = (conf.titre as string) || (conf.categorie as string) || "MARIAGE";
-      const cols = Number(conf.colonnes) || 3;
+      const title = (conf.titre as string) || (conf.categorie as string) || "Galerie";
       const elements = bloc.elements || [];
 
       return (
@@ -176,15 +127,13 @@ export function RenderBlockContent({
           <div className="flex items-end justify-between">
             <div>
               <div className="font-mono text-[10px] font-semibold tracking-[0.16em] text-[#6f655a] uppercase">
-                {bloc.type === "COLLECTION" ? "COLLECTION" : "GALLERY"}
+                {bloc.type === "COLLECTION" ? "COLLECTION" : "EXPOSITION 3D"}
               </div>
               <h3 className="mt-1 text-2xl font-bold tracking-wider text-[#1a120c] uppercase sm:text-3xl">
                 {title}
               </h3>
             </div>
-            <span className="font-mono text-[11px] text-[#6f655a]">
-              {elements.length} photos
-            </span>
+            <span className="font-mono text-[11px] text-[#6f655a]">{elements.length}/12 photos</span>
           </div>
 
           {elements.length === 0 ? (
@@ -201,42 +150,62 @@ export function RenderBlockContent({
               <p className="mt-3 font-sans text-sm font-semibold text-[#1a120c]">
                 {editorFr.labels.emptyGallery}
               </p>
-              <p className="mt-1 text-xs text-[#6f655a]">
-                Cliquez pour choisir des photographies
-              </p>
+              <p className="mt-1 text-xs text-[#6f655a]">Cliquez pour choisir des photographies</p>
             </div>
           ) : (
-            <div
-              className={`mt-8 grid gap-2.5 sm:gap-3.5 ${
-                cols === 2 ? "grid-cols-2" : cols === 4 ? "grid-cols-2 sm:grid-cols-4" : "grid-cols-2 sm:grid-cols-3"
-              }`}
-            >
-              {elements.map((elem, idx) => (
+            <div className="relative mt-8 h-[300px] overflow-hidden rounded-[14px] border border-white/10 bg-[#080504]">
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_46%,rgba(232,163,74,.22),transparent_50%)]" />
+              <div className="absolute inset-x-0 top-0 h-12 border-b border-white/10 bg-[#f0efe9]" />
+              <div className="absolute inset-x-0 bottom-0 h-16 border-t border-white/10 bg-[#20201f] bg-[linear-gradient(90deg,#282827_1px,transparent_1px),linear-gradient(#282827_1px,transparent_1px)] bg-[size:32px_32px]" />
+              <div className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/80 to-transparent" />
+
+              {elements.slice(0, 3).map((elem, index) => (
                 <div
-                  key={elem.idElement || idx}
-                  className="group relative aspect-[4/5] overflow-hidden rounded-[6px] bg-[#f0eae1] shadow-xs"
+                  key={elem.idElement || index}
+                  className="absolute top-1/2 -translate-y-1/2 transition-all"
+                  style={{
+                    left: `${index === 0 ? 24 : index === 1 ? 50 : 76}%`,
+                    transform: `translate(-50%, -50%) perspective(500px) rotateY(${index === 0 ? 12 : index === 2 ? -12 : 0}deg) scale(${index === 1 ? 1 : 0.82})`,
+                    zIndex: index === 1 ? 4 : 2,
+                  }}
                 >
-                  <SafeImage
-                    src={elem.media.url}
-                    alt={elem.texteAlt || elem.titre || ""}
-                    fill
-                    unoptimized
-                    className="object-cover transition-transform duration-500 group-hover:scale-105"
-                  />
-                  {elem.statutConsentement === "EN_ATTENTE" && (
-                    <div className="absolute top-2 left-2 z-10 rounded-full border border-amber-500/30 bg-amber-500/90 px-2 py-0.5 font-mono text-[9px] font-semibold text-black uppercase shadow-xs">
-                      En attente
-                    </div>
+                  {index === 1 && (
+                    <div className="pointer-events-none absolute -inset-4 rounded-full bg-[#e9b984]/20 blur-xl" />
                   )}
-                  {elem.titre && (
-                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent p-2 text-left opacity-0 transition-opacity group-hover:opacity-100">
-                      <p className="truncate text-[11px] font-medium text-white">
-                        {elem.titre}
-                      </p>
+                  <div className="relative aspect-[4/5] w-[130px] rounded-[2px] border-[6px] border-[#241b16] bg-[#16100c] p-2.5 shadow-2xl outline-1 outline-white/10">
+                    <div className="relative h-full w-full overflow-hidden rounded-[1px] bg-[#eee8df] shadow-inner">
+                      <SafeImage
+                        src={elem.media.urlMiniature || elem.media.url}
+                        alt={elem.texteAlt || elem.titre || ""}
+                        fill
+                        unoptimized
+                        className="object-cover"
+                      />
+                      {elem.statutConsentement === "EN_ATTENTE" && (
+                        <span className="absolute top-1 left-1 rounded bg-amber-500 px-1.5 py-0.5 font-mono text-[8px] font-semibold text-black">
+                          En attente
+                        </span>
+                      )}
                     </div>
-                  )}
+                  </div>
                 </div>
               ))}
+
+              <div className="absolute bottom-2.5 left-1/2 flex -translate-x-1/2 flex-col items-center gap-1">
+                <div className="flex items-center gap-1 rounded-full border border-white/15 bg-[#120e0c]/90 px-2.5 py-1 backdrop-blur-md">
+                  <span className="text-[10px] text-white/50">&lt;</span>
+                  <span className="flex size-4 items-center justify-center rounded-full bg-[#e9b984] font-mono text-[9px] font-bold text-[#140d07]">
+                    01
+                  </span>
+                  <span className="font-mono text-[9px] text-white/40">02</span>
+                  <span className="text-[10px] text-white/50">&gt;</span>
+                </div>
+                <div className="flex items-center gap-1 font-mono text-[7.5px] tracking-wider text-[#bfa382] uppercase">
+                  <span className="rounded border border-white/20 bg-white/5 px-1 py-0.5">←</span>
+                  <span className="rounded border border-white/20 bg-white/5 px-1 py-0.5">→</span>
+                  <span>VISITE GUIDÉE</span>
+                </div>
+              </div>
             </div>
           )}
         </div>
@@ -244,77 +213,96 @@ export function RenderBlockContent({
     }
 
     case "CASE_STUDY": {
-      const title = (conf.titre as string) || "Market morning, Saint-Michel";
-      const text = (conf.texte as string) || "An early dawn session...";
-      const date = (conf.date as string) || "14 Septembre";
-      const location = (conf.lieu as string) || "Bordeaux, Saint-Michel";
-      const photo =
-        (conf.photo as string) ||
-        "https://images.unsplash.com/photo-1509316975850-ff9c5deb0cd9?auto=format&fit=crop&w=1200&q=80";
+      const title = (conf.titre as string) || "";
+      const text = (conf.texte as string) || "";
+      const date = (conf.date as string) || "";
+      const location = (conf.lieu as string) || "";
+      const photo = (conf.photo as string) || bloc.elements?.[0]?.media?.url || "";
 
       return (
-        <div className="bg-[#faf7f2] p-8 sm:p-12 text-[#1a120c] border-b border-[#eee7db]">
+        <div className="border-b border-[#eee7db] bg-[#faf7f2] p-8 text-[#1a120c] sm:p-12">
           <div className="font-mono text-[10px] font-semibold tracking-[0.16em] text-[#6f655a] uppercase">
             CASE STUDY
           </div>
-          <h3 className="mt-1 text-2xl font-bold tracking-tight text-[#1a120c] sm:text-3xl">
-            {title}
-          </h3>
+          {title && (
+            <h3 className="mt-1 text-2xl font-bold tracking-tight text-[#1a120c] sm:text-3xl">
+              {title}
+            </h3>
+          )}
 
-          <div className="mt-3 flex items-center gap-4 font-mono text-xs text-[#6f655a]">
-            <span className="flex items-center gap-1.5">
-              <Calendar className="size-3.5 text-[#e8a34a]" />
-              {date}
-            </span>
-            <span className="flex items-center gap-1.5">
-              <MapPin className="size-3.5 text-[#e8a34a]" />
-              {location}
-            </span>
-          </div>
+          {(date || location) && (
+            <div className="mt-3 flex items-center gap-4 font-mono text-xs text-[#6f655a]">
+              {date && (
+                <span className="flex items-center gap-1.5">
+                  <Calendar className="size-3.5 text-[#e8a34a]" />
+                  {date}
+                </span>
+              )}
+              {location && (
+                <span className="flex items-center gap-1.5">
+                  <MapPin className="size-3.5 text-[#e8a34a]" />
+                  {location}
+                </span>
+              )}
+            </div>
+          )}
 
-          <p className="mt-4 max-w-3xl text-sm leading-relaxed text-[#3d2f26] sm:text-base">
-            {text}
-          </p>
+          {text && (
+            <p className="mt-4 max-w-3xl text-sm leading-relaxed text-[#3d2f26] sm:text-base">
+              {text}
+            </p>
+          )}
 
-          <div className="relative mt-6 aspect-[16/9] w-full overflow-hidden rounded-xl shadow-md">
-            <SafeImage src={photo} alt={title} fill unoptimized className="object-cover" />
-          </div>
+          {photo ? (
+            <div className="relative mt-6 aspect-[16/9] w-full overflow-hidden rounded-xl shadow-md">
+              <SafeImage src={photo} alt={title} fill unoptimized className="object-cover" />
+            </div>
+          ) : (
+            <p className="mt-6 rounded-lg border border-dashed border-black/15 p-8 text-center text-xs text-[#6f655a]">
+              Ajoutez une photo ou un récit à cette étude de cas.
+            </p>
+          )}
         </div>
       );
     }
 
     case "AVANT_APRES": {
-      const title = (conf.titre as string) || "Color grading & retouching";
-      const desc = (conf.description as string) || "Subtle film toning and shadow recovery preserving natural skin tones.";
+      const title = (conf.titre as string) || "Avant / après";
+      const desc = (conf.description as string) || "";
       const photoBefore =
         (conf.photoAvant as string) ||
-        "https://images.unsplash.com/photo-1492691527719-9d1e07e534b4?auto=format&fit=crop&w=1000&q=80";
+        bloc.elements?.find((element) => element.role === "AVANT")?.media.url;
       const photoAfter =
         (conf.photoApres as string) ||
-        "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=1000&q=80";
+        bloc.elements?.find((element) => element.role === "APRES")?.media.url;
 
       return (
-        <div className="bg-white p-8 sm:p-12 text-[#1a120c] border-b border-black/5">
+        <div className="border-b border-black/5 bg-white p-8 text-[#1a120c] sm:p-12">
           <div className="font-mono text-[10px] font-semibold tracking-[0.16em] text-[#6f655a] uppercase">
             BEFORE / AFTER
           </div>
           <h3 className="mt-1 text-2xl font-bold tracking-tight text-[#1a120c] sm:text-3xl">
             {title}
           </h3>
-          <p className="mt-2 text-sm text-[#6f655a]">{desc}</p>
-
-          <InteractiveBeforeAfter beforeUrl={photoBefore} afterUrl={photoAfter} />
+          {desc && <p className="mt-2 text-sm text-[#6f655a]">{desc}</p>}
+          {photoBefore && photoAfter ? (
+            <InteractiveBeforeAfter beforeUrl={photoBefore} afterUrl={photoAfter} />
+          ) : (
+            <p className="mt-6 rounded-lg border border-dashed border-black/15 p-8 text-center text-xs text-[#6f655a]">
+              Ajoutez les images avant et après pour afficher la comparaison.
+            </p>
+          )}
         </div>
       );
     }
 
     case "TEMOIGNAGES": {
-      const title = (conf.titre as string) || "Words from couples & families";
+      const title = (conf.titre as string) || "Avis clients";
       type Testimonial = { id: string; auteur: string; role: string; note: number; texte: string };
       const list = (conf.temoignages as Testimonial[]) || [];
 
       return (
-        <div className="bg-[#fbf9f5] p-8 sm:p-12 text-[#1a120c] border-b border-[#eee7db]">
+        <div className="border-b border-[#eee7db] bg-[#fbf9f5] p-8 text-[#1a120c] sm:p-12">
           <div className="font-mono text-[10px] font-semibold tracking-[0.16em] text-[#6f655a] uppercase">
             TESTIMONIALS
           </div>
@@ -333,7 +321,7 @@ export function RenderBlockContent({
                     ))}
                   </div>
                   <Quote className="mt-3 size-5 text-[#e8a34a]/30" />
-                  <p className="mt-1 text-xs italic leading-relaxed text-[#3d2f26]">
+                  <p className="mt-1 text-xs leading-relaxed text-[#3d2f26] italic">
                     &ldquo;{item.texte}&rdquo;
                   </p>
                 </div>
@@ -349,14 +337,21 @@ export function RenderBlockContent({
     }
 
     case "SERVICES": {
-      const title = (conf.titre as string) || "Collections & Investment";
-      type ServicePackage = { id: string; nom: string; prix: number; duree: string; description: string };
+      const title = (conf.titre as string) || "Prestations & tarifs";
+      type ServicePackage = {
+        id: string;
+        nom: string;
+        prixAPartirDe?: number;
+        delai?: string;
+        description: string;
+        inclus?: string[];
+      };
       const packages = (conf.forfaits as ServicePackage[]) || [];
 
       return (
-        <div className="bg-white p-8 sm:p-12 text-[#1a120c] border-b border-black/5">
+        <div className="border-b border-black/5 bg-white p-8 text-[#1a120c] sm:p-12">
           <div className="font-mono text-[10px] font-semibold tracking-[0.16em] text-[#6f655a] uppercase">
-            SERVICES & PACKAGES
+            PRESTATIONS
           </div>
           <h3 className="mt-1 text-2xl font-bold text-[#1a120c] sm:text-3xl">{title}</h3>
 
@@ -370,22 +365,37 @@ export function RenderBlockContent({
                   <h4 className="font-sans text-base font-bold text-[#1a120c]">{pkg.nom}</h4>
                   <div className="mt-2 flex items-baseline gap-1">
                     <span className="text-xs text-[#6f655a]">À partir de</span>
-                    <span className="font-sans text-2xl font-extrabold text-[#e8a34a]">
-                      {pkg.prix} €
-                    </span>
+                    {pkg.prixAPartirDe !== undefined && (
+                      <span className="font-sans text-2xl font-extrabold text-[#e8a34a]">
+                        {new Intl.NumberFormat("fr-FR", {
+                          style: "currency",
+                          currency: "EUR",
+                          maximumFractionDigits: 0,
+                        }).format(pkg.prixAPartirDe)}
+                      </span>
+                    )}
                   </div>
-                  <div className="mt-2 flex items-center gap-1.5 font-mono text-[11px] text-[#6f655a]">
-                    <Clock className="size-3" />
-                    {pkg.duree}
-                  </div>
-                  <p className="mt-3 text-xs leading-relaxed text-[#3d2f26]">
-                    {pkg.description}
-                  </p>
+                  {pkg.delai && (
+                    <div className="mt-2 flex items-center gap-1.5 font-mono text-[11px] text-[#6f655a]">
+                      <Clock className="size-3" />
+                      {pkg.delai}
+                    </div>
+                  )}
+                  {pkg.description && (
+                    <p className="mt-3 text-xs leading-relaxed text-[#3d2f26]">{pkg.description}</p>
+                  )}
+                  {pkg.inclus && pkg.inclus.length > 0 && (
+                    <ul className="mt-3 space-y-1 text-[11px] text-[#6f655a]">
+                      {pkg.inclus.map((item) => (
+                        <li key={item}>✓ {item}</li>
+                      ))}
+                    </ul>
+                  )}
                 </div>
 
                 <div className="mt-5 pt-3">
                   <span className="inline-block w-full rounded-md border border-black/10 bg-white py-2 text-center text-xs font-semibold text-[#1a120c]">
-                    Enquire
+                    {editorFr.labels.enquiry}
                   </span>
                 </div>
               </div>
@@ -395,31 +405,81 @@ export function RenderBlockContent({
       );
     }
 
+    case "PROCESSUS": {
+      const steps = Array.isArray(conf.etapes)
+        ? (conf.etapes as { titre?: string; description?: string }[])
+        : [];
+      return (
+        <div className="bg-[#1a0705] p-8 text-[#f4e4de] sm:p-12">
+          <p className="font-mono text-[10px] tracking-[0.16em] text-[#caa27f] uppercase">Accompagnement</p>
+          <h3 className="mt-2 font-serif text-2xl">{String(conf.titre || "Comment se déroule une séance")}</h3>
+          <ol className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {steps.slice(0, 4).map((step, index) => (
+              <li key={`${step.titre}-${index}`} className="rounded-lg border border-white/10 p-4">
+                <span className="font-mono text-xs text-[#e8a34a]">0{index + 1}</span>
+                <p className="mt-2 font-medium">{step.titre}</p>
+                <p className="mt-1 text-xs leading-relaxed text-[#c7b5a3]">{step.description}</p>
+              </li>
+            ))}
+          </ol>
+        </div>
+      );
+    }
+
+    case "FAQ": {
+      const questions = Array.isArray(conf.questions)
+        ? (conf.questions as { question?: string; reponse?: string }[])
+        : [];
+      return (
+        <div className="bg-[#1a0705] p-8 text-[#f4e4de] sm:p-12">
+          <p className="font-mono text-[10px] tracking-[0.16em] text-[#caa27f] uppercase">FAQ</p>
+          <h3 className="mt-2 font-serif text-2xl">{String(conf.titre || "Questions fréquentes")}</h3>
+          <div className="mt-5 divide-y divide-white/10">
+            {questions.filter((item) => item.question).map((item, index) => (
+              <div key={`${item.question}-${index}`} className="py-3">
+                <p className="font-medium">{item.question}</p>
+                {item.reponse && <p className="mt-1 text-xs leading-relaxed text-[#c7b5a3]">{item.reponse}</p>}
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
     case "STATISTIQUES": {
       return (
-        <div className="bg-[#170e09] p-8 sm:p-12 text-[#f3ebdd] border-b border-white/5">
+        <div className="border-b border-white/5 bg-[#170e09] p-8 text-[#f3ebdd] sm:p-12">
           <div className="grid grid-cols-3 gap-4 text-center">
             <div>
-              <div className="font-serif text-3xl sm:text-5xl font-bold text-[#e8a34a]">
-                {(conf.stat1_valeur as string) || "148"}
+              <div
+                className="font-serif text-3xl font-bold sm:text-5xl"
+                style={{ color: "var(--portfolio-accent)" }}
+              >
+                {(conf.stat1_valeur as string) || "—"}
               </div>
-              <p className="mt-2 font-mono text-[10px] sm:text-[11px] tracking-wider text-white/60 uppercase">
+              <p className="mt-2 font-mono text-[10px] tracking-wider text-white/60 uppercase sm:text-[11px]">
                 {(conf.stat1_label as string) || "Séances réalisées"}
               </p>
             </div>
             <div className="border-x border-white/10">
-              <div className="font-serif text-3xl sm:text-5xl font-bold text-[#e8a34a]">
-                {(conf.stat2_valeur as string) || "96"}
+              <div
+                className="font-serif text-3xl font-bold sm:text-5xl"
+                style={{ color: "var(--portfolio-accent)" }}
+              >
+                {(conf.stat2_valeur as string) || "—"}
               </div>
-              <p className="mt-2 font-mono text-[10px] sm:text-[11px] tracking-wider text-white/60 uppercase">
+              <p className="mt-2 font-mono text-[10px] tracking-wider text-white/60 uppercase sm:text-[11px]">
                 {(conf.stat2_label as string) || "Clients accompagnés"}
               </p>
             </div>
             <div>
-              <div className="font-serif text-3xl sm:text-5xl font-bold text-[#e8a34a]">
-                {(conf.stat3_valeur as string) || "4.9"}
+              <div
+                className="font-serif text-3xl font-bold sm:text-5xl"
+                style={{ color: "var(--portfolio-accent)" }}
+              >
+                {(conf.stat3_valeur as string) || "—"}
               </div>
-              <p className="mt-2 font-mono text-[10px] sm:text-[11px] tracking-wider text-white/60 uppercase">
+              <p className="mt-2 font-mono text-[10px] tracking-wider text-white/60 uppercase sm:text-[11px]">
                 {(conf.stat3_label as string) || "Note moyenne"}
               </p>
             </div>
@@ -429,44 +489,25 @@ export function RenderBlockContent({
     }
 
     case "VIDEO": {
-      const title = (conf.titre as string) || "Summer Highlights Teaser";
-      const poster =
-        (conf.affiche as string) ||
-        "https://images.unsplash.com/photo-1518895949257-7621c3c786d7?auto=format&fit=crop&w=1200&q=80";
-
-      return (
-        <div className="bg-[#0f0905] p-8 sm:p-12 text-[#f3ebdd]">
-          <div className="font-mono text-[10px] font-semibold tracking-[0.16em] text-[#e8a34a] uppercase">
-            FILM / VIDEO
-          </div>
-          <h3 className="mt-1 text-2xl font-bold text-white sm:text-3xl">{title}</h3>
-
-          <div className="group relative mt-6 aspect-[16/9] w-full overflow-hidden rounded-xl border border-white/10 bg-neutral-900 shadow-2xl">
-            <SafeImage src={poster} alt={title} fill unoptimized className="object-cover" />
-            <div className="absolute inset-0 bg-black/40 transition-colors group-hover:bg-black/30" />
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="flex size-16 items-center justify-center rounded-full bg-[#e8a34a] text-[#0f0905] shadow-xl transition-transform group-hover:scale-110">
-                <Play className="ml-1 size-7 fill-[#0f0905]" />
-              </div>
-            </div>
-          </div>
-        </div>
-      );
+      return null;
     }
 
     case "CONTACT": {
-      const title = (conf.titre as string) || "Let's connect";
-      const intro = (conf.texteIntro as string) || "Tell me about your date, your venue or your project...";
-      const types = (conf.typesSeance as string[]) || ["Mariage", "Séance couple", "Portrait"];
+      const title = (conf.titre as string) || "Parlons de votre projet";
+      const intro = (conf.texteIntro as string) || "";
+      const configured = Array.isArray(conf.typesSeanceProposes) ? conf.typesSeanceProposes : [];
+      const types = CATEGORIES_PORTFOLIO.filter((category) => configured.includes(category)).map(
+        (category) => categoriePortfolioLabels[category],
+      );
 
       return (
-        <div className="bg-[#f6f1e9] p-8 sm:p-12 text-[#1a120c]">
-          <div className="max-w-xl mx-auto text-center">
+        <div className="bg-[#f6f1e9] p-8 text-[#1a120c] sm:p-12">
+          <div className="mx-auto max-w-xl text-center">
             <div className="font-mono text-[10px] font-semibold tracking-[0.16em] text-[#6f655a] uppercase">
-              GET IN TOUCH
+              CONTACT
             </div>
-            <h3 className="mt-1 text-2xl sm:text-3xl font-bold text-[#1a120c]">{title}</h3>
-            <p className="mt-3 text-sm leading-relaxed text-[#3d2f26]">{intro}</p>
+            <h3 className="mt-1 text-2xl font-bold text-[#1a120c] sm:text-3xl">{title}</h3>
+            {intro && <p className="mt-3 text-sm leading-relaxed text-[#3d2f26]">{intro}</p>}
 
             <div className="mt-6 flex flex-wrap justify-center gap-2">
               {types.map((t) => (
@@ -491,40 +532,21 @@ export function RenderBlockContent({
     }
 
     default:
-      return (
-        <div className="p-8 text-center text-sm text-neutral-500">
-          Bloc {bloc.type}
-        </div>
-      );
+      return <div className="p-8 text-center text-sm text-neutral-500">Bloc {bloc.type}</div>;
   }
 }
 
-function InteractiveBeforeAfter({
-  beforeUrl,
-  afterUrl,
-}: {
-  beforeUrl: string;
-  afterUrl: string;
-}) {
+function InteractiveBeforeAfter({ beforeUrl, afterUrl }: { beforeUrl: string; afterUrl: string }) {
   const [sliderPos, setSliderPos] = useState(50);
 
   return (
     <div className="mt-6 space-y-3">
-      <div className="relative aspect-[16/10] w-full overflow-hidden rounded-xl border border-black/10 bg-neutral-100 shadow-md">
+      <div className="relative aspect-[4/3] w-full overflow-hidden rounded-xl border border-black/10 bg-neutral-100 shadow-md">
         {/* Before Image (underneath) */}
-        <SafeImage
-          src={beforeUrl}
-          alt="Avant retouche"
-          fill
-          unoptimized
-          className="object-cover"
-        />
+        <SafeImage src={beforeUrl} alt="Avant retouche" fill unoptimized className="object-cover" />
 
         {/* After Image (clipped) */}
-        <div
-          className="absolute inset-0"
-          style={{ clipPath: `inset(0 0 0 ${sliderPos}%)` }}
-        >
+        <div className="absolute inset-0" style={{ clipPath: `inset(0 0 0 ${sliderPos}%)` }}>
           <SafeImage
             src={afterUrl}
             alt="Après retouche"
@@ -547,7 +569,7 @@ function InteractiveBeforeAfter({
           className="pointer-events-none absolute inset-y-0 w-0.5 bg-white shadow-[0_0_8px_rgba(0,0,0,0.5)]"
           style={{ left: `${sliderPos}%` }}
         >
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 size-6 rounded-full border border-black/20 bg-white shadow-md flex items-center justify-center text-[8px] font-bold text-black">
+          <div className="absolute top-1/2 left-1/2 flex size-6 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-black/20 bg-white text-[8px] font-bold text-black shadow-md">
             ↔
           </div>
         </div>
@@ -559,7 +581,8 @@ function InteractiveBeforeAfter({
         max={100}
         value={sliderPos}
         onChange={(e) => setSliderPos(Number(e.target.value))}
-        className="w-full accent-[#e8a34a] cursor-pointer"
+        className="w-full cursor-pointer"
+        style={{ accentColor: "var(--portfolio-accent)" }}
         aria-label="Comparer avant et après"
       />
     </div>

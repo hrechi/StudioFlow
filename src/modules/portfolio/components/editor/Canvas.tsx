@@ -64,8 +64,14 @@ export function Canvas({
         >
           {/* Eyebrow & Title */}
           <div>
-            <div className="flex items-center gap-2 font-mono text-[10px] font-semibold tracking-[0.16em] text-[#e8a34a] uppercase">
-              <span className="size-2 rounded-full bg-[#e8a34a] shadow-[0_0_8px_#e8a34a] animate-pulse" />
+            <div
+              className="flex items-center gap-2 font-mono text-[10px] font-semibold tracking-[0.16em] uppercase"
+              style={{ color: couleurAccent }}
+            >
+              <span
+                className="size-2 animate-pulse rounded-full"
+                style={{ backgroundColor: couleurAccent, boxShadow: `0 0 8px ${couleurAccent}` }}
+              />
               <span>{editorFr.workingDraft}</span>
             </div>
             <h1 className="mt-1 font-sans text-[19px] font-semibold tracking-tight text-[#f3ebdd]">
@@ -90,7 +96,16 @@ export function Canvas({
         {/* The Sheet with dynamic theme applied */}
         <div
           onClick={(e) => e.stopPropagation()}
-          style={{ "--portfolio-accent": couleurAccent } as React.CSSProperties}
+          style={
+            {
+              "--portfolio-accent": couleurAccent,
+              "--sf-accent": couleurAccent,
+              accentColor: couleurAccent,
+              borderColor: normalizedTheme === "COLORE" || normalizedTheme === "COLOUR"
+                ? couleurAccent
+                : undefined,
+            } as React.CSSProperties
+          }
           className={`sf-sheet-transition relative w-full overflow-hidden rounded-[12px] shadow-[0_20px_50px_rgba(0,0,0,0.5)] transition-all duration-300 ${
             viewportMode === "mobile" ? "max-w-[390px]" : "max-w-[900px]"
           } ${

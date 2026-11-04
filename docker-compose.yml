@@ -6,7 +6,7 @@ x-mongo-uri: &mongo-uri mongodb://mongo:27017/reframe
 
 services:
   mongo:
-    image: mongo:8 # keep 8: the data volume was created by MongoDB 8 (7 cannot open it)
+    image: mongo:7.0.45 # existing data has FCV 7.0; upgrade it through 8.0 before using MongoDB 8.x
     attach: false # keep `docker compose up` readable; see its logs with `docker compose logs mongo`
     restart: unless-stopped
     ports:
@@ -40,6 +40,8 @@ services:
     build:
       context: .
       target: runner
+      args:
+        NEXT_DEPLOYMENT_ID: ${NEXT_DEPLOYMENT_ID:-}
     restart: unless-stopped
     ports:
       - "${APP_PORT:-3000}:3000" # APP_PORT in .env if 3000 is taken (e.g. by npm run dev)
@@ -70,7 +72,7 @@ services:
       RAPIDAPI_PROFANITY_HOST: ${RAPIDAPI_PROFANITY_HOST:-}
       RAPIDAPI_PROFANITY_URL: ${RAPIDAPI_PROFANITY_URL:-}
       # Portfolio module
-      USE_MOCKS: ${USE_MOCKS:-true}
+      USE_MOCKS: ${USE_MOCKS:-false}
       PORTFOLIO_BASE_URL: ${PORTFOLIO_BASE_URL:-http://localhost:3000}
       CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME:-}
       CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY:-}

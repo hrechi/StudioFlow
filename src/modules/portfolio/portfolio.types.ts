@@ -4,18 +4,44 @@
  */
 import type { StatusConfig } from "@/components/shared/status-badge";
 
-export const CATEGORIES_PORTFOLIO = ["MARIAGE", "PORTRAIT", "PRODUIT", "EVENEMENT"] as const;
+export const CATEGORIES_PORTFOLIO = [
+  "MARIAGE",
+  "PORTRAIT",
+  "PRODUIT",
+  "EVENEMENT",
+  "MODE",
+] as const;
 export type CategoriePortfolio = (typeof CATEGORIES_PORTFOLIO)[number];
+
+export const STYLES_PHOTOGRAPHIQUES = [
+  "MINIMALISTE",
+  "ARTISTIQUE",
+  "VINTAGE",
+  "LIFESTYLE",
+  "EDITORIAL",
+  "DOCUMENTAIRE",
+] as const;
+export type StylePhotographique = (typeof STYLES_PHOTOGRAPHIQUES)[number];
+
+export const SERVICES_PHOTOGRAPHIQUES = [
+  "PHOTOGRAPHIE",
+  "VIDEOGRAPHIE",
+  "RETOUCHE",
+  "IMPRESSION",
+] as const;
+export type ServicePhotographique = (typeof SERVICES_PHOTOGRAPHIQUES)[number];
 
 export const TYPES_BLOC = [
   "HERO",
-  "A_PROPOS",
   "GALERIE",
   "COLLECTION",
+  "A_PROPOS",
   "CASE_STUDY",
   "AVANT_APRES",
   "TEMOIGNAGES",
   "SERVICES",
+  "PROCESSUS",
+  "FAQ",
   "STATISTIQUES",
   "VIDEO",
   "CONTACT",
@@ -91,6 +117,7 @@ export type BlocPortfolio = {
 export type ElementPortfolioPublic = {
   idElement: string;
   media: Pick<MediaPortfolio, "url" | "urlMiniature" | "largeur" | "hauteur">;
+  categorie?: CategoriePortfolio;
   titre?: string;
   legende?: string;
   texteAlt?: string;
@@ -142,7 +169,7 @@ export type PortfolioQualityAudit = {
   missingBlocks: { type: TypeBloc; label: string; reason: string }[];
   idealStructure: TypeBloc[];
   checksPublication: {
-    id: "CONSENT" | "ALT_TEXT" | "SEO";
+    id: "CONSENT" | "ALT_TEXT" | "SEO" | "PROFILE_PHOTO";
     label: string;
     status: "READY" | "ACTION";
     detail: string;
@@ -169,16 +196,96 @@ export type SmartPhotoSelection = {
 };
 
 export const PHOTO_QUALITY_SELECTION_THRESHOLD = 50;
-export const MAX_AUTOMATIC_PORTFOLIO_PHOTOS = 6;
+export const MAX_AUTOMATIC_PORTFOLIO_PHOTOS = 12;
 
 export const categoriePortfolioLabels: Record<CategoriePortfolio, string> = {
   MARIAGE: "Mariage",
   PORTRAIT: "Portrait",
   PRODUIT: "Produit",
   EVENEMENT: "Événement",
+  MODE: "Mode",
+};
+
+export const categoriePortfolioLabelsEn: Record<CategoriePortfolio, string> = {
+  MARIAGE: "Wedding",
+  PORTRAIT: "Portrait",
+  PRODUIT: "Product",
+  EVENEMENT: "Event",
+  MODE: "Fashion",
+};
+
+export const STRUCTURE_PORTFOLIO_PAR_SPECIALITE: Record<CategoriePortfolio, TypeBloc[]> = {
+  MARIAGE: ["HERO", "GALERIE", "A_PROPOS", "SERVICES", "PROCESSUS", "TEMOIGNAGES", "FAQ", "CONTACT"],
+  PORTRAIT: ["HERO", "A_PROPOS", "GALERIE", "SERVICES", "PROCESSUS", "TEMOIGNAGES", "FAQ", "CONTACT"],
+  PRODUIT: ["HERO", "GALERIE", "CASE_STUDY", "A_PROPOS", "SERVICES", "FAQ", "CONTACT"],
+  EVENEMENT: ["HERO", "GALERIE", "A_PROPOS", "CASE_STUDY", "TEMOIGNAGES", "FAQ", "CONTACT"],
+  MODE: ["HERO", "GALERIE", "A_PROPOS", "CASE_STUDY", "SERVICES", "TEMOIGNAGES", "CONTACT"],
+};
+
+export const STRUCTURE_PORTFOLIO_DEFAUT: TypeBloc[] = [
+  "HERO",
+  "A_PROPOS",
+  "GALERIE",
+  "COLLECTION",
+  "CASE_STUDY",
+  "AVANT_APRES",
+  "SERVICES",
+  "PROCESSUS",
+  "TEMOIGNAGES",
+  "STATISTIQUES",
+  "FAQ",
+  "CONTACT",
+];
+
+export const stylePhotographiqueLabels: Record<StylePhotographique, string> = {
+  MINIMALISTE: "Minimaliste",
+  ARTISTIQUE: "Artistique",
+  VINTAGE: "Vintage",
+  LIFESTYLE: "Lifestyle",
+  EDITORIAL: "Éditorial",
+  DOCUMENTAIRE: "Documentaire",
+};
+
+export const stylePhotographiqueLabelsEn: Record<StylePhotographique, string> = {
+  MINIMALISTE: "Minimalist",
+  ARTISTIQUE: "Artistic",
+  VINTAGE: "Vintage",
+  LIFESTYLE: "Lifestyle",
+  EDITORIAL: "Editorial",
+  DOCUMENTAIRE: "Documentary",
+};
+
+export const servicePhotographiqueLabels: Record<ServicePhotographique, string> = {
+  PHOTOGRAPHIE: "Photographie",
+  VIDEOGRAPHIE: "Vidéographie",
+  RETOUCHE: "Retouche",
+  IMPRESSION: "Impression",
+};
+
+export const servicePhotographiqueLabelsEn: Record<ServicePhotographique, string> = {
+  PHOTOGRAPHIE: "Photography",
+  VIDEOGRAPHIE: "Videography",
+  RETOUCHE: "Retouching",
+  IMPRESSION: "Fine Art Print",
 };
 
 export const visibiliteConfig: StatusConfig<Visibilite> = {
   PUBLIC: { label: "Published", tone: "success" },
   PRIVE: { label: "Draft", tone: "neutral" },
+};
+
+export type PlancheContactFrame = {
+  id: string;
+  imageUrl: string;
+  timestamp: number;
+  caption?: string;
+  order: number;
+};
+
+export type PlancheContactData = {
+  active: boolean;
+  videoUrl?: string;
+  trimStart?: number;
+  trimEnd?: number;
+  frames: PlancheContactFrame[];
 };

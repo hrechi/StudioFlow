@@ -11,11 +11,13 @@ export function Reveal({
   children,
   className,
   delay = 0,
+  rootMargin,
   as: Tag = "div",
 }: {
   children: ReactNode;
   className?: string;
   delay?: number;
+  rootMargin?: string;
   as?: "div" | "section" | "li" | "article";
 }) {
   const ref = useRef<HTMLElement | null>(null);
@@ -35,11 +37,11 @@ export function Reveal({
           observer.disconnect();
         }
       },
-      { threshold: 0.05 },
+      { threshold: 0.05, rootMargin },
     );
     observer.observe(node);
     return () => observer.disconnect();
-  }, []);
+  }, [rootMargin]);
 
   return (
     <Tag

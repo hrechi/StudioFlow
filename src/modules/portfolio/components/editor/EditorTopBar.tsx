@@ -6,6 +6,8 @@ import {
   Check,
   Clock,
   ExternalLink,
+  Eye,
+  EyeOff,
   Loader2,
   Monitor,
   Redo2,
@@ -26,6 +28,8 @@ type EditorTopBarProps = {
   isSaving?: boolean;
   hasUnpublishedChanges?: boolean;
   isPublished?: boolean;
+  publicationStatus?: "BROUILLON" | "PUBLIE" | "DEPUBLIE";
+  visibility?: "PUBLIC" | "PRIVE";
   viewportMode: ViewportMode;
   onViewportChange: (mode: ViewportMode) => void;
   canUndo?: boolean;
@@ -33,6 +37,8 @@ type EditorTopBarProps = {
   onUndo?: () => void;
   onRedo?: () => void;
   onPublish?: () => void;
+  onUnpublish?: () => void;
+  onPreview?: () => void;
   onQualityAudit?: () => void;
   onOpenStatsInsights?: () => void;
   onTogglePaletteDrawer?: () => void;
@@ -44,6 +50,8 @@ export function EditorTopBar({
   isSaving = false,
   hasUnpublishedChanges = true,
   isPublished = false,
+  publicationStatus = "BROUILLON",
+  visibility = "PUBLIC",
   viewportMode,
   onViewportChange,
   canUndo = false,
@@ -51,6 +59,8 @@ export function EditorTopBar({
   onUndo,
   onRedo,
   onPublish,
+  onUnpublish,
+  onPreview,
   onQualityAudit,
   onOpenStatsInsights,
   onTogglePaletteDrawer,
@@ -101,6 +111,9 @@ export function EditorTopBar({
 
       {/* Center status: Saved badge + Unpublished changes */}
       <div className="flex items-center gap-2.5">
+        <span className="hidden rounded-full border border-white/[0.08] px-2.5 py-1 font-mono text-[9px] text-white/60 sm:inline">
+          {editorFr.statuses[publicationStatus]} · {editorFr.visibility[visibility]}
+        </span>
         {/* Saved / Saving Badge */}
         <div
           className="flex items-center gap-1.5 rounded-full border border-white/[0.08] bg-white/[0.03] px-2.5 py-1"
@@ -213,7 +226,19 @@ export function EditorTopBar({
         </Link>
 
         {/* View page button: visible once published */}
-        {isPublished && (
+        {onPreview && (
+          <button
+            type="button"
+            onClick={onPreview}
+            title={editorFr.preview}
+            aria-label={editorFr.preview}
+            className="flex size-8 items-center justify-center rounded-full border border-white/15 text-xs text-white/80 transition-colors hover:border-white/30 hover:text-white sm:w-auto sm:gap-1.5 sm:px-3"
+          >
+            <Eye className="size-3.5" aria-hidden="true" />
+            <span className="hidden sm:inline">{editorFr.preview}</span>
+          </button>
+        )}
+        {isPublished && visibility === "PUBLIC" && (
           <a
             href={`/portfolio/${portfolioSlug}`}
             target="_blank"
@@ -244,6 +269,18 @@ export function EditorTopBar({
           >
             <Sparkles className="size-3" aria-hidden="true" />
             <span>Conseils stats IA</span>
+          </button>
+        )}
+        {isPublished && onUnpublish && (
+          <button
+            type="button"
+            onClick={onUnpublish}
+            title={editorFr.unpublish}
+            aria-label={editorFr.unpublish}
+            className="flex size-8 items-center justify-center rounded-full border border-white/15 text-xs text-white/70 transition-colors hover:border-red-300/40 hover:text-red-200 min-[900px]:h-auto min-[900px]:w-auto min-[900px]:gap-1.5 min-[900px]:px-3 min-[900px]:py-1.5"
+          >
+            <EyeOff className="size-3.5" aria-hidden="true" />
+            <span className="hidden min-[900px]:inline">{editorFr.unpublish}</span>
           </button>
         )}
         <button

@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils";
 import { listAvis } from "@/modules/avis-reclamations/avis.service";
 import { getPublicReviewSummary } from "@/modules/avis-reclamations/summary.service";
 import { listPublicPortfolios } from "@/modules/portfolio/portfolio.service";
+import { PortfolioCardTransition } from "@/modules/portfolio/components/transitions";
 import { ContactForm } from "./_components/contact-form";
 import { Testimonials } from "./_components/testimonials";
 
@@ -106,8 +107,6 @@ const STEPS = [
   ],
 ] as const;
 
-const GALLERY_RATIOS = ["aspect-[4/5]", "aspect-[3/2]", "aspect-[2/3]"];
-
 export default async function HomePage() {
   const session = await auth();
   const role = session?.user?.role;
@@ -117,18 +116,16 @@ export default async function HomePage() {
       : role
         ? "/dashboard/seances/nouvelle"
         : "/register";
-  const publishedPortfolios = (await listPublicPortfolios({ page: 1 })).items;
+  const publishedPortfolios = (
+    await listPublicPortfolios({
+      categories: [],
+      styles: [],
+      services: [],
+      disponible: false,
+      page: 1,
+    })
+  ).items;
   const publicSlugs = new Set(publishedPortfolios.map((portfolio) => portfolio.slug));
-  const gallery = publishedPortfolios.flatMap((portfolio) =>
-    portfolio.blocsPublies.flatMap((block) =>
-      block.elements.map((element) => ({
-        id: element.idElement,
-        legende: element.legende ?? element.titre ?? "Portfolio photograph",
-        slug: portfolio.slug,
-        photo: { url: element.media.urlMiniature || element.media.url },
-      })),
-    ),
-  ).slice(0, 9);
   const { items: publicReviews } = await listAvis({ publicOnly: true });
   const reviewSummary = await getPublicReviewSummary();
   const testimonials = publicReviews.map((avis) => ({
@@ -259,38 +256,45 @@ export default async function HomePage() {
           <ul className="mt-16 grid gap-4 md:grid-cols-2">
             {CATEGORIES.map((category, index) => (
               <Reveal key={category.slug} as="li" delay={(index % 2) * 120}>
-                <Link
-                  href={
-                    publicSlugs.has(category.slug) ? `/portfolio/${category.slug}` : "/portfolio"
-                  }
-                  className="dark group relative block aspect-[16/10] overflow-hidden bg-card lg:aspect-[21/11]"
+                <PortfolioCardTransition
+                  slug={category.slug}
+                  coverUrl={category.image}
+                  title={category.titre}
+                  photographerName="Studio"
                 >
-                  <SafeImage
-                    src={category.image}
-                    alt=""
-                    fill
-                    sizes="(min-width: 768px) 50vw, 100vw"
-                    className="img-zoom object-cover"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-background/90 via-background/25 to-background/10 transition-colors duration-700 group-hover:via-background/45" />
-                  <div className="absolute inset-0 flex flex-col justify-between p-6 sm:p-8">
-                    <span className="font-heading text-xs tracking-[0.3em] text-foreground/60">
-                      0{index + 1}
-                    </span>
-                    <div className="flex items-end justify-between gap-6">
-                      <div>
-                        <h3 className="display-md text-foreground">{category.titre}</h3>
-                        <p className="mt-3 max-w-sm text-sm text-foreground/70 transition-all duration-700 md:translate-y-2 md:opacity-0 md:group-hover:translate-y-0 md:group-hover:opacity-100 md:group-focus-visible:translate-y-0 md:group-focus-visible:opacity-100">
-                          {category.texte}
-                        </p>
-                      </div>
-                      <span className="grid size-12 shrink-0 place-items-center border border-foreground/30 text-foreground transition-colors duration-500 group-hover:border-foreground group-hover:bg-foreground group-hover:text-background">
-                        <ArrowUpRight className="size-5" aria-hidden />
+                  <Link
+                    href={
+                      publicSlugs.has(category.slug) ? `/portfolio/${category.slug}` : "/portfolio"
+                    }
+                    className="dark group relative block aspect-[16/10] overflow-hidden bg-card lg:aspect-[21/11]"
+                  >
+                    <SafeImage
+                      src={category.image}
+                      alt=""
+                      fill
+                      sizes="(min-width: 768px) 50vw, 100vw"
+                      className="img-zoom object-cover"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-background/90 via-background/25 to-background/10 transition-colors duration-700 group-hover:via-background/45" />
+                    <div className="absolute inset-0 flex flex-col justify-between p-6 sm:p-8">
+                      <span className="font-heading text-xs tracking-[0.3em] text-foreground/60">
+                        0{index + 1}
                       </span>
+                      <div className="flex items-end justify-between gap-6">
+                        <div>
+                          <h3 className="display-md text-foreground">{category.titre}</h3>
+                          <p className="mt-3 max-w-sm text-sm text-foreground/70 transition-all duration-700 md:translate-y-2 md:opacity-0 md:group-hover:translate-y-0 md:group-hover:opacity-100 md:group-focus-visible:translate-y-0 md:group-focus-visible:opacity-100">
+                            {category.texte}
+                          </p>
+                        </div>
+                        <span className="grid size-12 shrink-0 place-items-center border border-foreground/30 text-foreground transition-colors duration-500 group-hover:border-foreground group-hover:bg-foreground group-hover:text-background">
+                          <ArrowUpRight className="size-5" aria-hidden />
+                        </span>
+                      </div>
                     </div>
-                  </div>
-                  <span className="sr-only">See the {category.titre.toLowerCase()} portfolio</span>
-                </Link>
+                    <span className="sr-only">See the {category.titre.toLowerCase()} portfolio</span>
+                  </Link>
+                </PortfolioCardTransition>
               </Reveal>
             ))}
           </ul>
@@ -390,114 +394,6 @@ export default async function HomePage() {
               </Reveal>
             ))}
           </ol>
-        </div>
-      </section>
-
-      {/* ── Portfolio gallery (masonry) ─────────────────────────────────── */}
-      <section className="section border-t border-foreground/[0.06]">
-        <div className="container-wide">
-          <Reveal className="flex flex-col justify-between gap-6 md:flex-row md:items-end">
-            <div>
-              <p className="eyebrow">Portfolio</p>
-              <h2 className="display-lg mt-6 max-w-3xl text-foreground">Stories we have told</h2>
-            </div>
-            <Button
-              asChild
-              variant="cinematic-outline"
-              size="cta-sm"
-              className="self-start md:self-auto"
-            >
-              <Link href="/portfolio">
-                Full portfolio
-                <ArrowUpRight aria-hidden />
-              </Link>
-            </Button>
-          </Reveal>
-          <ul className="mt-16 columns-1 gap-4 sm:columns-2 lg:columns-3 [&>li]:mb-4">
-            {gallery.map((element, index) => (
-              <Reveal
-                key={element.id}
-                as="li"
-                delay={(index % 3) * 100}
-                className="break-inside-avoid"
-              >
-                <Link
-                  href={`/portfolio/${element.slug}`}
-                  className={cn(
-                    "dark group relative block overflow-hidden bg-card",
-                    GALLERY_RATIOS[index % GALLERY_RATIOS.length],
-                  )}
-                >
-                  <SafeImage
-                    src={element.photo.url}
-                    alt={element.legende}
-                    fill
-                    unoptimized
-                    sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
-                    className="img-zoom object-cover"
-                  />
-                  <div className="absolute inset-0 flex items-end bg-gradient-to-t from-background/80 via-transparent to-transparent p-5 opacity-0 transition-opacity duration-700 group-hover:opacity-100 group-focus-visible:opacity-100">
-                    <p className="text-xs tracking-[0.2em] text-foreground uppercase">
-                      {element.legende}
-                    </p>
-                  </div>
-                </Link>
-              </Reveal>
-            ))}
-          </ul>
-          {publishedPortfolios.length > 0 && (
-            <div className="mt-16">
-              <div className="mb-6 flex items-center justify-between">
-                <div>
-                  <p className="eyebrow text-[#e8a34a]">Photographes StudioFlow</p>
-                  <h3 className="text-2xl font-bold tracking-tight text-foreground">Portfolios en ligne</h3>
-                </div>
-                <span className="font-mono text-xs text-foreground/50">{publishedPortfolios.length} portfolio(s) actif(s)</span>
-              </div>
-              <ul className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                {publishedPortfolios.map((portfolio) => (
-                  <li key={portfolio.id}>
-                    <Link
-                      href={`/portfolio/${portfolio.slug}`}
-                      className="group block overflow-hidden rounded-2xl border border-foreground/10 bg-card transition-all hover:border-[#e8a34a]/40 hover:shadow-xl"
-                    >
-                      <div className="relative aspect-[16/10] overflow-hidden bg-black/20">
-                        <SafeImage
-                          src={portfolio.photoCouverture}
-                          alt={portfolio.titre}
-                          fill
-                          unoptimized
-                          sizes="(min-width: 1024px) 33vw, 50vw"
-                          className="img-zoom object-cover"
-                        />
-                      </div>
-                      <div className="p-5">
-                        <p className="text-xs tracking-[0.18em] text-foreground/55 uppercase">
-                          {portfolio.specialites.join(" · ")}
-                          {portfolio.ville ? ` · ${portfolio.ville}` : ""}
-                        </p>
-                        <h4 className="mt-2 text-lg font-semibold text-foreground transition-colors group-hover:text-[#e8a34a]">
-                          {portfolio.titre}
-                        </h4>
-                        <div className="mt-2 flex items-center justify-between border-t border-foreground/10 pt-3">
-                          <p className="text-sm font-medium text-foreground/70">
-                            {portfolio.photographe.prenom} {portfolio.photographe.nom}
-                          </p>
-                          <div className="flex items-center gap-1 font-mono text-xs font-semibold text-[#e8a34a]">
-                            <span>★</span>
-                            <span>{(portfolio.noteMoyenne ?? 5).toFixed(1)}</span>
-                            {portfolio.nombreAvis ? (
-                              <span className="text-[10px] text-foreground/40">({portfolio.nombreAvis})</span>
-                            ) : null}
-                          </div>
-                        </div>
-                      </div>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
         </div>
       </section>
 

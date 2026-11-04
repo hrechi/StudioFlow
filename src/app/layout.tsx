@@ -5,6 +5,10 @@ import { PwaRegister } from "@/components/pwa/pwa-register";
 import { ThemeScript } from "@/components/theme/theme";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import {
+  PortfolioTransitionProvider,
+  PortfolioTransitionOverlay,
+} from "@/modules/portfolio/components/transitions";
 import "./globals.css";
 
 // next/font/google removed: requires internet access at build time (fonts.gstatic.com).
@@ -55,7 +59,12 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <ThemeScript />
       </head>
       <body className="flex min-h-full flex-col">
-        <TooltipProvider delayDuration={200}>{children}</TooltipProvider>
+        <TooltipProvider delayDuration={200}>
+          <PortfolioTransitionProvider>
+            {children}
+            <PortfolioTransitionOverlay />
+          </PortfolioTransitionProvider>
+        </TooltipProvider>
         <Toaster position="top-right" richColors={false} closeButton />
         <OfflineBanner />
         {/* useSearchParams: kept out of the static render of every page */}

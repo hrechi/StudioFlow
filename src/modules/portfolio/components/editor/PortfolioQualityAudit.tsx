@@ -4,18 +4,32 @@ import { useState } from "react";
 import { CheckCircle2, Loader2, Sparkles, TriangleAlert, X } from "lucide-react";
 import type { PortfolioQualityAudit, TypeBloc } from "../../portfolio.types";
 
+type PublicationBlocker = {
+  id: string;
+  title: string;
+  detail: string;
+  blockId?: string;
+  blockType?: TypeBloc;
+};
+
 type PortfolioQualityAuditProps = {
   audit: PortfolioQualityAudit | null;
+  publicationBlockers: PublicationBlocker[];
   isLoading: boolean;
   onClose: () => void;
   onAddBlock: (type: TypeBloc) => void;
+  onFixBlock: (blocker: PublicationBlocker) => void;
+  onFixCheck: (id: "CONSENT" | "ALT_TEXT" | "SEO" | "PROFILE_PHOTO") => void;
 };
 
 export function PortfolioQualityAudit({
   audit,
+  publicationBlockers,
   isLoading,
   onClose,
   onAddBlock,
+  onFixBlock,
+  onFixCheck,
 }: PortfolioQualityAuditProps) {
   const [addedBlocks, setAddedBlocks] = useState<Set<TypeBloc>>(new Set());
 
@@ -27,6 +41,8 @@ export function PortfolioQualityAudit({
   return (
     <div className="fixed inset-0 z-[70] flex items-start justify-end bg-black/60 p-4 backdrop-blur-sm sm:p-6">
       <section
+        role="dialog"
+        aria-modal="true"
         aria-label="Audit IA du portfolio"
         className="flex max-h-[calc(100dvh-2rem)] w-full max-w-[560px] flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#1a100b] text-[#f3ebdd] shadow-2xl sm:max-h-[calc(100dvh-3rem)]"
       >
@@ -86,8 +102,48 @@ export function PortfolioQualityAudit({
                 </p>
               )}
 
+              <section
+                aria-label="Blocages de publication"
+                className="rounded-xl border border-rose-400/25 bg-rose-400/[0.05] p-4"
+              >
+                <h3 className="mb-3 text-sm font-semibold text-rose-200">
+                  À corriger pour publier
+                </h3>
+                {publicationBlockers.length > 0 ? (
+                  <ul className="space-y-2">
+                    {publicationBlockers.map((blocker) => (
+                      <li
+                        key={blocker.id}
+                        className="flex items-center justify-between gap-3 rounded-lg border border-rose-300/10 bg-black/20 p-3"
+                      >
+                        <div>
+                          <p className="text-sm">{blocker.title}</p>
+                          <p className="mt-1 text-xs leading-relaxed text-white/55">
+                            {blocker.detail}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => onFixBlock(blocker)}
+                          className="shrink-0 rounded-lg border border-rose-200/20 px-3 py-2 text-xs font-semibold text-rose-100 hover:bg-rose-200/10"
+                        >
+                          Corriger
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-xs leading-relaxed text-white/60">
+                    Aucun blocage technique détecté. Les conseils ci-dessous sont facultatifs.
+                  </p>
+                )}
+              </section>
+
               <section>
-                <h3 className="mb-3 text-sm font-semibold">Checklist avant publication</h3>
+                <h3 className="mb-1 text-sm font-semibold">Conseils avant publication</h3>
+                <p className="mb-3 text-xs text-white/45">
+                  Ces points améliorent la qualité, mais ne bloquent pas la mise en ligne.
+                </p>
                 <ul className="space-y-2">
                   {audit.checksPublication.map((check) => {
                     const ready = check.status === "READY";
@@ -107,6 +163,15 @@ export function PortfolioQualityAudit({
                             {check.detail}
                           </p>
                         </div>
+                        {check.status === "ACTION" && (
+                          <button
+                            type="button"
+                            onClick={() => onFixCheck(check.id)}
+                            className="ml-auto shrink-0 rounded-md border border-white/15 px-2.5 py-1.5 text-[10px] font-semibold text-white/75 hover:bg-white/10"
+                          >
+                            Ouvrir le réglage
+                          </button>
+                        )}
                       </li>
                     );
                   })}
@@ -222,6 +287,8 @@ function blockLabel(type: TypeBloc): string {
     AVANT_APRES: "Avant / Après",
     TEMOIGNAGES: "Témoignages",
     SERVICES: "Services",
+    PROCESSUS: "Processus de travail",
+    FAQ: "FAQ",
     STATISTIQUES: "Statistiques",
     VIDEO: "Vidéo",
     CONTACT: "Contact",

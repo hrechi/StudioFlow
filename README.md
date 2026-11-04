@@ -31,7 +31,7 @@ This starts three services:
 
 | Service | What it does |
 | --- | --- |
-| `mongo` | MongoDB 8 with a persistent volume. Compass: `mongodb://127.0.0.1:27018` |
+| `mongo` | MongoDB 7.0.45 with a persistent volume. Compass: `mongodb://127.0.0.1:27018` |
 | `seed` | Creates the first ADMIN from `.env` if none exists, then exits |
 | `app` | The production build of ReFrame on <http://localhost:3000> |
 
@@ -46,6 +46,8 @@ Useful commands:
 
 **"ports are not available … 3000"** means something else (usually `npm run dev`) already uses port 3000: stop it, or add `APP_PORT=3001` to `.env` and open <http://localhost:3001>.
 
+Each Docker build gets a deployment ID so Next.js can detect version skew and reload stale clients during navigation. If you build separate images for replicas in the same deployment, set the same `NEXT_DEPLOYMENT_ID` for all of them. If an old page still submits a stale Server Action, the app offers a full page refresh.
+
 The Docker database is separate from a local MongoDB on port 27017. For day-to-day coding with hot reload, use `npm run dev` (sections below); use Docker to run the full stack, check a production build before a PR, or demo.
 
 ## 1. Prerequisites
@@ -56,7 +58,7 @@ The Docker database is separate from a local MongoDB on port 27017. For day-to-d
   - Windows: install with the *"Install MongoDB as a Service"* option, then check it runs:
     `Get-Service MongoDB` (PowerShell) → `Running`. Start it with `net start MongoDB` (admin terminal).
   - macOS: `brew services start mongodb-community`.
-  - Docker alternative: `docker run -d --name reframe-mongo -p 27017:27017 mongo:8`.
+  - Docker alternative: `docker run -d --name reframe-mongo -p 27017:27017 mongo:7.0.45`.
 
 ## 2. Setup
 

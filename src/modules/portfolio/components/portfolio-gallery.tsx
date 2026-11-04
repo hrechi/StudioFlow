@@ -1,21 +1,17 @@
 "use client";
 
 import { ChevronLeft, ChevronRight, Expand, Heart } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 import { SafeImage } from "@/components/shared/safe-image";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
-import type { ElementPortfolioPublic, MiseEnPage } from "../portfolio.types";
-
-const RATIOS = [
-  "aspect-[3/4]",
-  "aspect-[4/3]",
-  "aspect-[4/5]",
-  "aspect-square",
-  "aspect-[3/2]",
-  "aspect-[2/3]",
-];
+import {
+  categoriePortfolioLabels,
+  type CategoriePortfolio,
+  type ElementPortfolioPublic,
+  type MiseEnPage,
+} from "../portfolio.types";
 
 export function PortfolioGallery({
   elements,
@@ -25,6 +21,7 @@ export function PortfolioGallery({
   miseEnPage = "MASONRY",
   colonnes = 3,
   espacement = 16,
+  enableLikes = true,
 }: {
   elements: ElementPortfolioPublic[];
   titre: string;
@@ -33,17 +30,27 @@ export function PortfolioGallery({
   miseEnPage?: MiseEnPage;
   colonnes?: number;
   espacement?: number;
+  enableLikes?: boolean;
 }) {
   const [open, setOpen] = useState<number | null>(null);
   const [liked, setLiked] = useState<Set<string>>(new Set());
   const [likeError, setLikeError] = useState<string | null>(null);
+  const [activeCategory, setActiveCategory] = useState<CategoriePortfolio | "TOUT">("TOUT");
   const touchStart = useRef<number | null>(null);
+  const galleryRef = useRef<HTMLUListElement>(null);
+  const categories = [
+    ...new Set(elements.flatMap((element) => (element.categorie ? [element.categorie] : []))),
+  ];
+  const visibleElements =
+    activeCategory === "TOUT"
+      ? elements
+      : elements.filter((element) => element.categorie === activeCategory);
   const go = useCallback(
     (delta: number) =>
       setOpen((index) =>
-        index === null ? index : (index + delta + elements.length) % elements.length,
+        index === null ? index : (index + delta + visibleElements.length) % visibleElements.length,
       ),
-    [elements.length],
+    [visibleElements.length],
   );
 
   useEffect(() => {
@@ -55,6 +62,34 @@ export function PortfolioGallery({
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [open, go]);
+
+  useEffect(() => {
+    const gallery = galleryRef.current;
+    if (!gallery || typeof IntersectionObserver === "undefined") return;
+
+    const items = [...gallery.querySelectorAll<HTMLElement>("[data-gallery-reveal]")];
+    const belowFold = items.filter(
+      (item) => item.getBoundingClientRect().top >= window.innerHeight,
+    );
+    if (belowFold.length === 0) return;
+
+    belowFold.forEach((item) => {
+      item.dataset.revealed = "false";
+    });
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            (entry.target as HTMLElement).dataset.revealed = "true";
+            observer.unobserve(entry.target);
+          }
+        });
+      },
+      { threshold: 0.06, rootMargin: "0px 0px -12% 0px" },
+    );
+    belowFold.forEach((item) => observer.observe(item));
+    return () => observer.disconnect();
+  }, [visibleElements.length]);
 
   const like = async (element: ElementPortfolioPublic) => {
     setLikeError(null);
@@ -71,78 +106,148 @@ export function PortfolioGallery({
     setLiked((previous) => new Set(previous).add(element.idElement));
   };
 
-  const current = open === null ? null : elements[open];
+  const current = open === null ? null : visibleElements[open];
   const columnCount = miseEnPage === "PLEIN_ECRAN" ? 1 : Math.min(6, Math.max(1, colonnes));
   const gap = Math.min(100, Math.max(0, espacement));
   const masonry = miseEnPage === "MASONRY";
   const carousel = miseEnPage === "CARROUSEL";
+  const galleryStyle: CSSProperties & { "--portfolio-gallery-columns": number } = {
+    ...(masonry
+      ? { columnGap: gap }
+      : carousel
+        ? { display: "flex", gap, overflowX: "auto" }
+        : { gap }),
+    "--portfolio-gallery-columns": columnCount,
+  };
   return (
     <>
+      <div
+        className="mb-6 flex flex-wrap items-center gap-2"
+        role={categories.length > 1 ? "group" : undefined}
+        aria-label={categories.length > 1 ? "Filtrer la galerie" : undefined}
+      >
+        {categories.length > 1
+          ? (["TOUT", ...categories] as const).map((category) => {
+            const selected = activeCategory === category;
+            return (
+              <button
+                key={category}
+                type="button"
+                aria-pressed={selected}
+                onClick={() => {
+                  setActiveCategory(category);
+                  setOpen(null);
+                }}
+                className="rounded-full border px-4 py-2 font-mono text-[9px] tracking-[0.12em] uppercase transition-colors"
+                style={{
+                  borderColor: selected ? "var(--portfolio-accent)" : "var(--portfolio-border)",
+                  color: selected ? "var(--portfolio-bg)" : "var(--portfolio-muted)",
+                  backgroundColor: selected ? "var(--portfolio-accent)" : "transparent",
+                }}
+              >
+                {category === "TOUT" ? "Tout" : categoriePortfolioLabels[category]}
+              </button>
+            );
+            })
+          : null}
+        <span
+          className="ml-auto font-mono text-[9px]"
+          style={{ color: "var(--portfolio-muted)" }}
+          aria-live="polite"
+        >
+          {visibleElements.length} photo{visibleElements.length === 1 ? "" : "s"}
+        </span>
+      </div>
       <ul
+        ref={galleryRef}
         className={cn(
-          masonry && "columns-1 sm:columns-2 lg:columns-3 [&>li]:mb-4",
+          masonry && "portfolio-gallery-masonry [&>li]:mb-4",
+          !masonry && !carousel && "portfolio-gallery-grid",
           carousel && "flex snap-x snap-mandatory overflow-x-auto",
         )}
-        style={
-          masonry
-            ? { columnCount, columnGap: gap }
-            : carousel
-              ? { display: "flex", gap, overflowX: "auto" }
-              : {
-                  display: "grid",
-                  gridTemplateColumns: `repeat(${columnCount}, minmax(0, 1fr))`,
-                  gap,
-                }
-        }
+        style={galleryStyle}
       >
-        {elements.map((element, index) => (
-          <li
-            key={element.idElement}
-            className={cn("break-inside-avoid", carousel && "snap-start")}
-            style={
-              carousel
-                ? { flex: `0 0 calc((100% - ${gap * (columnCount - 1)}px) / ${columnCount})` }
-                : undefined
-            }
-          >
-            <figure className="group relative overflow-hidden bg-card">
-              <button
-                type="button"
-                onClick={() => setOpen(index)}
-                className="relative block w-full focus-visible:ring-2 focus-visible:ring-ring"
-                aria-label={`Enlarge: ${element.texteAlt || element.legende || titre}`}
+        {visibleElements.map((element, index) => {
+          return (
+            <li
+              key={element.idElement}
+              data-gallery-reveal
+              className={cn(
+                "gallery-reveal-item break-inside-avoid",
+                carousel && "snap-start",
+                !masonry && !carousel && element.estMisEnAvant && "sm:col-span-2",
+              )}
+              style={{
+                transitionDelay: `${Math.min(index * 70, 350)}ms`,
+                ...(carousel
+                  ? { flex: `0 0 calc((100% - ${gap * (columnCount - 1)}px) / ${columnCount})` }
+                  : {}),
+              }}
+            >
+              <figure
+                className="group relative overflow-hidden rounded-[18px] border bg-card transition-all duration-500 ease-out hover:z-20"
+                style={{
+                  perspective: "1000px",
+                  transformStyle: "preserve-3d",
+                  borderColor: "var(--portfolio-border)",
+                }}
               >
-                <div className={cn("relative", RATIOS[index % RATIOS.length])}>
-                  <SafeImage
-                    src={element.media.urlMiniature || element.media.url}
-                    alt={element.texteAlt || element.legende || "Portfolio photo"}
-                    fill
-                    unoptimized
-                    sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
-                    className="object-cover transition-transform duration-700 group-hover:scale-105"
-                  />
-                </div>
-                <div className="absolute inset-0 flex items-end bg-gradient-to-t from-black/70 via-transparent to-transparent p-4 opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
-                  <p className="flex-1 text-left text-xs text-white">{element.legende}</p>
-                  <Expand className="size-4 text-white" aria-hidden />
-                </div>
-              </button>
-              <button
-                type="button"
-                onClick={() => void like(element)}
-                disabled={liked.has(element.idElement)}
-                aria-label="Like photo"
-                className="absolute top-3 right-3 inline-flex items-center gap-1 rounded-full bg-black/60 px-3 py-2 text-xs text-white backdrop-blur transition hover:bg-black/80 disabled:text-pink-300"
-              >
-                <Heart
-                  className={cn("size-4", liked.has(element.idElement) && "fill-current")}
-                  aria-hidden
-                />
-                {element.nombreLikes + Number(liked.has(element.idElement))}
-              </button>
-            </figure>
-          </li>
-        ))}
+                <button
+                  type="button"
+                  onClick={() => setOpen(index)}
+                  className="relative block w-full transition-transform duration-500 ease-out group-hover:-translate-y-1.5 group-hover:scale-[1.04] group-hover:rotate-[0.6deg] focus-visible:ring-2 focus-visible:ring-ring"
+                  aria-label={`Enlarge: ${element.texteAlt || element.legende || titre}`}
+                >
+                  <div
+                    className="relative w-full"
+                    style={{
+                      aspectRatio: `${element.media.largeur} / ${element.media.hauteur}`,
+                    }}
+                  >
+                    <SafeImage
+                      src={element.media.urlMiniature || element.media.url}
+                      alt={element.texteAlt || element.legende || "Portfolio photo"}
+                      fill
+                      unoptimized
+                      sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
+                      className="object-cover transition-transform duration-700 ease-out group-hover:scale-[1.06]"
+                    />
+                  </div>
+                  <div className="absolute inset-0 flex items-end bg-gradient-to-t from-black/80 via-transparent to-transparent p-4 opacity-100 transition-opacity duration-300 md:opacity-0 md:group-hover:opacity-100 md:group-focus-visible:opacity-100">
+                    <div className="min-w-0 flex-1 text-left">
+                      {(element.legende || element.titre) && (
+                        <p className="truncate text-xs font-medium text-white">
+                          {element.legende || element.titre}
+                        </p>
+                      )}
+                      {element.categorie && (
+                        <p className="mt-1 font-mono text-[8px] tracking-[0.12em] text-white/70 uppercase">
+                          {categoriePortfolioLabels[element.categorie]}
+                        </p>
+                      )}
+                    </div>
+                    <Expand className="size-4 text-white" aria-hidden />
+                  </div>
+                </button>
+                {enableLikes && (
+                  <button
+                    type="button"
+                    onClick={() => void like(element)}
+                    disabled={liked.has(element.idElement)}
+                    aria-label="Aimer la photo"
+                    className="absolute top-3 right-3 inline-flex items-center gap-1 rounded-full bg-black/60 px-3 py-2 text-xs text-white backdrop-blur transition hover:bg-black/80 disabled:text-pink-300"
+                  >
+                    <Heart
+                      className={cn("size-4", liked.has(element.idElement) && "fill-current")}
+                      aria-hidden
+                    />
+                    {element.nombreLikes + Number(liked.has(element.idElement))}
+                  </button>
+                )}
+              </figure>
+            </li>
+          );
+        })}
       </ul>
       {likeError && (
         <p role="status" className="mt-3 text-sm text-destructive">
@@ -184,7 +289,7 @@ export function PortfolioGallery({
               <figcaption className="flex items-center justify-between gap-4 px-5 py-4 text-sm">
                 <span>{current.legende}</span>
                 <span className="shrink-0 text-white/60">
-                  {(open ?? 0) + 1} / {elements.length}
+                  {(open ?? 0) + 1} / {visibleElements.length}
                 </span>
               </figcaption>
             </figure>

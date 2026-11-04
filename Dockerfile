@@ -13,10 +13,11 @@ RUN npm ci
 
 # 2. Build. Also used by the `seed` service (it needs tsx and the full node_modules).
 FROM base AS builder
+ARG NEXT_DEPLOYMENT_ID
 ENV NEXT_OUTPUT_STANDALONE=1
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-RUN npm run build
+RUN NEXT_DEPLOYMENT_ID="${NEXT_DEPLOYMENT_ID:-$(node -p 'require("node:crypto").randomUUID()')}" npm run build
 
 # 3. Runtime: only the traced server files, no source and no dev dependencies
 FROM base AS runner

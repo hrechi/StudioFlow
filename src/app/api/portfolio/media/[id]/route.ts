@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
 import { Types } from "mongoose";
+import { connectDB } from "@/lib/db";
+import { Photo } from "@/modules/photos-galeries/photo.model";
 import { openFile } from "@/modules/photos-galeries/photo.storage";
 
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
@@ -12,7 +14,22 @@ export async function GET(
   }
 
   try {
-    const file = await openFile(new Types.ObjectId(id));
+    await connectDB();
+    const objectId = new Types.ObjectId(id);
+    const photo = await Photo.findOne({
+      _id: objectId,
+      statutCulling: { $ne: "REJETEE" },
+    }).select("fichier miniature format").lean();
+
+    const variant = new URL(request.url).searchParams.get("variant") === "miniature"
+      ? "miniature"
+      : "file";
+    const gridFsId = photo
+      ? variant === "miniature"
+        ? photo.miniature || photo.fichier
+        : photo.fichier || photo.miniature || objectId
+      : objectId;
+    const file = await openFile(gridFsId);
     if (!file) {
       return new NextResponse("Not Found", { status: 404 });
     }
@@ -25,7 +42,7 @@ export async function GET(
       },
     });
   } catch (error) {
-    console.error("Error streaming media from GridFS:", error);
+    console.error("Error streaming portfolio photo:", error);
     return new NextResponse("Internal Server Error", { status: 500 });
   }
 }

@@ -9,7 +9,7 @@ The portfolio module stores one portfolio per photographer. It manages draft blo
 - `portfolio.service.ts`: database access and business rules. Public reads only serialize `blocsPublies`.
 - `portfolio.actions.ts`: authenticated Server Actions with Zod validation and owner checks.
 - `integrations/`: contracts and mocks for the shared users, photos, reviews, sessions and notifications modules.
-- `components/`: block editor, public block renderer, photo consent, contact and portfolio statistics.
+- `components/`: block editor, public block renderer, the `gallery3d/` virtual exhibition, photo consent, contact and portfolio statistics.
 - `ia.service.ts`: direct, server-only Gemini calls for portfolio audit guidance and photo vision checks.
 
 ## Configuration
@@ -30,10 +30,11 @@ Cloudinary credentials are required for personal photo uploads. They are used on
 
 ## Routes
 
-- `/portfolio`: published directory with specialty, city and pagination filters.
-- `/portfolio/[slug]`: published portfolio page. It reads the frozen `blocsPublies` snapshot; private portfolios are accessible by direct link but excluded from the directory.
+- `/portfolio`: published studio directory with live keyword, location, multi-category, style, service and availability filters. Criteria combine with AND semantics and pagination is applied on the server.
+- `/portfolio/[slug]`: published studio profile and professional portfolio in one page, with profile details, location map, service/style metadata, category navigation, the selected gallery presentation, contact and social links. It reads the frozen `blocsPublies` snapshot and returns not found unless both publication status and visibility are public.
 - `/dashboard/portfolio`: owner portfolio list and create form.
-- `/dashboard/portfolio/[id]`: three-panel editor with autosave, block/photo sorting, keyboard controls, preview, undo/redo and publication controls.
+- `/dashboard/portfolio/[id]`: three-panel editor with autosave, block/photo sorting, keyboard controls, preview, undo/redo and publication controls. The Before/After block accepts separate personal image uploads and publishes them as a comparison slider.
+- `/dashboard/portfolio/preview`: authenticated, owner-only rendering of the saved draft. It is marked `noindex`, filters photos without confirmed client consent, and disables public contact and like actions.
 - `/dashboard/portfolio/stats`: views and contact metrics for the last 30 days.
 - `/dashboard/portfolio/demandes`: contact request status and session conversion.
 - `/espace-client/portfolio-consentements`: client approval and withdrawal of photo consent.
@@ -63,6 +64,12 @@ notificationsService.envoyer(notification: { type: string; destinataireId: strin
 
 The photos service must return only photos available to the requesting photographer and include client ownership when consent is required. Do not wire the current unfiltered library query into these contracts.
 
+Public profile and directory metadata (bio, city/region/country, specialties, styles, services, availability, theme, accent color, watermark, visibility and social links) can be entered during portfolio creation and updated later in the portfolio editor. Photographers can combine a base theme with a preset accent or a custom HEX color; the editor preview and published portfolio use the selected appearance. The public search combines every selected category, style and service, and always includes the published/public visibility guard.
+
+Publishing requires exactly one Hero block and complete before/after image pairs. A Hero background video is optional; the configured cover image is used when no video is set. The editor previews the saved draft through the protected dashboard route rather than exposing draft content through a public slug.
+
+Each visible `GALERIE` or `COLLECTION` block renders as its own public gallery, with its own photos, title and selected display mode. Gallery photos can only be chosen from the authenticated photographer's accessible MongoDB photo library; external URLs and direct uploads are not accepted in the gallery picker. The server verifies each selected photo's MongoDB record and library access before saving, and legacy gallery entries without a matching database photo are omitted. Each block is limited to 12 photos. The editor supports a 3D album, accessible grid, portrait slideshow, product viewer, event mosaic, or fashion editorial layout. `/portfolio/album-demo` remains a static component demo.
+
 ## Checks
 
 ```bash
@@ -73,6 +80,6 @@ npm run lint
 npm run build
 ```
 
-The local Vitest suite checks block and consent validation and the publication snapshot rule. Playwright includes public portfolio and unpublished-page smoke checks; set `PORTFOLIO_E2E_BASE_URL`, `PORTFOLIO_E2E_PUBLISHED_SLUG` and `PORTFOLIO_E2E_DRAFT_SLUG` to run them. The full create/edit/publish/contact journey needs a seeded photographer account and a MongoDB test database. This workspace currently has no Playwright browser cache or populated local MongoDB credentials, so browser checks cannot run here yet.
+The local Vitest suite checks block and consent validation, public visibility enforcement, owner-scoped draft preview, the starter template structure, publication snapshots and automatic gallery room layout. Playwright includes public portfolio and unpublished-page smoke checks; set `PORTFOLIO_E2E_BASE_URL`, `PORTFOLIO_E2E_PUBLISHED_SLUG` and `PORTFOLIO_E2E_DRAFT_SLUG` to run them. The full create/edit/publish/contact journey needs a seeded photographer account and a MongoDB test database. This workspace currently has no Playwright browser cache or populated local MongoDB credentials, so browser checks cannot run here yet.
 
 `next build` currently fails in this workspace when Next.js invokes its TypeScript CLI subprocess (`Could not parse output from TypeScript's --showConfig`). The direct `npm run typecheck` check succeeds. ESLint also reports a non-blocking Next.js warning for the QR image element in the editor.

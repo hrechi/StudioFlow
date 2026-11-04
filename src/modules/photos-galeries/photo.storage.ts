@@ -5,7 +5,7 @@ import sharp from "sharp";
 import { connectDB } from "@/lib/db";
 
 /**
- * Image bytes are stored in MongoDB with GridFS (bucket `photoFiles`:
+ * Image and video bytes are stored in MongoDB with GridFS (bucket `photoFiles`:
  * collections `photoFiles.files` + `photoFiles.chunks`). A Photo document only
  * keeps the GridFS ids. Only the photo service and the file routes use this.
  */

@@ -4,16 +4,29 @@ import {
   MISES_EN_PAGE,
   RESEAUX_SOCIAUX,
   ROLES_ELEMENT,
+  SERVICES_PHOTOGRAPHIQUES,
   SOURCES_MEDIA,
+  STYLES_PHOTOGRAPHIQUES,
   STATUTS_CONSENTEMENT,
   STATUTS_DEMANDE,
   THEMES_PORTFOLIO,
   VISIBILITES,
 } from "./portfolio.types";
+import { GALLERY_DISPLAY_MODES } from "./lib/galleryDisplayModes";
 
 const objectId = z.string().regex(/^[a-f\d]{24}$/i, "Invalid identifier");
-const mediaUrl = z.string().refine((value) => value.startsWith("https://") || value.startsWith("/api/"), "HTTPS URL or /api/ route required");
-const httpsUrl = z.string().refine((value) => value.startsWith("https://") || value.startsWith("/api/"), "HTTPS URL or /api/ route required");
+const mediaUrl = z
+  .string()
+  .refine(
+    (value) => value.startsWith("https://") || value.startsWith("/api/"),
+    "HTTPS URL or /api/ route required",
+  );
+const httpsUrl = z
+  .string()
+  .refine(
+    (value) => value.startsWith("https://") || value.startsWith("/api/"),
+    "HTTPS URL or /api/ route required",
+  );
 const hexColor = z.string().regex(/^#[\da-f]{6}$/i, "Invalid hex color");
 const buttonHref = z
   .string()
@@ -26,6 +39,7 @@ const buttonHref = z
       value.startsWith("https://"),
     "Use a site path, anchor or HTTPS URL.",
   );
+const socialLinkSchema = z.object({ reseau: z.enum(RESEAUX_SOCIAUX), url: httpsUrl });
 
 export const mediaPortfolioSchema = z.object({
   url: mediaUrl,
@@ -59,6 +73,7 @@ export const elementPortfolioSchema = z
     dateAjout: z.iso.datetime(),
   })
   .superRefine((element, context) => {
+    // UPLOAD_PERSONNEL must have NON_REQUIS consent status
     if (element.source === "UPLOAD_PERSONNEL" && element.statutConsentement !== "NON_REQUIS") {
       context.addIssue({
         code: "custom",
@@ -66,14 +81,18 @@ export const elementPortfolioSchema = z
         message: "Personal uploads do not require client consent.",
       });
     }
+    // GALERIE_CLIENT: only enforce when clientConcerne is explicitly provided but consent is missing.
+    // If clientConcerne is absent, normalizeBlocks() will downgrade source to UPLOAD_PERSONNEL
+    // before DB write — so we must not reject here.
     if (
       element.source === "GALERIE_CLIENT" &&
-      (!element.clientConcerne || element.statutConsentement === "NON_REQUIS")
+      element.clientConcerne &&
+      element.statutConsentement === "NON_REQUIS"
     ) {
       context.addIssue({
         code: "custom",
-        path: ["clientConcerne"],
-        message: "Client gallery photos require an identified client and explicit consent.",
+        path: ["statutConsentement"],
+        message: "Client gallery photos require explicit consent.",
       });
     }
     if (element.role !== "NORMAL" && element.paire === undefined) {
@@ -94,82 +113,156 @@ const baseBlock = {
   elements: z.array(elementPortfolioSchema).max(500).default([]),
 };
 
-const heroConfiguration = z.object({
-  titre: z.string().trim().min(1).max(160),
-  sousTitre: z.string().trim().max(300),
-  texteBouton: z.string().trim().max(80),
-  lienBouton: buttonHref.optional(),
-  tagline: z.string().trim().max(160).optional(),
-  photoCouverture: z.string().optional(),
-  liensSociaux: z.array(z.object({
-    reseau: z.enum(RESEAUX_SOCIAUX),
-    url: z.string().trim(),
-  })).optional(),
-}).passthrough();
+const heroConfiguration = z
+  .object({
+    titre: z.string().trim().min(1).max(160),
+    sousTitre: z.string().trim().max(300),
+    texteBouton: z.string().trim().max(80),
+    lienBouton: buttonHref.optional(),
+    tagline: z.string().trim().max(160).optional(),
+    photoCouverture: z.string().optional(),
+    videoFond: z
+      .string()
+      .trim()
+      .max(500)
+      .refine(
+        (value) =>
+          value === "" ||
+          value.startsWith("https://") ||
+          value.startsWith("/api/") ||
+          (value.startsWith("/") && !value.startsWith("//")),
+        "Use an HTTPS URL or a local site path.",
+      )
+      .optional(),
+    liensSociaux: z
+      .array(
+        z.object({
+          reseau: z.enum(RESEAUX_SOCIAUX),
+          url: z.string().trim(),
+        }),
+      )
+      .optional(),
+  })
+  .passthrough();
 
-const aboutConfiguration = z.object({
-  titre: z.string().trim().max(160).optional(),
-  texte: z.string().trim().min(1).max(5000),
-  anneesExperience: z.number().int().min(0).max(100),
-  photoPortrait: z.string().optional(),
-}).passthrough();
+const aboutConfiguration = z
+  .object({
+    titre: z.string().trim().max(160).optional(),
+    texte: z.string().trim().max(5000).optional(),
+    citation: z.string().trim().max(500).optional(),
+    anneesExperience: z.number().int().min(0).max(100),
+    photoPortrait: z.string().optional(),
+    legendePortrait: z.string().trim().max(160).optional(),
+    lieuBase: z.string().trim().max(160).optional(),
+    depuis: z.string().trim().max(160).optional(),
+    materiel: z.string().trim().max(240).optional(),
+    langues: z.string().trim().max(160).optional(),
+    delaiReponse: z.string().trim().max(100).optional(),
+    zoneDeplacement: z.string().trim().max(160).optional(),
+  })
+  .passthrough();
 
-const galleryConfiguration = z.object({
-  titre: z.string().trim().max(160).optional(),
-  colonnes: z.number().int().min(2).max(4),
-  espacement: z.number().int().min(0).max(100),
-  categorie: z.enum(CATEGORIES_PORTFOLIO).optional(),
-}).passthrough();
+const galleryConfiguration = z
+  .object({
+    titre: z.string().trim().max(160).optional(),
+    colonnes: z.number().int().min(2).max(4).optional(),
+    espacement: z.number().int().min(0).max(100).optional(),
+    categorie: z.enum(CATEGORIES_PORTFOLIO).optional(),
+    modeAffichage: z.enum([...GALLERY_DISPLAY_MODES, "MUSEE"]).optional(),
+  })
+  .passthrough();
 
-const caseStudyConfiguration = z.object({
-  titre: z.string().trim().min(1).max(160),
-  texte: z.string().trim().max(5000),
-  date: z.string().trim().max(40),
-  lieu: z.string().trim().max(160),
-  photo: z.string().optional(),
-  seanceId: objectId.optional(),
-}).passthrough();
+const caseStudyConfiguration = z
+  .object({
+    titre: z.string().trim().max(160).optional(),
+    texte: z.string().trim().max(5000).optional(),
+    date: z.string().trim().max(40).optional(),
+    lieu: z.string().trim().max(160).optional(),
+    photo: z.string().optional(),
+    seanceId: objectId.optional(),
+  })
+  .passthrough();
 
-const avantApresConfiguration = z.object({
-  titre: z.string().trim().max(160).optional(),
-  description: z.string().trim().max(500).optional(),
-  photoAvant: z.string().optional(),
-  photoApres: z.string().optional(),
-}).passthrough();
+const avantApresConfiguration = z
+  .object({
+    titre: z.string().trim().max(160).optional(),
+    description: z.string().trim().max(500).optional(),
+    photoAvant: z.string().optional(),
+    photoApres: z.string().optional(),
+  })
+  .passthrough();
 
-const testimonyConfiguration = z.object({
-  titre: z.string().optional(),
-  avisIds: z.array(objectId).max(100).optional(),
-  temoignages: z.array(z.any()).optional(),
-}).passthrough();
+const testimonyConfiguration = z
+  .object({
+    titre: z.string().optional(),
+    avisIds: z.array(objectId).max(100).optional(),
+    temoignages: z.array(z.any()).optional(),
+  })
+  .passthrough();
 
-const servicesConfiguration = z.object({
-  titre: z.string().optional(),
-  forfaits: z.array(z.any()).max(20).optional(),
-}).passthrough();
+const servicesConfiguration = z
+  .object({
+    titre: z.string().optional(),
+    forfaits: z.array(z.any()).max(20).optional(),
+  })
+  .passthrough();
 
-const statisticsConfiguration = z.object({
-  afficher: z.array(z.enum(["SEANCES", "CLIENTS", "NOTE_MOYENNE"])).optional(),
-  stat1_valeur: z.string().optional(),
-  stat1_label: z.string().optional(),
-  stat2_valeur: z.string().optional(),
-  stat2_label: z.string().optional(),
-  stat3_valeur: z.string().optional(),
-  stat3_label: z.string().optional(),
-}).passthrough();
+const processConfiguration = z
+  .object({
+    titre: z.string().trim().max(160).optional(),
+    etapes: z.array(z.object({
+      titre: z.string().trim().max(100),
+      description: z.string().trim().max(500),
+    })).max(4).optional(),
+  })
+  .passthrough();
 
-const videoConfiguration = z.object({
-  urlVideo: httpsUrl,
-  titre: z.string().trim().max(160),
-  affiche: z.string().optional(),
-}).passthrough();
+const faqConfiguration = z
+  .object({
+    titre: z.string().trim().max(160).optional(),
+    questions: z.array(z.object({
+      question: z.string().trim().max(240),
+      reponse: z.string().trim().max(1200),
+    })).max(20).optional(),
+  })
+  .passthrough();
 
-const contactConfiguration = z.object({
-  titre: z.string().optional(),
-  texteIntro: z.string().trim().max(1000),
-  typesSeanceProposes: z.array(z.enum(CATEGORIES_PORTFOLIO)).max(4).optional(),
-  typesSeance: z.array(z.string()).max(10).optional(),
-}).passthrough();
+const statisticsConfiguration = z
+  .object({
+    afficher: z.array(z.enum(["SEANCES", "CLIENTS", "NOTE_MOYENNE"])).optional(),
+    stat1_valeur: z.string().optional(),
+    stat1_label: z.string().optional(),
+    stat2_valeur: z.string().optional(),
+    stat2_label: z.string().optional(),
+    stat3_valeur: z.string().optional(),
+    stat3_label: z.string().optional(),
+  })
+  .passthrough();
+
+const videoConfiguration = z
+  .object({
+    urlVideo: z
+      .string()
+      .trim()
+      .default("")
+      .transform((value) => (value === "https://" ? "" : value))
+      .refine(
+        (value) => value === "" || value.startsWith("https://") || value.startsWith("/api/"),
+        "HTTPS URL or /api/ route required",
+      ),
+    titre: z.string().trim().max(160),
+    affiche: z.string().optional(),
+  })
+  .passthrough();
+
+const contactConfiguration = z
+  .object({
+    titre: z.string().optional(),
+    texteIntro: z.string().trim().max(1000),
+    typesSeanceProposes: z.array(z.enum(CATEGORIES_PORTFOLIO)).max(4).optional(),
+    typesSeance: z.array(z.string()).max(10).optional(),
+  })
+  .passthrough();
 
 export const blocPortfolioSchema = z.discriminatedUnion("type", [
   z.object({ ...baseBlock, type: z.literal("HERO"), configuration: heroConfiguration }),
@@ -177,9 +270,15 @@ export const blocPortfolioSchema = z.discriminatedUnion("type", [
   z.object({ ...baseBlock, type: z.literal("GALERIE"), configuration: galleryConfiguration }),
   z.object({ ...baseBlock, type: z.literal("COLLECTION"), configuration: galleryConfiguration }),
   z.object({ ...baseBlock, type: z.literal("CASE_STUDY"), configuration: caseStudyConfiguration }),
-  z.object({ ...baseBlock, type: z.literal("AVANT_APRES"), configuration: avantApresConfiguration }),
+  z.object({
+    ...baseBlock,
+    type: z.literal("AVANT_APRES"),
+    configuration: avantApresConfiguration,
+  }),
   z.object({ ...baseBlock, type: z.literal("TEMOIGNAGES"), configuration: testimonyConfiguration }),
   z.object({ ...baseBlock, type: z.literal("SERVICES"), configuration: servicesConfiguration }),
+  z.object({ ...baseBlock, type: z.literal("PROCESSUS"), configuration: processConfiguration }),
+  z.object({ ...baseBlock, type: z.literal("FAQ"), configuration: faqConfiguration }),
   z.object({
     ...baseBlock,
     type: z.literal("STATISTIQUES"),
@@ -253,15 +352,21 @@ export const portfolioCreateSchema = z.object({
   photoCouverture: httpsUrl,
   specialites: z
     .array(z.enum(CATEGORIES_PORTFOLIO))
-    .max(4)
+    .max(5)
     .refine((values) => new Set(values).size === values.length, "Specialties cannot be repeated.")
     .default([]),
+  styles: z.array(z.enum(STYLES_PHOTOGRAPHIQUES)).max(6).default([]),
+  services: z.array(z.enum(SERVICES_PHOTOGRAPHIQUES)).max(4).default([]),
+  disponible: z.boolean().default(false),
   ville: z.string().trim().max(120).optional(),
+  region: z.string().trim().max(120).optional(),
+  pays: z.string().trim().max(120).optional(),
   theme: z.enum(THEMES_PORTFOLIO).default("MINIMAL"),
-  couleurAccent: hexColor.default("#146BFF"),
+  couleurAccent: hexColor.default("#e0563b"),
   filigrane: z.boolean().default(false),
   visibilite: z.enum(VISIBILITES).default("PUBLIC"),
   structureInitiale: z.enum(["MODELE", "VIDE"]).default("MODELE"),
+  liensSociaux: z.array(socialLinkSchema).max(10).default([]),
 });
 
 const seoSchema = z.object({
@@ -269,15 +374,56 @@ const seoSchema = z.object({
   metaDescription: z.string().trim().max(320),
   imageOG: httpsUrl.optional(),
 });
-const socialLinkSchema = z.object({ reseau: z.enum(RESEAUX_SOCIAUX), url: httpsUrl });
+export const plancheContactFrameSchema = z.object({
+  id: z.string().min(1),
+  imageUrl: z.string().min(1),
+  timestamp: z.number().min(0),
+  caption: z.string().max(100).optional(),
+  order: z.number().int().min(0),
+});
 
-export const portfolioUpdateSchema = portfolioCreateSchema
-  .omit({ structureInitiale: true })
-  .partial()
-  .extend({
-    seo: seoSchema.optional(),
-    liensSociaux: z.array(socialLinkSchema).max(10).optional(),
-  });
+export const plancheContactSchema = z.object({
+  active: z.boolean().default(true),
+  videoUrl: z.string().optional(),
+  trimStart: z.number().min(0).optional(),
+  trimEnd: z.number().min(0).optional(),
+  frames: z.array(plancheContactFrameSchema).default([]),
+});
+
+export const portfolioUpdateSchema = z.object({
+  titre: z.string().trim().min(1).max(160).optional(),
+  slogan: z.string().trim().max(300).optional(),
+  bio: z.string().trim().max(5000).optional(),
+  photoCouverture: httpsUrl.optional(),
+  specialites: z
+    .array(z.enum(CATEGORIES_PORTFOLIO))
+    .max(5)
+    .refine((values) => new Set(values).size === values.length, "Specialties cannot be repeated.")
+    .optional(),
+  styles: z.array(z.enum(STYLES_PHOTOGRAPHIQUES)).max(6).optional(),
+  services: z.array(z.enum(SERVICES_PHOTOGRAPHIQUES)).max(4).optional(),
+  disponible: z.boolean().optional(),
+  ville: z.string().trim().max(120).optional(),
+  region: z.string().trim().max(120).optional(),
+  pays: z.string().trim().max(120).optional(),
+  theme: z.enum(THEMES_PORTFOLIO).optional(),
+  couleurAccent: hexColor.optional(),
+  filigrane: z.boolean().optional(),
+  visibilite: z.enum(VISIBILITES).optional(),
+  liensSociaux: z.array(socialLinkSchema).max(10).optional(),
+  seo: seoSchema.optional(),
+  plancheContact: plancheContactSchema.optional(),
+});
+
+export const publicPortfolioSearchSchema = z.object({
+  recherche: z.string().trim().max(120).optional(),
+  ville: z.string().trim().max(120).optional(),
+  categories: z.array(z.enum(CATEGORIES_PORTFOLIO)).max(5).default([]),
+  styles: z.array(z.enum(STYLES_PHOTOGRAPHIQUES)).max(6).default([]),
+  services: z.array(z.enum(SERVICES_PHOTOGRAPHIQUES)).max(4).default([]),
+  disponible: z.boolean().default(false),
+  page: z.number().int().min(1).default(1),
+});
 
 export const savePortfolioSchema = z.object({
   portfolioId: objectId,
@@ -294,7 +440,10 @@ export const contactPortfolioSchema = z.object({
   telephone: z.string().trim().max(40).optional(),
   typeSeance: z.enum(CATEGORIES_PORTFOLIO),
   dateSouhaitee: z.iso.date().optional(),
-  message: z.string().trim().min(1).max(3000),
+  lieu: z.string().trim().max(160).optional(),
+  budget: z.string().trim().max(80).optional(),
+  forfaitDemande: z.string().trim().max(160).optional(),
+  message: z.string().trim().min(1).max(500),
   honeypot: z.string().max(0).optional(),
 });
 
@@ -302,5 +451,6 @@ export const contactStatusSchema = z.object({ id: objectId, statut: z.enum(STATU
 
 export type PortfolioCreateInput = z.infer<typeof portfolioCreateSchema>;
 export type PortfolioUpdateInput = z.infer<typeof portfolioUpdateSchema>;
+export type PublicPortfolioSearchInput = z.infer<typeof publicPortfolioSearchSchema>;
 export type BlocPortfolioInput = z.infer<typeof blocPortfolioSchema>;
 export type ContactPortfolioInput = z.infer<typeof contactPortfolioSchema>;

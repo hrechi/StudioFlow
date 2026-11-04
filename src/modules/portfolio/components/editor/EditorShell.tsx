@@ -18,6 +18,7 @@ import {
 } from "@dnd-kit/core";
 import { arrayMove, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import { toast } from "sonner";
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { EditorTopBar, type ViewportMode } from "./EditorTopBar";
 import { BlockPalette } from "./BlockPalette";
 import { Canvas } from "./Canvas";
@@ -29,9 +30,16 @@ import { INITIAL_DEMO_BLOCKS } from "./demoData";
 import { BLOCK_ICONS } from "./paletteData";
 import type {
   BlocPortfolio,
+  CategoriePortfolio,
   ElementBlocPortfolio,
   PortfolioQualityAudit as PortfolioQualityAuditResult,
   TypeBloc,
+} from "../../portfolio.types";
+import {
+  CATEGORIES_PORTFOLIO,
+  STRUCTURE_PORTFOLIO_DEFAUT,
+  STRUCTURE_PORTFOLIO_PAR_SPECIALITE,
+  categoriePortfolioLabels,
 } from "../../portfolio.types";
 import type { PortfolioEditorData } from "../../portfolio.service";
 import {
@@ -41,6 +49,7 @@ import {
   chargerPhotosPortfolio,
   analyserQualitePortfolioAction,
   supprimerPortfolio,
+  depublierPortfolio,
   genererBioPortfolio,
   genererSEOAction,
   genererHistoireProjetAction,
@@ -53,85 +62,69 @@ import "./editor.css";
 
 const defaultBlockConfigs: Record<TypeBloc, Record<string, unknown>> = {
   HERO: {
-    titre: "Aurélie & Marc",
-    sousTitre: "A late-summer wedding at Château de la Rivière",
-    texteBouton: "Enquire about your date →",
+    titre: "Votre portfolio",
+    sousTitre: "",
+    texteBouton: "Me contacter",
     lienBouton: "#contact",
-    tagline: "BORDEAUX · MARIAGE · PORTRAIT",
-    photoCouverture:
-      "https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=1600&q=80",
-    liensSociaux: [
-      { reseau: "INSTAGRAM", url: "https://instagram.com" },
-      { reseau: "SITE_WEB", url: "https://studioflow.app" },
-    ],
+    tagline: "",
+    videoFond: "",
+    liensSociaux: [],
   },
   A_PROPOS: {
-    titre: "Aurélie Morales",
-    texte:
-      "Capturing delicate, candid memories in natural light for more than a decade. Based in south-west France, traveling worldwide for destinations that speak of love and grace.",
-    anneesExperience: 11,
-    photoPortrait:
-      "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=600&q=80",
+    titre: "",
+    texte: "",
+    anneesExperience: 0,
+    photoPortrait: "",
+    citation: "",
+    legendePortrait: "",
+    lieuBase: "",
+    depuis: "",
+    materiel: "",
+    langues: "",
   },
-  GALERIE: { titre: "MARIAGE", colonnes: 3, categorie: "MARIAGE", espacement: 10 },
-  COLLECTION: { titre: "PORTRAIT SESSION", colonnes: 3, categorie: "PORTRAIT", espacement: 10 },
+  GALERIE: { titre: "" },
+  COLLECTION: { titre: "" },
   CASE_STUDY: {
-    titre: "Market morning, Saint-Michel",
-    texte: "An early dawn session catching the vendors setting their stalls...",
-    date: "14 Septembre",
-    lieu: "Bordeaux, Saint-Michel",
-    photo:
-      "https://images.unsplash.com/photo-1509316975850-ff9c5deb0cd9?auto=format&fit=crop&w=1200&q=80",
+    titre: "",
+    texte: "",
+    date: "",
+    lieu: "",
   },
-  AVANT_APRES: {
-    titre: "Color grading & retouching",
-    description: "Subtle film toning and shadow recovery preserving natural skin tones.",
-    photoAvant:
-      "https://images.unsplash.com/photo-1492691527719-9d1e07e534b4?auto=format&fit=crop&w=1000&q=80",
-    photoApres:
-      "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=1000&q=80",
-  },
-  TEMOIGNAGES: {
-    titre: "Words from couples & families",
-    temoignages: [
+  AVANT_APRES: {},
+  TEMOIGNAGES: { titre: "", temoignages: [] },
+  SERVICES: { titre: "", forfaits: [] },
+  PROCESSUS: {
+    titre: "Comment se déroule une séance",
+    etapes: [
       {
-        id: "t1",
-        auteur: "Claire & Julien",
-        role: "Mariage en Dordogne",
-        note: 5,
-        texte: "Aurélie a su capturer l’essence même de notre journée...",
+        titre: "Premier échange",
+        description: "Nous échangeons sur vos envies, votre date et l’ambiance souhaitée.",
+      },
+      {
+        titre: "Préparation",
+        description: "Je vous guide pour choisir le lieu, le rythme et les détails utiles.",
+      },
+      {
+        titre: "La séance",
+        description: "Je vous accompagne avec discrétion pour des images naturelles.",
+      },
+      {
+        titre: "Livraison",
+        description: "Vous recevez une galerie privée de vos images soigneusement retouchées.",
       },
     ],
   },
-  SERVICES: {
-    titre: "Collections & Investment",
-    forfaits: [
-      {
-        nom: "Mariage Héritage",
-        prixAPartirDe: 2400,
-        duree: "Journée entière",
-        description: "Présence des préparatifs jusqu'à la pièce montée...",
-      },
-    ],
-  },
+  FAQ: { titre: "Questions fréquentes", questions: [] },
   STATISTIQUES: {
-    stat1_valeur: "148",
     stat1_label: "Séances réalisées",
-    stat2_valeur: "96",
-    stat2_label: "Clients accompagnés",
-    stat3_valeur: "4.9",
-    stat3_label: "Note moyenne vérifiée",
+    stat2_label: "Clients",
+    stat3_label: "Note moyenne",
   },
-  VIDEO: {
-    titre: "Summer Highlights Teaser",
-    urlVideo: "https://vimeo.com/76979871",
-    affiche:
-      "https://images.unsplash.com/photo-1518895949257-7621c3c786d7?auto=format&fit=crop&w=1200&q=80",
-  },
+  VIDEO: {},
   CONTACT: {
-    titre: "Let's connect",
-    texteIntro: "Tell me about your date, your venue or your project...",
-    typesSeance: ["Mariage", "Séance couple", "Portrait"],
+    titre: "Parlons de votre projet",
+    texteIntro: "",
+    typesSeanceProposes: [],
   },
 };
 
@@ -159,12 +152,13 @@ export function EditorShell({
 
   // Core blocks state loaded from MongoDB
   const [blocks, setBlocks] = useState<BlocPortfolio[]>(
-    initialPortfolio?.blocs && initialPortfolio.blocs.length > 0
-      ? initialPortfolio.blocs
-      : INITIAL_DEMO_BLOCKS,
+    (initialPortfolio?.blocs ?? []).filter((b) => b.type !== "VIDEO"),
+  );
+  const [structureSpecialite, setStructureSpecialite] = useState<CategoriePortfolio | "DEFAUT">(
+    (initialPortfolio?.specialites[0] as CategoriePortfolio | undefined) ?? "PORTRAIT",
   );
   const [selectedBlockId, setSelectedBlockId] = useState<string | null>(
-    initialPortfolio?.blocs?.[0]?.idBloc ?? "000000000000000000000001",
+    initialPortfolio?.blocs?.[0]?.idBloc ?? null,
   );
 
   // History stack for Undo / Redo
@@ -176,16 +170,37 @@ export function EditorShell({
   // Viewport & Saving status
   const [viewportMode, setViewportMode] = useState<ViewportMode>("desktop");
   const [isSaving, setIsSaving] = useState(false);
+  const [isUnpublishDialogOpen, setIsUnpublishDialogOpen] = useState(false);
+  const [isUnpublishing, setIsUnpublishing] = useState(false);
+  const [isDeletePortfolioDialogOpen, setIsDeletePortfolioDialogOpen] = useState(false);
+  const [isDeletingPortfolio, setIsDeletingPortfolio] = useState(false);
   const [hasUnpublishedChanges, setHasUnpublishedChanges] = useState(
     initialPortfolio?.statut !== "PUBLIE",
   );
   const [isPublished, setIsPublished] = useState(initialPortfolio?.statut === "PUBLIE");
+  const [portfolioStatus, setPortfolioStatus] = useState<"BROUILLON" | "PUBLIE" | "DEPUBLIE">(
+    initialPortfolio?.statut ?? "BROUILLON",
+  );
+  const [publishSummary, setPublishSummary] = useState<{
+    url: string;
+    removedCount: number;
+    visibility: "PUBLIC" | "PRIVE";
+  } | null>(null);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Responsive drawers
   const [paletteDrawerOpen, setPaletteDrawerOpen] = useState(false);
   const [inspectorDrawerOpen, setInspectorDrawerOpen] = useState(false);
   const [qualityAudit, setQualityAudit] = useState<PortfolioQualityAuditResult | null>(null);
+  const [publicationBlockers, setPublicationBlockers] = useState<
+    {
+      id: string;
+      title: string;
+      detail: string;
+      blockId?: string;
+      blockType?: TypeBloc;
+    }[]
+  >([]);
   const [isQualityAuditOpen, setIsQualityAuditOpen] = useState(false);
   const [isQualityAuditLoading, setIsQualityAuditLoading] = useState(false);
   const [isAiPending, setIsAiPending] = useState(false);
@@ -207,21 +222,28 @@ export function EditorShell({
   // Photo picker state
   const [photoPickerBlocId, setPhotoPickerBlocId] = useState<string | null>(null);
 
+  const refreshPhotographerPhotos = useCallback(async () => {
+    setIsLoadingPhotos(true);
+    try {
+      const res = await chargerPhotosPortfolio();
+      if (!res.ok) {
+        setPhotographerPhotos([]);
+        toast.error(res.error || "Impossible de charger les galeries.");
+        return;
+      }
+      setPhotographerPhotos(res.data);
+      toast.success(`${res.data.length} photo(s) chargée(s) depuis MongoDB.`);
+    } catch {
+      setPhotographerPhotos([]);
+      toast.error("Impossible de charger les galeries.");
+    } finally {
+      setIsLoadingPhotos(false);
+    }
+  }, []);
+
   const handleOpenPhotoPicker = async (blocId: string) => {
     setPhotoPickerBlocId(blocId);
-    if (photographerPhotos.length === 0) {
-      setIsLoadingPhotos(true);
-      try {
-        const res = await chargerPhotosPortfolio();
-        if (res.ok && res.data) {
-          setPhotographerPhotos(res.data);
-        }
-      } catch {
-        // keep current
-      } finally {
-        setIsLoadingPhotos(false);
-      }
-    }
+    await refreshPhotographerPhotos();
   };
 
   // Drag and Drop state
@@ -233,16 +255,76 @@ export function EditorShell({
   const displayName = photographerName || initialPortfolio?.titre || portfolioTitle;
   const [portfolioData, setPortfolioData] = useState({
     titre: displayName,
-    slogan: initialPortfolio?.slogan || "Photographe de mariage & portraits intimes",
-    ville: initialPortfolio?.ville || "Bordeaux",
-    bio:
-      initialPortfolio?.bio ||
-      "Capturing delicate, candid memories in natural light for more than a decade.",
-    specialites: (initialPortfolio?.specialites as string[]) || ["Mariage", "Portrait"],
-    theme: (initialPortfolio?.theme as string) || "Minimal",
-    couleurAccent: initialPortfolio?.couleurAccent || "#e8a34a",
+    slogan: initialPortfolio?.slogan || "",
+    ville: initialPortfolio?.ville || "",
+    region: initialPortfolio?.region || "",
+    pays: initialPortfolio?.pays || "",
+    bio: initialPortfolio?.bio || "",
+    specialites: (initialPortfolio?.specialites as string[]) || [],
+    styles: (initialPortfolio?.styles as string[]) || [],
+    services: (initialPortfolio?.services as string[]) || [],
+    disponible: initialPortfolio?.disponible ?? false,
+    visibilite: initialPortfolio?.visibilite ?? "PUBLIC",
+    theme: initialPortfolio?.theme || "MINIMAL",
+    couleurAccent: initialPortfolio?.couleurAccent || "#e0563b",
     seo: initialPortfolio?.seo || { metaTitre: "", metaDescription: "" },
   });
+  const portfolioDataRef = useRef(portfolioData);
+  const pendingPortfolioUpdatesRef = useRef<Record<string, unknown>>({});
+  const portfolioSaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const portfolioFlushPromiseRef = useRef<Promise<boolean> | null>(null);
+
+  const flushPortfolioData = (): Promise<boolean> => {
+    if (portfolioFlushPromiseRef.current) return portfolioFlushPromiseRef.current;
+    if (portfolioSaveTimeoutRef.current) {
+      clearTimeout(portfolioSaveTimeoutRef.current);
+      portfolioSaveTimeoutRef.current = null;
+    }
+
+    const request = (async () => {
+      while (true) {
+        const updates = pendingPortfolioUpdatesRef.current;
+        if (Object.keys(updates).length === 0) {
+          setIsSaving(false);
+          return true;
+        }
+        pendingPortfolioUpdatesRef.current = {};
+        if (!portfolioId) {
+          pendingPortfolioUpdatesRef.current = updates;
+          setIsSaving(false);
+          return false;
+        }
+
+        try {
+          const result = await mettreAJourPortfolio(portfolioId, updates);
+          if (!result.ok) {
+            pendingPortfolioUpdatesRef.current = {
+              ...updates,
+              ...pendingPortfolioUpdatesRef.current,
+            };
+            toast.error(result.error);
+            setIsSaving(false);
+            return false;
+          }
+        } catch {
+          pendingPortfolioUpdatesRef.current = {
+            ...updates,
+            ...pendingPortfolioUpdatesRef.current,
+          };
+          toast.error("Impossible d’enregistrer les réglages du portfolio.");
+          setIsSaving(false);
+          return false;
+        }
+      }
+    })();
+    portfolioFlushPromiseRef.current = request;
+    void request.finally(() => {
+      if (portfolioFlushPromiseRef.current === request) {
+        portfolioFlushPromiseRef.current = null;
+      }
+    });
+    return request;
+  };
 
   // dnd-kit sensors
   const sensors = useSensors(
@@ -272,6 +354,7 @@ export function EditorShell({
             }
           } catch (err) {
             console.error("Save portfolio exception:", err);
+            toast.error("Erreur lors de l'enregistrement du portfolio.");
           }
         }
         setIsSaving(false);
@@ -281,12 +364,21 @@ export function EditorShell({
   );
 
   // Update Page Settings and persist to MongoDB
-  const handleUpdatePortfolioData = async (field: string, val: unknown) => {
-    setPortfolioData((prev) => ({ ...prev, [field]: val }));
+  const handleUpdatePortfolioData = (field: string, val: unknown) => {
+    const nextData = { ...portfolioDataRef.current, [field]: val };
+    portfolioDataRef.current = nextData;
+    setPortfolioData(nextData);
     setHasUnpublishedChanges(true);
     if (!portfolioId) return;
-    const result = await mettreAJourPortfolio(portfolioId, { [field]: val });
-    if (!result.ok) toast.error(result.error);
+    pendingPortfolioUpdatesRef.current = {
+      ...pendingPortfolioUpdatesRef.current,
+      [field]: val,
+    };
+    setIsSaving(true);
+    if (portfolioSaveTimeoutRef.current) clearTimeout(portfolioSaveTimeoutRef.current);
+    portfolioSaveTimeoutRef.current = setTimeout(() => {
+      void flushPortfolioData();
+    }, 600);
   };
 
   const handleGenerateBio = async () => {
@@ -295,6 +387,7 @@ export function EditorShell({
     try {
       const result = await genererBioPortfolio(portfolioId);
       if (!result.ok) return toast.error(result.error);
+      portfolioDataRef.current = { ...portfolioDataRef.current, bio: result.data.bio };
       setPortfolioData((current) => ({ ...current, bio: result.data.bio }));
       setHasUnpublishedChanges(true);
       toast.success("Biographie IA générée. Relis-la avant publication.");
@@ -449,7 +542,13 @@ export function EditorShell({
         else handleUndo();
       } else if (e.key === "Escape") {
         setSelectedBlockId(null);
+        setPaletteDrawerOpen(false);
+        setInspectorDrawerOpen(false);
         setActiveTab("page");
+        setIsQualityAuditOpen(false);
+        setIsStatsInsightsOpen(false);
+        setPublishSummary(null);
+        setPhotoPickerBlocId(null);
       }
     }
     window.addEventListener("keydown", handleKeyDown);
@@ -615,12 +714,21 @@ export function EditorShell({
   // Add photos from PhotoPicker
   const handleAddPhotosToBlock = (newElements: ElementBlocPortfolio[]) => {
     if (!photoPickerBlocId) return;
+    const targetBlock = blocks.find((b) => b.idBloc === photoPickerBlocId);
+    if (targetBlock && (targetBlock.type === "GALERIE" || targetBlock.type === "COLLECTION")) {
+      const remainingSlots = Math.max(0, 12 - targetBlock.elements.length);
+      if (remainingSlots <= 0) {
+        toast.error("Cette galerie contient déjà le nombre maximum de 12 photos.");
+        return;
+      }
+      if (newElements.length > remainingSlots) {
+        newElements = newElements.slice(0, remainingSlots);
+        toast.info(`Seules ${remainingSlots} photo(s) ont été ajoutées pour respecter le maximum de 12.`);
+      }
+    }
     const nextBlocks = blocks.map((b) => {
       if (b.idBloc !== photoPickerBlocId) return b;
       const updatedConfig = { ...b.configuration };
-      if (b.type === "HERO" && newElements[0]?.media?.url) {
-        updatedConfig.photoCouverture = newElements[0].media.url;
-      }
       // Assign ordreAffichage continuing from the last existing element
       const baseOrder = b.elements.length;
       const reorderedNew = newElements.map((el, i) => ({
@@ -630,7 +738,7 @@ export function EditorShell({
       return {
         ...b,
         configuration: updatedConfig,
-        elements: [...b.elements, ...reorderedNew],
+        elements: [...b.elements, ...reorderedNew].slice(0, 12),
       };
     });
     applyBlocksChange(nextBlocks);
@@ -645,6 +753,8 @@ export function EditorShell({
     }
     setIsSaving(true);
     try {
+      if (!(await flushPortfolioData())) return;
+      setIsSaving(true);
       const saveRes = await savePortfolio({ portfolioId, blocs: blocks });
       if (!saveRes.ok) {
         toast.error(saveRes.error || "Erreur d'enregistrement des blocs.");
@@ -654,13 +764,73 @@ export function EditorShell({
       const res = await publierPortfolio({ portfolioId });
       if (res.ok) {
         setIsPublished(true);
+        setPortfolioStatus("PUBLIE");
         setHasUnpublishedChanges(false);
-        toast.success("Portfolio publié en direct !");
+        setPublishSummary({
+          url: res.data.url,
+          removedCount: res.data.removedElements.length,
+          visibility: portfolioDataRef.current.visibilite,
+        });
       } else {
         toast.error(res.error || "Erreur de publication.");
       }
     } catch {
       toast.error("Erreur serveur lors de la publication.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleUnpublish = () => {
+    if (!portfolioId) return toast.error("Portfolio introuvable.");
+    setIsUnpublishDialogOpen(true);
+  };
+
+  const confirmUnpublish = async () => {
+    if (!portfolioId) return;
+    setIsUnpublishing(true);
+    try {
+      const result = await depublierPortfolio({ portfolioId });
+      if (!result.ok) {
+        toast.error(result.error);
+        return;
+      }
+      setIsUnpublishDialogOpen(false);
+      setIsPublished(false);
+      setPortfolioStatus("DEPUBLIE");
+      setHasUnpublishedChanges(false);
+      toast.success(editorFr.unpublishedSuccess);
+    } catch {
+      toast.error(editorFr.unpublishError);
+    } finally {
+      setIsUnpublishing(false);
+    }
+  };
+
+  const handlePreview = async () => {
+    if (!portfolioId) return toast.error("Portfolio introuvable.");
+    const previewWindow = window.open("about:blank", "_blank");
+    if (!previewWindow) {
+      toast.error(editorFr.allowPreviewPopup);
+      return;
+    }
+    previewWindow.opener = null;
+    setIsSaving(true);
+    try {
+      if (!(await flushPortfolioData())) {
+        previewWindow.close();
+        return;
+      }
+      const result = await savePortfolio({ portfolioId, blocs: blocks });
+      if (!result.ok) {
+        previewWindow.close();
+        toast.error(result.error || editorFr.saveError);
+        return;
+      }
+      previewWindow.location.replace("/dashboard/portfolio/preview");
+    } catch {
+      previewWindow.close();
+      toast.error(editorFr.previewError);
     } finally {
       setIsSaving(false);
     }
@@ -688,6 +858,34 @@ export function EditorShell({
         toast.error(result.error || "Impossible d'analyser le portfolio.");
         return;
       }
+      const blockers: typeof publicationBlockers = [];
+      const heroBlocks = blocks.filter((block) => block.type === "HERO");
+      if (heroBlocks.length !== 1) {
+        blockers.push({
+          id: "hero",
+          title: "Bloc Hero manquant",
+          detail: "La page doit contenir exactement un bloc Hero.",
+          blockType: "HERO",
+        });
+      }
+      for (const block of blocks.filter((item) => item.type === "AVANT_APRES")) {
+        const pairRoles = new Map<number, Set<string>>();
+        for (const element of block.elements) {
+          if (element.paire === undefined || element.role === "NORMAL") continue;
+          const roles = pairRoles.get(element.paire) ?? new Set<string>();
+          roles.add(element.role);
+          pairRoles.set(element.paire, roles);
+        }
+        if ([...pairRoles.values()].some((roles) => !roles.has("AVANT") || !roles.has("APRES"))) {
+          blockers.push({
+            id: `before-after-${block.idBloc}`,
+            title: "Comparaison Avant / Après incomplète",
+            detail: "Chaque paire doit contenir une photo Avant et une photo Après.",
+            blockId: block.idBloc,
+          });
+        }
+      }
+      setPublicationBlockers(blockers);
       setQualityAudit(result.data);
     } catch {
       toast.error("Erreur serveur pendant l'analyse.");
@@ -696,20 +894,60 @@ export function EditorShell({
     }
   };
 
-  // Delete portfolio from MongoDB
-  const handleDeletePortfolio = async () => {
-    if (!portfolioId) return;
-    if (
-      !window.confirm(
-        "Êtes-vous sûr de vouloir supprimer définitivement ce portfolio de la base de données MongoDB ?",
-      )
-    ) {
+  const handleFixPublicationBlocker = (blocker: { blockId?: string; blockType?: TypeBloc }) => {
+    setIsQualityAuditOpen(false);
+    if (blocker.blockId) {
+      handleSelectBlock(blocker.blockId);
+      setInspectorDrawerOpen(true);
+    } else if (blocker.blockType) {
+      handleAddBlock(blocker.blockType);
+    }
+  };
+
+  const handleFixAuditCheck = (check: "CONSENT" | "ALT_TEXT" | "SEO" | "PROFILE_PHOTO") => {
+    setIsQualityAuditOpen(false);
+    if (check === "SEO") {
+      setSelectedBlockId(null);
+      setActiveTab("page");
+      setInspectorDrawerOpen(true);
       return;
     }
-    setIsSaving(true);
+
+    if (check === "PROFILE_PHOTO") {
+      const about = blocks.find((block) => block.type === "A_PROPOS");
+      if (about) {
+        handleSelectBlock(about.idBloc);
+        setInspectorDrawerOpen(true);
+      } else {
+        handleAddBlock("A_PROPOS");
+      }
+      return;
+    }
+
+    const targetBlock = blocks.find((block) =>
+      block.elements.some((element) =>
+        check === "CONSENT"
+          ? element.source === "GALERIE_CLIENT" && element.statutConsentement !== "ACCORDE"
+          : !element.texteAlt?.trim(),
+      ),
+    );
+    if (targetBlock) {
+      handleSelectBlock(targetBlock.idBloc);
+      setInspectorDrawerOpen(true);
+    }
+  };
+
+  const handleDeletePortfolio = () => {
+    setIsDeletePortfolioDialogOpen(true);
+  };
+
+  const confirmDeletePortfolio = async () => {
+    if (!portfolioId) return;
+    setIsDeletingPortfolio(true);
     try {
       const res = await supprimerPortfolio({ portfolioId });
       if (res.ok) {
+        setIsDeletePortfolioDialogOpen(false);
         toast.success("Portfolio supprimé avec succès.");
         router.push("/dashboard");
         router.refresh();
@@ -719,13 +957,13 @@ export function EditorShell({
     } catch {
       toast.error("Erreur serveur lors de la suppression.");
     } finally {
-      setIsSaving(false);
+      setIsDeletingPortfolio(false);
     }
   };
 
   // Reset portfolio blocks with photographer's name
   const handleResetPortfolio = async () => {
-    if (!window.confirm(`Réinitialiser tous les blocs par défaut au nom de ${displayName} ?`)) {
+    if (!window.confirm(`${editorFr.confirmResetPortfolio} ${displayName} ?`)) {
       return;
     }
     const freshBlocks = INITIAL_DEMO_BLOCKS.map((b) => {
@@ -814,6 +1052,66 @@ export function EditorShell({
   };
 
   const selectedBlock = blocks.find((b) => b.idBloc === selectedBlockId) ?? null;
+  const completionSuggestions = [
+    !blocks.some(
+      (block) =>
+        block.type === "HERO" &&
+        (block.configuration.photoCouverture || block.configuration.videoFond),
+    ) && "Ajoutez une image de couverture au Hero.",
+    (portfolioData.bio || "").trim().length < 40 && "Rédigez une biographie de quelques phrases.",
+    !blocks.some(
+      (block) =>
+        (block.type === "GALERIE" || block.type === "COLLECTION") && block.elements.length > 0,
+    ) && "Ajoutez vos meilleures photos depuis la bibliothèque.",
+    !blocks.some((block) => block.type === "SERVICES") && "Présentez vos prestations ou forfaits.",
+    !blocks.some((block) => block.type === "CONTACT") && "Ajoutez un moyen de vous contacter.",
+  ].filter((suggestion): suggestion is string => Boolean(suggestion));
+  const profileCompletion = Math.round(((5 - completionSuggestions.length) / 5) * 100);
+
+  const applySpecialtyStructure = () => {
+    const remaining = [...blocks];
+    const ordered: BlocPortfolio[] = [];
+    const structure =
+      structureSpecialite === "DEFAUT"
+        ? STRUCTURE_PORTFOLIO_DEFAUT
+        : STRUCTURE_PORTFOLIO_PAR_SPECIALITE[structureSpecialite];
+    const requiredTypes = new Set<TypeBloc>([
+      "HERO",
+      "A_PROPOS",
+      "GALERIE",
+      "SERVICES",
+      "PROCESSUS",
+      "TEMOIGNAGES",
+      "FAQ",
+      "CONTACT",
+    ]);
+    for (const type of structure) {
+      const matches = remaining.filter((block) => block.type === type);
+      if (matches.length > 0) {
+        ordered.push(...matches);
+        for (const block of matches) {
+          remaining.splice(remaining.findIndex((candidate) => candidate.idBloc === block.idBloc), 1);
+        }
+      } else if (requiredTypes.has(type)) {
+        const idBloc = crypto.randomUUID().replaceAll("-", "").slice(0, 24);
+        ordered.push({
+          idBloc,
+          type,
+          ordre: ordered.length,
+          visible: true,
+          miseEnPage: type === "HERO" ? "PLEIN_ECRAN" : "GRILLE",
+          configuration: structuredClone(defaultBlockConfigs[type]),
+          elements: [],
+        });
+      }
+    }
+    applyBlocksChange([...ordered, ...remaining].map((block, ordre) => ({ ...block, ordre })));
+    toast.success(
+      structureSpecialite === "DEFAUT"
+        ? "Structure professionnelle appliquée."
+        : `Structure ${categoriePortfolioLabels[structureSpecialite].toLowerCase()} appliquée.`,
+    );
+  };
 
   return (
     <DndContext
@@ -831,6 +1129,8 @@ export function EditorShell({
           isSaving={isSaving}
           hasUnpublishedChanges={hasUnpublishedChanges}
           isPublished={isPublished}
+          publicationStatus={portfolioStatus}
+          visibility={portfolioData.visibilite}
           viewportMode={viewportMode}
           onViewportChange={setViewportMode}
           canUndo={history.past.length > 0}
@@ -838,11 +1138,53 @@ export function EditorShell({
           onUndo={handleUndo}
           onRedo={handleRedo}
           onPublish={handlePublish}
+          onUnpublish={() => void handleUnpublish()}
+          onPreview={() => void handlePreview()}
           onQualityAudit={() => void handleQualityAudit()}
           onOpenStatsInsights={() => setIsStatsInsightsOpen(true)}
           onTogglePaletteDrawer={() => setPaletteDrawerOpen((prev) => !prev)}
           onToggleInspectorDrawer={() => setInspectorDrawerOpen((prev) => !prev)}
         />
+
+        <div className="flex flex-wrap items-center gap-3 border-b border-white/10 bg-[#160d08] px-4 py-2 text-xs">
+          <div className="min-w-40 flex-1">
+            <div className="flex items-center justify-between gap-2">
+              <span className="font-medium text-[#f3ebdd]">Profil complet à {profileCompletion} %</span>
+              <span className="text-[10px] text-[#c4ad98]">
+                {completionSuggestions[0] || "Belle base, continuez à peaufiner les détails."}
+              </span>
+            </div>
+            <div className="mt-1 h-1 overflow-hidden rounded-full bg-white/10">
+              <div className="h-full rounded-full bg-[#e8a34a] transition-[width]" style={{ width: `${profileCompletion}%` }} />
+            </div>
+          </div>
+          <label className="flex items-center gap-2 text-[10px] text-[#c4ad98]">
+            Structure
+            <select
+              value={structureSpecialite}
+              onChange={(event) =>
+                setStructureSpecialite(
+                  event.target.value === "DEFAUT"
+                    ? "DEFAUT"
+                    : (event.target.value as CategoriePortfolio),
+                )
+              }
+              className="h-8 rounded-md border border-white/10 bg-[#0f0905] px-2 text-[#f3ebdd]"
+            >
+              <option value="DEFAUT">Recommandée</option>
+              {CATEGORIES_PORTFOLIO.map((category) => (
+                <option key={category} value={category}>{categoriePortfolioLabels[category]}</option>
+              ))}
+            </select>
+          </label>
+          <button
+            type="button"
+            onClick={applySpecialtyStructure}
+            className="h-8 rounded-md border border-[#e8a34a]/40 px-3 text-[10px] font-semibold text-[#e8a34a] hover:bg-[#e8a34a]/10"
+          >
+            Appliquer le modèle
+          </button>
+        </div>
 
         {/* Main Workspace (3 fixed internal scrolling columns) */}
         <div className="relative flex min-h-0 flex-1 overflow-hidden">
@@ -866,12 +1208,18 @@ export function EditorShell({
           {/* Mobile/Tablet Drawer: Palette */}
           {paletteDrawerOpen && (
             <div className="fixed inset-0 z-40 flex min-[1100px]:hidden">
-              <div
+              <button
+                type="button"
+                aria-label={editorFr.closeBlockPalette}
                 className="fixed inset-0 bg-black/70 backdrop-blur-xs transition-opacity"
                 onClick={() => setPaletteDrawerOpen(false)}
-                aria-hidden="true"
               />
-              <div className="relative z-50 h-full w-[260px] animate-in shadow-2xl duration-200 slide-in-from-left">
+              <div
+                role="dialog"
+                aria-modal="true"
+                aria-label={editorFr.drawerBlocks}
+                className="relative z-50 h-full w-[260px] animate-in shadow-2xl duration-200 slide-in-from-left"
+              >
                 <BlockPalette
                   totalBlocksCount={blocks.length}
                   blockUsageCounts={blockUsageCounts}
@@ -902,9 +1250,9 @@ export function EditorShell({
             publicationStatus={
               isPublished
                 ? hasUnpublishedChanges
-                  ? "unpublished changes"
-                  : "published"
-                : editorFr.neverPublished
+                  ? editorFr.unpublishedChanges
+                  : editorFr.statuses.PUBLIE
+                : editorFr.statuses[portfolioStatus]
             }
             theme={portfolioData.theme}
             couleurAccent={portfolioData.couleurAccent}
@@ -954,12 +1302,18 @@ export function EditorShell({
           {/* Mobile/Tablet Drawer: Inspector */}
           {inspectorDrawerOpen && (
             <div className="fixed inset-0 z-40 flex justify-end min-[1100px]:hidden">
-              <div
+              <button
+                type="button"
+                aria-label={editorFr.closeInspector}
                 className="fixed inset-0 bg-black/70 backdrop-blur-xs transition-opacity"
                 onClick={() => setInspectorDrawerOpen(false)}
-                aria-hidden="true"
               />
-              <div className="relative z-50 h-full w-[330px] animate-in shadow-2xl duration-200 slide-in-from-right">
+              <div
+                role="dialog"
+                aria-modal="true"
+                aria-label={editorFr.drawerInspector}
+                className="relative z-50 h-full w-[330px] animate-in shadow-2xl duration-200 slide-in-from-right"
+              >
                 <PropertiesPanel
                   activeTab={activeTab}
                   onTabChange={setActiveTab}
@@ -1024,6 +1378,11 @@ export function EditorShell({
           destinationBlockName={selectedBlock ? editorFr.blockNames[selectedBlock.type] : "Gallery"}
           photos={photographerPhotos}
           isLoadingPhotos={isLoadingPhotos}
+          maxPhotos={12}
+          currentCount={
+            blocks.find((b) => b.idBloc === photoPickerBlocId)?.elements.length ?? 0
+          }
+          onRefreshPhotos={refreshPhotographerPhotos}
           onClose={() => setPhotoPickerBlocId(null)}
           onAddPhotos={handleAddPhotosToBlock}
         />
@@ -1059,13 +1418,82 @@ export function EditorShell({
       {isQualityAuditOpen && (
         <PortfolioQualityAudit
           audit={qualityAudit}
+          publicationBlockers={publicationBlockers}
           isLoading={isQualityAuditLoading}
           onClose={() => setIsQualityAuditOpen(false)}
           onAddBlock={(type) => {
             handleAddBlock(type);
           }}
+          onFixBlock={handleFixPublicationBlocker}
+          onFixCheck={handleFixAuditCheck}
         />
       )}
+      {publishSummary && (
+        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="publication-summary-title"
+            className="w-full max-w-lg rounded-2xl border border-[#e8a34a]/25 bg-[#1a100b] p-6 text-[#f3ebdd] shadow-2xl"
+          >
+            <h2 id="publication-summary-title" className="text-xl font-semibold">
+              {editorFr.publicationSummaryTitle}
+            </h2>
+            <p className="mt-3 text-sm text-white/70">
+              {publishSummary.visibility === "PUBLIC"
+                ? editorFr.publicationSummaryPublic
+                : editorFr.publicationSummaryPrivate}
+            </p>
+            {publishSummary.visibility === "PUBLIC" && (
+              <a
+                href={publishSummary.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-3 block rounded-lg border border-white/10 bg-black/30 p-3 text-sm break-all text-[#e8a34a] underline underline-offset-4"
+              >
+                {publishSummary.url}
+              </a>
+            )}
+            <p className="mt-4 text-sm text-white/60">
+              {publishSummary.removedCount > 0
+                ? `${publishSummary.removedCount} ${editorFr.removedPhotos}`
+                : editorFr.noRemovedPhotos}
+            </p>
+            <div className="mt-6 flex justify-end">
+              <button
+                type="button"
+                autoFocus
+                onClick={() => setPublishSummary(null)}
+                className="rounded-full bg-[#e8a34a] px-4 py-2 text-sm font-semibold text-[#0f0905] hover:bg-[#f0b25e]"
+              >
+                {editorFr.closePublicationSummary}
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
+      <ConfirmDialog
+        open={isUnpublishDialogOpen}
+        onOpenChange={setIsUnpublishDialogOpen}
+        title="Dépublier ce portfolio ?"
+        description="Sa page ne sera plus accessible publiquement. Vous pourrez le publier à nouveau plus tard."
+        confirmLabel="Dépublier"
+        cancelLabel="Garder publié"
+        tone="destructive"
+        pending={isUnpublishing}
+        onConfirm={() => void confirmUnpublish()}
+      />
+      <ConfirmDialog
+        open={isDeletePortfolioDialogOpen}
+        onOpenChange={setIsDeletePortfolioDialogOpen}
+        title="Supprimer définitivement ce portfolio ?"
+        description="Cette action supprimera le portfolio, sa version publiée et les données associées. Elle est irréversible."
+        confirmLabel="Supprimer définitivement"
+        cancelLabel="Annuler"
+        tone="destructive"
+        pending={isDeletingPortfolio}
+        onConfirm={() => void confirmDeletePortfolio()}
+      />
     </DndContext>
   );
 }

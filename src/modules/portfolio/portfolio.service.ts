@@ -6,6 +6,7 @@ import { Galerie } from "@/modules/photos-galeries/galerie.model";
 import { Photo } from "@/modules/photos-galeries/photo.model";
 import { openFile } from "@/modules/photos-galeries/photo.storage";
 import "@/modules/utilisateurs/utilisateur.model";
+import { Utilisateur } from "@/modules/utilisateurs/utilisateur.model";
 import { findUtilisateurById } from "@/modules/utilisateurs/utilisateur.service";
 import {
   DemandeContact,
@@ -17,6 +18,7 @@ import {
 } from "./portfolio.model";
 import {
   portfolioBlocksSchema,
+  type PublicPortfolioSearchInput,
   type ContactPortfolioInput,
   type PortfolioCreateInput,
   type PortfolioUpdateInput,
@@ -28,7 +30,10 @@ import {
   type BlocPortfolioPublic,
   type CategoriePortfolio,
   type ElementBlocPortfolio,
+  type PlancheContactData,
   type StatutDemande,
+  type ServicePhotographique,
+  type StylePhotographique,
 } from "./portfolio.types";
 import { portfolioIntegrations } from "./integrations";
 import { analyserPhotoAvecGemini, type GeminiPhotoAnalysis } from "./ia.service";
@@ -58,51 +63,139 @@ function serializeBlocks(blocks: BlocPortfolio[], filigrane = false): BlocPortfo
   }));
 }
 
-function serializePublicBlocks(blocks: BlocPortfolio[], filigrane: boolean): BlocPortfolioPublic[] {
-  return serializeBlocks(blocks, filigrane).map((block) => ({
-    idBloc: block.idBloc,
-    type: block.type,
-    ordre: block.ordre,
-    visible: block.visible,
-    miseEnPage: block.miseEnPage,
-    configuration: { ...block.configuration },
-    elements: block.elements.map((element) => ({
-      idElement: element.idElement,
-      media: {
-        url: element.media.url,
-        urlMiniature: element.media.urlMiniature,
-        largeur: element.media.largeur,
-        hauteur: element.media.hauteur,
-      },
-      titre: element.titre,
-      legende: element.legende,
-      texteAlt: element.texteAlt,
-      ordreAffichage: element.ordreAffichage,
-      estMisEnAvant: element.estMisEnAvant,
-      role: element.role,
-      paire: element.paire,
-      nombreLikes: element.nombreLikes,
-    })),
+/**
+ * Returns true if a gallery element is a valid publishable photo.
+ *
+ * A gallery element is valid when it has a usable media URL that points to
+ * one of the three supported storage back-ends:
+ *
+ *  1. MongoDB library photo  – url is `/api/portfolio/media/<ObjectId>`
+ *     (added via PhotoPicker from the photographer's library).
+ *  2. GridFS direct upload   – same URL pattern, no `photoId` set because
+ *     the file was uploaded directly through /api/portfolio/upload without
+ *     going through the Photos module (e.g. drag-and-drop in the editor).
+ *  3. Cloudinary upload      – url is an https://res.cloudinary.com/… URL
+ *     returned by /api/portfolio/upload when Cloudinary is configured.
+ *
+ * Previously only case 1 was accepted, which caused every directly-uploaded
+ * photo (cases 2 & 3) to be silently stripped at publish time, leaving the
+ * gallery empty on the public portfolio.
+ */
+function isPublishableGalleryPhoto(element: ElementBlocPortfolio): boolean {
+  const url = element.media?.url;
+  if (!url) return false;
+
+  // Case 1 & 2 — served by our own media proxy (library or GridFS direct upload)
+  if (url.startsWith("/api/portfolio/media/")) return true;
+
+  // Case 3 — Cloudinary URL (https://res.cloudinary.com/…)
+  try {
+    const parsed = new URL(url);
+    if (
+      parsed.protocol === "https:" &&
+      parsed.hostname === "res.cloudinary.com"
+    ) {
+      return true;
+    }
+  } catch {
+    // not a URL — fall through to false
+  }
+
+  return false;
+}
+
+function filterNonDatabaseGalleryPhotos(blocks: BlocPortfolio[]): BlocPortfolio[] {
+  return blocks.map((block) => ({
+    ...block,
+    elements:
+      block.type === "GALERIE" || block.type === "COLLECTION"
+        ? block.elements.filter(isPublishableGalleryPhoto).slice(0, 12)
+        : block.elements,
   }));
+}
+
+function toPublicMediaUrl(url: string | undefined): string {
+  if (!url) return "";
+  return url.replace(
+    /\/api\/photos\/([^/]+)\/(file|miniature)/,
+    (_match, id: string, variant: string) =>
+      variant === "miniature"
+        ? `/api/portfolio/media/${id}?variant=miniature`
+        : `/api/portfolio/media/${id}`,
+  );
+}
+
+const CONFIGURATION_MEDIA_KEYS = [
+  "photoCouverture",
+  "photoPortrait",
+  "photoAvant",
+  "photoApres",
+  "photo",
+  "affiche",
+] as const;
+
+function serializePublicBlocks(blocks: BlocPortfolio[], filigrane: boolean): BlocPortfolioPublic[] {
+  return filterNonDatabaseGalleryPhotos(serializeBlocks(blocks, filigrane))
+    .filter((block) => block.type !== "VIDEO")
+    .map((block) => {
+      const configuration = { ...block.configuration };
+      for (const key of CONFIGURATION_MEDIA_KEYS) {
+        if (typeof configuration[key] === "string") {
+          configuration[key] = toPublicMediaUrl(configuration[key]);
+        }
+      }
+
+      return {
+        idBloc: block.idBloc,
+        type: block.type,
+        ordre: block.ordre,
+        visible: block.visible,
+        miseEnPage: block.miseEnPage,
+        configuration,
+        elements: block.elements.map((element) => ({
+          idElement: element.idElement,
+          media: {
+            url: toPublicMediaUrl(element.media.url),
+            urlMiniature: toPublicMediaUrl(element.media.urlMiniature),
+            largeur: element.media.largeur,
+            hauteur: element.media.hauteur,
+          },
+          titre: element.titre,
+          legende: element.legende,
+          texteAlt: element.texteAlt,
+          ordreAffichage: element.ordreAffichage,
+          estMisEnAvant: element.estMisEnAvant,
+          role: element.role,
+          paire: element.paire,
+          nombreLikes: element.nombreLikes,
+        })),
+      };
+    });
 }
 
 export type PortfolioPublic = {
   id: string;
   proprietaire: string;
-  photographe: { nom: string; prenom: string };
+  photographe: { nom: string; prenom: string; photoProfil?: string };
   slug: string;
   titre: string;
   slogan?: string;
   bio?: string;
   photoCouverture: string;
   specialites: PortfolioDocument["specialites"];
+  styles: StylePhotographique[];
+  services: ServicePhotographique[];
+  disponible: boolean;
   ville?: string;
+  region?: string;
+  pays?: string;
   theme: PortfolioDocument["theme"];
   couleurAccent: string;
   filigrane: boolean;
   seo: PortfolioDocument["seo"];
   liensSociaux: PortfolioDocument["liensSociaux"];
   blocsPublies: BlocPortfolioPublic[];
+  plancheContact?: PlancheContactData;
   nombreVues: number;
   noteMoyenne?: number;
   nombreAvis?: number;
@@ -135,7 +228,7 @@ export type PortfolioListItem = {
 
 function toPublic(
   doc: PortfolioLean,
-  photographe: { nom: string; prenom: string },
+  photographe: { nom: string; prenom: string; photoProfil?: string },
 ): PortfolioPublic {
   // If hero block has a custom cover photo, use it as the primary cover
   const heroBlock = (doc.blocsPublies || doc.blocs || []).find(
@@ -156,15 +249,37 @@ function toPublic(
     titre: doc.titre,
     slogan: doc.slogan,
     bio: doc.bio,
-    photoCouverture: doc.filigrane ? applyWatermark(cover) : cover,
+    photoCouverture: doc.filigrane
+      ? applyWatermark(toPublicMediaUrl(cover))
+      : toPublicMediaUrl(cover),
     specialites: doc.specialites,
+    styles: doc.styles ?? [],
+    services: doc.services ?? [],
+    disponible: doc.disponible ?? false,
     ville: doc.ville,
+    region: doc.region,
+    pays: doc.pays,
     theme: doc.theme,
     couleurAccent: doc.couleurAccent,
     filigrane: doc.filigrane,
     seo: doc.seo,
     liensSociaux: doc.liensSociaux,
     blocsPublies: serializePublicBlocks(doc.blocsPublies, doc.filigrane),
+    plancheContact: doc.plancheContact
+      ? {
+          active: Boolean(doc.plancheContact.active),
+          videoUrl: toPublicMediaUrl(doc.plancheContact.videoUrl ?? ""),
+          trimStart: doc.plancheContact.trimStart ?? 0,
+          trimEnd: doc.plancheContact.trimEnd ?? 0,
+          frames: (doc.plancheContact.frames || []).map((f) => ({
+            id: f.id,
+            imageUrl: toPublicMediaUrl(f.imageUrl),
+            timestamp: f.timestamp,
+            caption: f.caption,
+            order: f.order,
+          })),
+        }
+      : undefined,
     nombreVues: doc.nombreVues,
     noteMoyenne: doc.noteMoyenne ?? 5,
     nombreAvis: doc.nombreAvis ?? 0,
@@ -173,7 +288,18 @@ function toPublic(
 }
 
 function id(value: string, label: string): Types.ObjectId {
-  if (!Types.ObjectId.isValid(value)) throw new ServiceError(`${label} not found.`);
+  if (!Types.ObjectId.isValid(value)) {
+    const labels: Record<string, string> = {
+      Portfolio: "Portfolio",
+      User: "utilisateur",
+      Owner: "propriétaire",
+      Element: "élément",
+      "Contact request": "demande de contact",
+      Session: "séance",
+      Client: "client",
+    };
+    throw new ServiceError(`${labels[label] ?? label} introuvable.`);
+  }
   return new Types.ObjectId(value);
 }
 
@@ -186,7 +312,7 @@ async function notifyPortfolio(input: {
   try {
     await portfolioIntegrations.notificationsService.envoyer(input);
   } catch (error) {
-    console.error("Portfolio notification failed", error);
+    console.error("Échec de l’envoi d’une notification de portfolio", error);
   }
 }
 
@@ -201,10 +327,10 @@ async function assertPortfolioAccess(
   const portfolio = await Portfolio.findById(portfolioObjectId)
     .select("proprietaire")
     .lean<Pick<PortfolioLean, "proprietaire">>();
-  if (!portfolio) throw new ServiceError("Portfolio not found.");
+  if (!portfolio) throw new ServiceError("Portfolio introuvable.");
   if (portfolio.proprietaire.equals(userObjectId)) return portfolioObjectId;
   if (allowAdmin) return portfolioObjectId;
-  throw new ServiceError("You are not allowed to edit this portfolio.");
+  throw new ServiceError("Vous n’êtes pas autorisé à modifier ce portfolio.");
 }
 
 function slugify(value: string): string {
@@ -278,7 +404,7 @@ function normalizeBlocks(blocks: BlocPortfolio[]): BlocPortfolio[] {
 
 function publishedBlocks(blocks: BlocPortfolio[]): { blocks: BlocPortfolio[]; removed: string[] } {
   const removed: string[] = [];
-  const filtered = blocks.map((block) => ({
+  const consentFiltered = blocks.map((block) => ({
     ...block,
     elements: block.elements.filter((element) => {
       const allowed =
@@ -287,26 +413,18 @@ function publishedBlocks(blocks: BlocPortfolio[]): { blocks: BlocPortfolio[]; re
       return allowed;
     }),
   }));
+  const filtered = filterNonDatabaseGalleryPhotos(consentFiltered);
   return { blocks: normalizeBlocks(filtered), removed };
 }
 
-function validatePublication(blocs: BlocPortfolio[], titre: string, photoCouverture: string): void {
-  if (!titre.trim()) throw new ServiceError("A title is required.", "titre");
+function validatePublication(
+  blocs: BlocPortfolio[],
+  titre: string,
+  _photoCouverture: string,
+): void {
+  if (!titre.trim()) throw new ServiceError("Le titre du portfolio est obligatoire.", "titre");
   if (blocs.filter((block) => block.type === "HERO").length !== 1) {
-    throw new ServiceError("A portfolio must contain exactly one HERO block.", "blocs");
-  }
-  // Accept publication if: doc has a cover photo, any block has photos, OR the HERO bloc config has a cover photo
-  const heroBlock = blocs.find((b) => b.type === "HERO");
-  const heroHasCover =
-    (heroBlock?.configuration?.photoCouverture &&
-      String(heroBlock.configuration.photoCouverture).trim().length > 0) ||
-    (photoCouverture && photoCouverture.trim().length > 0);
-  const anyBlockHasPhotos = blocs.some((block) => block.elements.length > 0);
-  if (!heroHasCover && !anyBlockHasPhotos) {
-    throw new ServiceError(
-      "Ajoutez au moins une photo de couverture dans le bloc Hero pour publier.",
-      "blocs",
-    );
+    throw new ServiceError("Le portfolio doit contenir exactement un bloc Hero.", "blocs");
   }
   for (const block of blocs) {
     if (block.type !== "AVANT_APRES") continue;
@@ -319,7 +437,7 @@ function validatePublication(blocs: BlocPortfolio[], titre: string, photoCouvert
     }
     if ([...pairs.values()].some((roles) => !roles.has("AVANT") || !roles.has("APRES"))) {
       throw new ServiceError(
-        "Each before/after pair requires an AVANT and an APRES image.",
+        "Chaque comparaison doit contenir une image Avant et une image Après.",
         "blocs",
       );
     }
@@ -337,11 +455,11 @@ export async function createPortfolio(
       "RETOUCHEUR",
     ]))
   ) {
-    throw new ServiceError("Only a photographer or retoucher can create a portfolio.");
+    throw new ServiceError("Seuls les photographes et retoucheurs peuvent créer un portfolio.");
   }
   await connectDB();
   if (await Portfolio.exists({ proprietaire: owner }))
-    throw new ServiceError("This user already has a portfolio.");
+    throw new ServiceError("Cet utilisateur possède déjà un portfolio.");
   const { structureInitiale, ...portfolioInput } = input;
   const blocs: BlocPortfolio[] =
     structureInitiale === "VIDE"
@@ -355,8 +473,8 @@ export async function createPortfolio(
             miseEnPage: "PLEIN_ECRAN",
             configuration: {
               titre: input.titre,
-              sousTitre: input.slogan || "Photography for the moments that matter.",
-              texteBouton: "Get in touch",
+              sousTitre: input.slogan || "Authentic images for life's precious moments.",
+              texteBouton: "Contact Me",
               lienBouton: "#contact",
             },
             elements: [],
@@ -369,7 +487,8 @@ export async function createPortfolio(
             miseEnPage: "GRILLE",
             configuration: {
               texte:
-                "Tell visitors about your approach, the people you photograph and what they can expect.",
+                input.bio ||
+                "Describe your approach, the people you photograph, and what they can expect from a session with you.",
               anneesExperience: 0,
             },
             elements: [],
@@ -381,8 +500,6 @@ export async function createPortfolio(
             visible: true,
             miseEnPage: "GRILLE",
             configuration: {
-              colonnes: 3,
-              espacement: 16,
               ...(input.specialites[0] ? { categorie: input.specialites[0] } : {}),
             },
             elements: [],
@@ -394,7 +511,7 @@ export async function createPortfolio(
             visible: true,
             miseEnPage: "GRILLE",
             configuration: {
-              texteIntro: "Tell me a little about the session you have in mind.",
+              texteIntro: "Tell me about the session you have in mind.",
               typesSeanceProposes: input.specialites,
             },
             elements: [],
@@ -434,8 +551,10 @@ export async function getPortfolioForEditor(
     visibilite: doc.visibilite,
     dateCreation: doc.dateCreation.toISOString(),
     dateModification: doc.dateModification.toISOString(),
-    blocs: serializeBlocks(doc.blocs),
-    blocsPublies: serializeBlocks(doc.blocsPublies),
+    blocs: filterNonDatabaseGalleryPhotos(serializeBlocks(doc.blocs)).filter(
+      (b) => b.type !== "VIDEO",
+    ),
+    blocsPublies: serializeBlocks(doc.blocsPublies).filter((b) => b.type !== "VIDEO"),
   };
 }
 
@@ -500,15 +619,17 @@ export async function creerOuReinitialiserPortfolio(
     ];
   }
 
-  // Delete existing portfolio if any
-  await Portfolio.deleteOne({ proprietaire: ownerId });
+  const existing = await Portfolio.findOne({ proprietaire: ownerId })
+    .select("_id")
+    .lean<{ _id: Types.ObjectId }>();
+  if (existing) await deletePortfolio(existing._id.toString(), userId);
 
   await Portfolio.create({
     proprietaire: ownerId,
     slug,
     titre: input.titre,
-    slogan: input.slogan || "Photographe professionnel",
-    bio: "Capturing delicate, candid memories in natural light for more than a decade.",
+    slogan: input.slogan || "Professional photographer",
+    bio: "I photograph precious and spontaneous moments with a natural approach.",
     photoCouverture: cover,
     specialites: (input.specialites && input.specialites.length > 0
       ? input.specialites
@@ -521,7 +642,7 @@ export async function creerOuReinitialiserPortfolio(
     theme: "MINIMAL",
     couleurAccent: "#E8A34A",
     filigrane: false,
-    seo: { metaTitre: input.titre, metaDescription: input.slogan || `Portfolio de ${input.titre}` },
+    seo: { metaTitre: input.titre, metaDescription: input.slogan || `Portfolio of ${input.titre}` },
     liensSociaux: [
       { reseau: "INSTAGRAM", url: "https://instagram.com" },
       { reseau: "SITE_WEB", url: "https://studioflow.app" },
@@ -587,8 +708,8 @@ export async function getOrCreatePortfolioForUser(
       proprietaire: ownerId,
       slug,
       titre: photographerName,
-      slogan: "Photographe de mariage & portraits intimes",
-      bio: "Capturing delicate, candid memories in natural light for more than a decade. Based in south-west France, traveling worldwide for destinations that speak of love and grace.",
+      slogan: "Wedding photographer and intimate portraits",
+      bio: "For more than ten years, I have photographed delicate and spontaneous moments with a natural approach. Based in the Southwest, I travel wherever stories deserve to be told.",
       photoCouverture:
         "https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=1600&q=80",
       specialites: ["MARIAGE", "PORTRAIT"],
@@ -596,7 +717,7 @@ export async function getOrCreatePortfolioForUser(
       theme: "MINIMAL",
       couleurAccent: "#E8A34A",
       filigrane: false,
-      seo: { metaTitre: photographerName, metaDescription: `Portfolio de ${photographerName}` },
+      seo: { metaTitre: photographerName, metaDescription: `Photography portfolio of ${photographerName}` },
       liensSociaux: [
         { reseau: "INSTAGRAM", url: "https://instagram.com" },
         { reseau: "SITE_WEB", url: "https://studioflow.app" },
@@ -723,6 +844,7 @@ export async function getPublicPortfolio(slug: string): Promise<PortfolioPublic 
   const doc = await Portfolio.findOne({
     slug: slug.toLowerCase(),
     statut: "PUBLIE",
+    visibilite: "PUBLIC",
   }).lean<PortfolioLean>();
   if (!doc) return null;
   // Always query real user from MongoDB first!
@@ -732,13 +854,18 @@ export async function getPublicPortfolio(slug: string): Promise<PortfolioPublic 
         id: realUser.id,
         nom: realUser.nom,
         prenom: realUser.prenom,
+        photoProfil: realUser.photoProfil,
         role: realUser.role as "PHOTOGRAPHE" | "RETOUCHEUR" | "ADMIN",
         statut: (realUser.statut === "ACTIF" ? "ACTIF" : "BLOQUE") as "ACTIF" | "BLOQUE",
       }
     : await portfolioIntegrations.utilisateursService.getUtilisateur(doc.proprietaire.toString());
 
   const photoName = photographe
-    ? { nom: photographe.nom, prenom: photographe.prenom }
+    ? {
+        nom: photographe.nom,
+        prenom: photographe.prenom,
+        photoProfil: photographe.photoProfil,
+      }
     : { nom: "", prenom: doc.titre };
   return toPublic(doc, photoName);
 }
@@ -769,6 +896,10 @@ export async function getPortfolioForPublicRoute(slug: string): Promise<Portfoli
     return { status: "NOT_FOUND", slug };
   }
 
+  if (doc.visibilite !== "PUBLIC") {
+    return { status: "NOT_FOUND", slug };
+  }
+
   // Always query real user from MongoDB first!
   const realUser = await findUtilisateurById(doc.proprietaire.toString());
   const photographe = realUser
@@ -776,6 +907,7 @@ export async function getPortfolioForPublicRoute(slug: string): Promise<Portfoli
         id: realUser.id,
         nom: realUser.nom,
         prenom: realUser.prenom,
+        photoProfil: realUser.photoProfil,
         role: realUser.role as "PHOTOGRAPHE" | "RETOUCHEUR" | "ADMIN",
         statut: (realUser.statut === "ACTIF" ? "ACTIF" : "BLOQUE") as "ACTIF" | "BLOQUE",
       }
@@ -788,7 +920,11 @@ export async function getPortfolioForPublicRoute(slug: string): Promise<Portfoli
   // Check if published with blocks
   if (doc.statut === "PUBLIE" && doc.blocsPublies && doc.blocsPublies.length > 0) {
     const photoName = photographe
-      ? { nom: photographe.nom, prenom: photographe.prenom }
+      ? {
+          nom: photographe.nom,
+          prenom: photographe.prenom,
+          photoProfil: photographe.photoProfil,
+        }
       : { nom: "", prenom: doc.titre };
     const publicPort = toPublic(doc, photoName);
     return { status: "PUBLISHED", portfolio: publicPort };
@@ -800,6 +936,29 @@ export async function getPortfolioForPublicRoute(slug: string): Promise<Portfoli
     photographeNom,
     titre: doc.titre,
   };
+}
+
+export async function getPortfolioDraftPreview(userId: string): Promise<PortfolioPublic | null> {
+  await connectDB();
+  const ownerId = id(userId, "Owner");
+  const doc = await Portfolio.findOne({ proprietaire: ownerId }).lean<PortfolioLean>();
+  if (!doc) return null;
+
+  const photographer = await findUtilisateurById(userId);
+  const previewBlocks = publishedBlocks(
+    filterNonDatabaseGalleryPhotos(normalizeBlocks(doc.blocs as BlocPortfolio[])),
+  ).blocks;
+  const previewDoc: PortfolioLean = {
+    ...doc,
+    statut: "PUBLIE",
+    blocsPublies: previewBlocks,
+  };
+
+  return toPublic(previewDoc, {
+    nom: photographer?.nom ?? "",
+    prenom: photographer?.prenom ?? doc.titre,
+    photoProfil: photographer?.photoProfil,
+  });
 }
 
 export async function noterPortfolio(
@@ -838,17 +997,57 @@ export async function noterPortfolio(
 }
 
 export async function listPublicPortfolios(
-  query: {
-    categorie?: PortfolioDocument["specialites"][number];
-    ville?: string;
-    page?: number;
-  } = {},
-): Promise<{ items: PortfolioPublic[]; page: number; pageCount: number }> {
+  query: PublicPortfolioSearchInput = {
+    categories: [],
+    styles: [],
+    services: [],
+    disponible: false,
+    page: 1,
+  },
+): Promise<{ items: PortfolioPublic[]; total: number; page: number; pageCount: number }> {
   await connectDB();
   const page = Math.max(1, query.page ?? 1);
   const filter: Record<string, unknown> = { statut: "PUBLIE", visibilite: "PUBLIC" };
-  if (query.categorie) filter.specialites = query.categorie;
-  if (query.ville) filter.ville = query.ville;
+  if (query.categories.length) filter.specialites = { $all: query.categories };
+  if (query.styles.length) filter.styles = { $all: query.styles };
+  if (query.services.length) filter.services = { $all: query.services };
+  if (query.disponible) filter.disponible = true;
+  if (query.ville) {
+    const locationRegex = new RegExp(escapeRegex(query.ville), "i");
+    filter.$or = [{ ville: locationRegex }, { region: locationRegex }, { pays: locationRegex }];
+  }
+  if (query.recherche) {
+    const searchTerms = query.recherche.split(/\s+/).filter(Boolean);
+    const photographerIds = await Utilisateur.find({
+      $and: searchTerms.map((term) => {
+        const searchRegex = new RegExp(escapeRegex(term), "i");
+        return {
+          $or: [{ prenom: searchRegex }, { nom: searchRegex }, { entreprise: searchRegex }],
+        };
+      }),
+    })
+      .select("_id")
+      .lean<{ _id: Types.ObjectId }[]>();
+    filter.$and = searchTerms.map((term) => {
+      const searchRegex = new RegExp(escapeRegex(term), "i");
+      return {
+        $or: [
+          { titre: searchRegex },
+          { slogan: searchRegex },
+          { bio: searchRegex },
+          { ville: searchRegex },
+          { region: searchRegex },
+          { pays: searchRegex },
+          { styles: searchRegex },
+          { services: searchRegex },
+          { specialites: searchRegex },
+          ...(photographerIds.length
+            ? [{ proprietaire: { $in: photographerIds.map(({ _id }) => _id) } }]
+            : []),
+        ],
+      };
+    });
+  }
   const [docs, total] = await Promise.all([
     Portfolio.find(filter)
       .sort({ datePublication: -1 })
@@ -865,6 +1064,7 @@ export async function listPublicPortfolios(
             id: realUser.id,
             nom: realUser.nom,
             prenom: realUser.prenom,
+            photoProfil: realUser.photoProfil,
             role: realUser.role as "PHOTOGRAPHE" | "RETOUCHEUR" | "ADMIN",
             statut: (realUser.statut === "ACTIF" ? "ACTIF" : "BLOQUE") as "ACTIF" | "BLOQUE",
           }
@@ -873,16 +1073,25 @@ export async function listPublicPortfolios(
           );
 
       const photoName = photographe
-        ? { nom: photographe.nom, prenom: photographe.prenom }
+        ? {
+            nom: photographe.nom,
+            prenom: photographe.prenom,
+            photoProfil: photographe.photoProfil,
+          }
         : { nom: "", prenom: doc.titre };
       return toPublic(doc, photoName);
     }),
   );
   return {
     items: items.filter((item): item is PortfolioPublic => item !== null),
+    total,
     page,
     pageCount: Math.max(1, Math.ceil(total / 12)),
   };
+}
+
+function escapeRegex(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 export async function updatePortfolio(
@@ -901,7 +1110,7 @@ export async function updatePortfolio(
       },
     },
   );
-  if (!result.matchedCount) throw new ServiceError("Portfolio not found.");
+  if (!result.matchedCount) throw new ServiceError("Portfolio introuvable.");
 }
 
 export async function saveGeneratedBio(
@@ -914,7 +1123,7 @@ export async function saveGeneratedBio(
     { _id: portfolioObjectId },
     { $set: { bio, bioGenereeIA: true, dateModification: new Date() } },
   );
-  if (!result.matchedCount) throw new ServiceError("Portfolio not found.");
+  if (!result.matchedCount) throw new ServiceError("Portfolio introuvable.");
 }
 
 export async function savePortfolioBlocks(
@@ -925,7 +1134,50 @@ export async function savePortfolioBlocks(
   const normalized = normalizeBlocks(blocs);
   const parsed = portfolioBlocksSchema.safeParse(normalized);
   if (!parsed.success)
-    throw new ServiceError("Portfolio blocks are invalid.", parsed.error.issues[0]?.path.join("."));
+    throw new ServiceError(
+      "Les blocs du portfolio sont invalides.",
+      parsed.error.issues[0]?.path.join("."),
+    );
+  const galleryElements = parsed.data
+    .filter((block) => block.type === "GALERIE" || block.type === "COLLECTION")
+    .flatMap((block) => block.elements);
+  // Reject elements whose URL doesn't point to a known safe storage backend.
+  // Library photos (/api/portfolio/media/…), direct GridFS uploads (same pattern),
+  // and Cloudinary uploads (https://res.cloudinary.com/…) are all accepted.
+  // Any other URL (e.g. a stale /api/photos/… internal route) is rejected.
+  const invalidGalleryElements = galleryElements.filter(
+    (element) => !isPublishableGalleryPhoto(element),
+  );
+  if (invalidGalleryElements.length > 0) {
+    throw new ServiceError(
+      "Les galeries acceptent uniquement des photos issues de votre bibliothèque ou téléversées directement.",
+      "blocs",
+    );
+  }
+  // Verify library photos (those with a photoId) still exist in the DB.
+  const libraryPhotoIds = [
+    ...new Set(
+      galleryElements
+        .map((element) => element.photoId)
+        .filter((pid): pid is string => !!pid && Types.ObjectId.isValid(pid)),
+    ),
+  ];
+  if (libraryPhotoIds.length > 0) {
+    const library = await photoLibraryFilter(userId);
+    if (!library) throw new ServiceError("Bibliothèque photo inaccessible.");
+    const storedPhotos = await Photo.find({
+      ...library,
+      _id: { $in: libraryPhotoIds.map((photoId) => new Types.ObjectId(photoId)) },
+    })
+      .select("_id")
+      .lean();
+    if (storedPhotos.length !== libraryPhotoIds.length) {
+      throw new ServiceError(
+        "Une ou plusieurs photos ne sont plus disponibles dans votre bibliothèque.",
+        "blocs",
+      );
+    }
+  }
   const portfolioObjectId = await assertPortfolioAccess(portfolioId, userId, false);
   const previous = await Portfolio.findById(portfolioObjectId)
     .select("blocs")
@@ -939,7 +1191,7 @@ export async function savePortfolioBlocks(
     { _id: portfolioObjectId },
     { $set: { blocs: parsed.data, dateModification: new Date() } },
   );
-  if (!result.matchedCount) throw new ServiceError("Portfolio not found.");
+  if (!result.matchedCount) throw new ServiceError("Portfolio introuvable.");
   const pendingConsents = parsed.data
     .flatMap((block) => block.elements)
     .filter(
@@ -958,7 +1210,7 @@ export async function savePortfolioBlocks(
         destinataireId,
         cible: "/espace-client/portfolio-consentements",
         message:
-          "A photographer would like to display one of your gallery photos in their portfolio. Review the request to choose whether to allow it.",
+          "Un photographe souhaite afficher l’une de vos photos de galerie dans son portfolio. Consultez la demande pour autoriser ou refuser son utilisation.",
       });
     }),
   );
@@ -971,7 +1223,7 @@ export async function publishPortfolio(
 ): Promise<{ slug: string; url: string; removedElements: string[] }> {
   const _id = await assertPortfolioAccess(portfolioId, userId, allowAdmin);
   const doc = await Portfolio.findById(_id).lean<PortfolioLean>();
-  if (!doc) throw new ServiceError("Portfolio not found.");
+  if (!doc) throw new ServiceError("Portfolio introuvable.");
   const blocs = normalizeBlocks(doc.blocs as BlocPortfolio[]);
   validatePublication(blocs, doc.titre, doc.photoCouverture);
   const { blocks, removed } = publishedBlocks(blocs);
@@ -999,21 +1251,21 @@ export async function publishPortfolio(
     },
     { timestamps: false },
   );
-  if (!updated.matchedCount) throw new ServiceError("Portfolio not found.");
+  if (!updated.matchedCount) throw new ServiceError("Portfolio introuvable.");
   const adminIds = await portfolioIntegrations.utilisateursService.listerAdmins();
   await Promise.all([
     notifyPortfolio({
       type: "PORTFOLIO_PUBLIE",
       destinataireId: doc.proprietaire.toString(),
       cible: `/portfolio/${slug}`,
-      message: `Your portfolio “${doc.titre}” is now public.`,
+      message: `Votre portfolio « ${doc.titre} » est maintenant publié.`,
     }),
     ...adminIds.map((destinataireId) =>
       notifyPortfolio({
         type: "PORTFOLIO_PUBLIE",
         destinataireId,
         cible: `/portfolio/${slug}`,
-        message: `Portfolio “${doc.titre}” was published by ${doc.proprietaire.toString()}.`,
+        message: `Le portfolio « ${doc.titre} » a été publié par ${doc.proprietaire.toString()}.`,
       }),
     ),
   ]);
@@ -1035,7 +1287,7 @@ export async function unpublishPortfolio(
     { $set: { statut: "DEPUBLIE" } },
     { timestamps: false },
   );
-  if (!result.matchedCount) throw new ServiceError("Portfolio not found.");
+  if (!result.matchedCount) throw new ServiceError("Portfolio introuvable.");
 }
 
 export async function deletePortfolio(
@@ -1046,7 +1298,7 @@ export async function deletePortfolio(
   const portfolioObjectId = await assertPortfolioAccess(portfolioId, userId, allowAdmin);
   await connectDB();
   const result = await Portfolio.deleteOne({ _id: portfolioObjectId });
-  if (!result.deletedCount) throw new ServiceError("Portfolio not found.");
+  if (!result.deletedCount) throw new ServiceError("Portfolio introuvable.");
   await Promise.all([
     PortfolioStats.deleteMany({ portfolioId: portfolioObjectId }),
     DemandeContact.deleteMany({ portfolioId: portfolioObjectId }),
@@ -1097,17 +1349,17 @@ export async function incrementElementLike(portfolioId: string, elementId: strin
     { $inc: { "blocsPublies.$[].elements.$[element].nombreLikes": 1 } },
     { arrayFilters: [{ "element.idElement": id(elementId, "Element") }], timestamps: false },
   );
-  if (!result.matchedCount) throw new ServiceError("Portfolio image not found.");
+  if (!result.matchedCount) throw new ServiceError("Photo du portfolio introuvable.");
 }
 
 export async function createContactRequest(input: ContactPortfolioInput): Promise<{ id: string }> {
-  if (input.honeypot) throw new ServiceError("Invalid contact request.");
+  if (input.honeypot) throw new ServiceError("Demande de contact invalide.");
   await connectDB();
   const portfolio = await Portfolio.findOne({
     _id: id(input.portfolioId, "Portfolio"),
     statut: "PUBLIE",
   }).lean<PortfolioLean>();
-  if (!portfolio) throw new ServiceError("Portfolio unavailable.");
+  if (!portfolio) throw new ServiceError("Ce portfolio n’est pas disponible.");
   const doc = await DemandeContact.create({
     ...input,
     portfolioId: portfolio._id,
@@ -1119,7 +1371,7 @@ export async function createContactRequest(input: ContactPortfolioInput): Promis
     type: "NOUVELLE_DEMANDE_PORTFOLIO",
     destinataireId: portfolio.proprietaire.toString(),
     cible: `/dashboard/portfolio/demandes/${doc._id.toString()}`,
-    message: `New portfolio contact request from ${input.nomVisiteur}.`,
+    message: `Nouvelle demande de contact portfolio de la part de ${input.nomVisiteur}.`,
   });
   return { id: doc._id.toString() };
 }
@@ -1134,7 +1386,7 @@ export async function updateContactStatus(
     { _id: id(idValue, "Contact request"), photographeId: id(photographeId, "Owner") },
     { $set: { statut } },
   );
-  if (!result.matchedCount) throw new ServiceError("Contact request not found.");
+  if (!result.matchedCount) throw new ServiceError("Demande de contact introuvable.");
 }
 
 export type PortfolioContactRequest = {
@@ -1144,6 +1396,9 @@ export type PortfolioContactRequest = {
   telephone?: string;
   typeSeance: string;
   dateSouhaitee?: string;
+  lieu?: string;
+  budget?: string;
+  forfaitDemande?: string;
   message: string;
   statut: StatutDemande;
   dateCreation: string;
@@ -1163,6 +1418,9 @@ export async function listContactRequests(
     telephone: request.telephone,
     typeSeance: request.typeSeance,
     dateSouhaitee: request.dateSouhaitee?.toISOString(),
+    lieu: request.lieu,
+    budget: request.budget,
+    forfaitDemande: request.forfaitDemande,
     message: request.message,
     statut: request.statut,
     dateCreation: request.dateCreation.toISOString(),
@@ -1223,7 +1481,8 @@ export async function convertContactRequest(
     statut: { $in: ["NOUVELLE", "EN_COURS"] },
     conversionClaim: { $exists: false },
   }).lean<DemandeContactDocument & { _id: Types.ObjectId }>();
-  if (!request) throw new ServiceError("Contact request not found or already converted.");
+  if (!request)
+    throw new ServiceError("Demande de contact introuvable ou déjà convertie en séance.");
 
   const claimed = await DemandeContact.updateOne(
     {
@@ -1235,7 +1494,7 @@ export async function convertContactRequest(
     { $set: { conversionClaim } },
   );
   if (!claimed.modifiedCount)
-    throw new ServiceError("This contact request is already being processed.");
+    throw new ServiceError("Cette demande de contact est déjà en cours de traitement.");
   let seance: { id: string };
   try {
     seance = await portfolioIntegrations.seancesService.creerDepuisDemande({
@@ -1303,7 +1562,7 @@ export async function answerConsent(
       ],
     },
   );
-  if (!result.matchedCount) throw new ServiceError("Portfolio element not found.");
+  if (!result.matchedCount) throw new ServiceError("Élément du portfolio introuvable.");
   if (!accord) {
     const portfolio = await Portfolio.findOneAndUpdate(
       { "blocsPublies.elements.idElement": elementObjectId },
@@ -1317,7 +1576,7 @@ export async function answerConsent(
         type: "CONSENTEMENT_RETIRE",
         destinataireId: portfolio.proprietaire.toString(),
         cible: portfolio.slug ? `/portfolio/${portfolio.slug}` : "/dashboard/portfolio",
-        message: `A client withdrew consent for a photo in “${portfolio.titre}”. The photo was removed from the published portfolio.`,
+        message: `Un client a retiré son consentement pour une photo du portfolio « ${portfolio.titre} ». La photo a été retirée de la version publiée.`,
       });
     }
   }
@@ -1369,7 +1628,7 @@ export async function listPendingConsents(clientId: string): Promise<PendingPort
       return pending.map((element) => ({
         portfolioId: doc._id.toString(),
         titrePortfolio: doc.titre,
-        photographe: photographer ? `${photographer.prenom} ${photographer.nom}` : "Photographer",
+        photographe: photographer ? `${photographer.prenom} ${photographer.nom}` : "Photographe",
         elementId: element.idElement.toString(),
         miniature: element.media.urlMiniature,
         legende: element.legende ?? "",
@@ -1388,6 +1647,7 @@ export type PhotoPourSelecteur = {
   titre: string;
   client?: string;
   clientId?: string;
+  galerie?: string;
   dateAjout?: string;
   scoreQualite: number;
 };
@@ -1529,46 +1789,42 @@ export async function listerPhotosPhotographePourPortfolio(
   if (!library) return [];
   await connectDB();
 
-  try {
-    const photos = await Photo.find(library)
-      .sort({ createdAt: -1 })
-      .populate({
-        path: "galerie",
-        select: "titre client",
-        populate: { path: "client", select: "nom prenom" },
-      })
-      .lean();
+  const photos = await Photo.find(library)
+    .sort({ createdAt: -1 })
+    .populate({
+      path: "galerie",
+      select: "titre client",
+      populate: { path: "client", select: "nom prenom" },
+    })
+    .lean();
 
-    return photos.map((p) => {
-      const id = p._id.toString();
-      const galerie = p.galerie as
-        | { titre?: string; client?: { nom?: string; prenom?: string; _id?: Types.ObjectId } }
-        | undefined;
+  return photos.map((p) => {
+    const id = p._id.toString();
+    const galerie = p.galerie as
+      | { titre?: string; client?: { nom?: string; prenom?: string; _id?: Types.ObjectId } }
+      | undefined;
 
-      let clientNom: string | undefined;
-      let clientId: string | undefined;
+    let clientNom: string | undefined;
+    let clientId: string | undefined;
 
-      if (galerie?.client && typeof galerie.client === "object") {
-        clientNom = `${galerie.client.prenom ?? ""} ${galerie.client.nom ?? ""}`.trim();
-        clientId = galerie.client._id?.toString();
-      }
-      if (!clientNom && galerie?.titre) {
-        clientNom = galerie.titre;
-      }
+    if (galerie?.client && typeof galerie.client === "object") {
+      clientNom = `${galerie.client.prenom ?? ""} ${galerie.client.nom ?? ""}`.trim();
+      clientId = galerie.client._id?.toString();
+    }
+    if (!clientNom && galerie?.titre) {
+      clientNom = galerie.titre;
+    }
 
-      return {
-        id,
-        url: `/api/photos/${id}/file`,
-        urlMiniature: `/api/photos/${id}/miniature`,
-        titre: (p.nomFichier || "Photo").replace(/\.[^/.]+$/, ""),
-        client: clientNom || "Galerie client",
-        clientId,
-        dateAjout: p.createdAt ? new Date(p.createdAt).toISOString() : undefined,
-        scoreQualite: p.scoreQualite ?? 0,
-      };
-    });
-  } catch (err) {
-    console.error("Erreur lors de la récupération des photos du photographe:", err);
-    return [];
-  }
+    return {
+      id,
+      url: `/api/portfolio/media/${id}`,
+      urlMiniature: `/api/portfolio/media/${id}?variant=miniature`,
+      titre: (p.nomFichier || "Photo").replace(/\.[^/.]+$/, ""),
+      client: clientNom || "Galerie client",
+      clientId,
+      galerie: galerie?.titre,
+      dateAjout: p.createdAt ? new Date(p.createdAt).toISOString() : undefined,
+      scoreQualite: p.scoreQualite ?? 0,
+    };
+  });
 }

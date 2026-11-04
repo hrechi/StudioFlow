@@ -5,13 +5,17 @@ export type UtilisateurPortfolio = {
   id: string;
   nom: string;
   prenom: string;
+  photoProfil?: string;
   role: Role | "RETOUCHEUR";
   statut?: "ACTIF" | "BLOQUE";
 };
 
 export interface UtilisateursPortfolioService {
   getUtilisateur(id: string): Promise<UtilisateurPortfolio | null>;
-  verifierRole(userId: string, roles: readonly ("PHOTOGRAPHE" | "RETOUCHEUR" | "ADMIN")[]): Promise<boolean>;
+  verifierRole(
+    userId: string,
+    roles: readonly ("PHOTOGRAPHE" | "RETOUCHEUR" | "ADMIN")[],
+  ): Promise<boolean>;
   listerAdmins(): Promise<string[]>;
 }
 
@@ -25,7 +29,10 @@ export type PhotoPortfolio = {
 
 export interface PhotosPortfolioService {
   getPhotoPourPortfolio(photoId: string): Promise<PhotoPortfolio | null>;
-  listerPhotosDuPhotographe(photographeId: string, filtres?: { categorie?: CategoriePortfolio }): Promise<PhotoPortfolio[]>;
+  listerPhotosDuPhotographe(
+    photographeId: string,
+    filtres?: { categorie?: CategoriePortfolio },
+  ): Promise<PhotoPortfolio[]>;
   listerMeilleuresPhotos(
     photographeId: string,
     categorie?: CategoriePortfolio,
@@ -33,9 +40,24 @@ export interface PhotosPortfolioService {
   ): Promise<PhotoPortfolio[]>;
 }
 
-export type AvisPortfolio = { id: string; auteur: string; texte: string; note: number };
+export type AvisPortfolio = {
+  id: string;
+  auteur: string;
+  texte: string;
+  note: number;
+  seanceTitre?: string;
+  seanceType?: string;
+  date?: string;
+};
+
+export type AvisPortfolioSummary = {
+  items: AvisPortfolio[];
+  total: number;
+  moyenne: number;
+};
 
 export interface AvisPortfolioService {
+  obtenirAvisPublics(photographeId: string): Promise<AvisPortfolioSummary>;
   listerAvisPublies(photographeId: string): Promise<AvisPortfolio[]>;
   calculerNoteMoyenne(photographeId: string): Promise<number>;
 }
@@ -74,4 +96,7 @@ export type PortfolioIntegrations = {
   notificationsService: NotificationsPortfolioService;
 };
 
-export type PortfolioElementForConsent = Pick<ElementBlocPortfolio, "idElement" | "source" | "statutConsentement">;
+export type PortfolioElementForConsent = Pick<
+  ElementBlocPortfolio,
+  "idElement" | "source" | "statutConsentement"
+>;

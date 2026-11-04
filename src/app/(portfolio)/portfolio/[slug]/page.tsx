@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 import { getPortfolioForPublicRoute } from "@/modules/portfolio/portfolio.service";
 import { PortfolioPublicContent } from "@/modules/portfolio/components/portfolio-public-content";
-import { PortfolioUnpublishedView } from "@/modules/portfolio/components/public/PortfolioUnpublishedView";
+import { PortfolioPageReveal } from "@/modules/portfolio/components/transitions/PortfolioPageReveal";
+import { categoriePortfolioLabelsEn } from "@/modules/portfolio/portfolio.types";
 
 export async function generateMetadata({
   params,
@@ -13,12 +15,21 @@ export async function generateMetadata({
 
   if (result.status === "PUBLISHED") {
     const portfolio = result.portfolio;
+    const specialty = portfolio.specialites[0]
+      ? categoriePortfolioLabelsEn[portfolio.specialites[0]].toLocaleLowerCase("en-US")
+      : "photographer";
+    const location = portfolio.ville ? ` in ${portfolio.ville}` : "";
+    const generatedTitle = `${portfolio.photographe.prenom} ${portfolio.photographe.nom} — ${specialty} Photographer${location}`;
+    const generatedDescription =
+      portfolio.slogan ||
+      portfolio.seo.metaDescription ||
+      `Discover the photography portfolio of ${portfolio.photographe.prenom} ${portfolio.photographe.nom}, ${specialty} photographer${location}.`;
     return {
-      title: portfolio.seo.metaTitre || `${portfolio.titre} — Portfolio`,
-      description: portfolio.seo.metaDescription || portfolio.slogan || portfolio.bio,
+      title: portfolio.seo.metaTitre || generatedTitle,
+      description: portfolio.seo.metaDescription || generatedDescription,
       openGraph: {
-        title: portfolio.seo.metaTitre || portfolio.titre,
-        description: portfolio.seo.metaDescription || portfolio.slogan,
+        title: portfolio.seo.metaTitre || generatedTitle,
+        description: portfolio.seo.metaDescription || generatedDescription,
         images: portfolio.seo.imageOG
           ? [{ url: portfolio.seo.imageOG }]
           : [{ url: portfolio.photoCouverture }],
@@ -28,8 +39,9 @@ export async function generateMetadata({
   }
 
   return {
-    title: "Portfolio unavailable — StudioFlow",
-    description: "Ce portfolio n'est pas encore publié.",
+    title: "Portfolio Unavailable — StudioFlow",
+    description: "This portfolio is not published yet.",
+    robots: { index: false, follow: false },
   };
 }
 
@@ -42,24 +54,12 @@ export default async function PortfolioPage({
   const result = await getPortfolioForPublicRoute(slug);
 
   if (result.status === "PUBLISHED") {
-    return <PortfolioPublicContent portfolio={result.portfolio} />;
-  }
-
-  if (result.status === "UNPUBLISHED") {
     return (
-      <PortfolioUnpublishedView
-        photographerName={result.photographeNom}
-        isDraft={true}
-      />
+      <PortfolioPageReveal slug={slug}>
+        <PortfolioPublicContent portfolio={result.portfolio} />
+      </PortfolioPageReveal>
     );
   }
 
-  // NOT_FOUND
-  return (
-    <PortfolioUnpublishedView
-      photographerName="StudioFlow"
-      isDraft={false}
-    />
-  );
+  notFound();
 }
-

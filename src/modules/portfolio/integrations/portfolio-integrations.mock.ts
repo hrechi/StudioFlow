@@ -7,8 +7,18 @@ import type {
 } from "./portfolio-integrations.types";
 
 const photos = [
-  { id: "000000000000000000000101", url: "https://res.cloudinary.com/demo/image/upload/sample.jpg", urlMiniature: "https://res.cloudinary.com/demo/image/upload/c_fill,w_800/sample.jpg", scoreQualite: 92 },
-  { id: "000000000000000000000102", url: "https://res.cloudinary.com/demo/image/upload/sample.jpg", urlMiniature: "https://res.cloudinary.com/demo/image/upload/c_fill,w_800/sample.jpg", scoreQualite: 86 },
+  {
+    id: "000000000000000000000101",
+    url: "https://res.cloudinary.com/demo/image/upload/sample.jpg",
+    urlMiniature: "https://res.cloudinary.com/demo/image/upload/c_fill,w_800/sample.jpg",
+    scoreQualite: 92,
+  },
+  {
+    id: "000000000000000000000102",
+    url: "https://res.cloudinary.com/demo/image/upload/sample.jpg",
+    urlMiniature: "https://res.cloudinary.com/demo/image/upload/c_fill,w_800/sample.jpg",
+    scoreQualite: 86,
+  },
 ];
 
 export const mockUtilisateursService: UtilisateursPortfolioService = {
@@ -36,6 +46,9 @@ export const mockPhotosService: PhotosPortfolioService = {
 };
 
 export const mockAvisService = {
+  async obtenirAvisPublics(): Promise<{ items: AvisPortfolio[]; total: number; moyenne: number }> {
+    return { items: [], total: 0, moyenne: 0 };
+  },
   async listerAvisPublies(): Promise<AvisPortfolio[]> {
     return [];
   },

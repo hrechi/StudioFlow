@@ -10,7 +10,7 @@ export const STATUTS_GALERIE = ["EN_TRI", "PARTAGEE", "VALIDEE", "LIVREE"] as co
 export type StatutGalerie = (typeof STATUTS_GALERIE)[number];
 
 /** Proposé (cahier §2.1: wedding, portrait, product, event) — same values as TYPES_SEANCE. */
-export const CATEGORIES_GALERIE = ["MARIAGE", "PORTRAIT", "PRODUIT", "EVENEMENT"] as const;
+export const CATEGORIES_GALERIE = ["MARIAGE", "PORTRAIT", "PRODUIT", "EVENEMENT", "MODE"] as const;
 export type CategorieGalerie = (typeof CATEGORIES_GALERIE)[number];
 
 export const STATUTS_CULLING = ["RETENUE", "REJETEE", "EN_ATTENTE"] as const;
@@ -87,6 +87,7 @@ export const categorieGalerieLabels: Record<CategorieGalerie, string> = {
   PORTRAIT: "Portrait",
   PRODUIT: "Product",
   EVENEMENT: "Event",
+  MODE: "Fashion",
 };
 
 /** Upload rules shared by the dialog (client) and the upload route (server). */

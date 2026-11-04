@@ -8,11 +8,13 @@ import {
   STATUTS_CONSENTEMENT,
   STATUTS_DEMANDE,
   STATUTS_PORTFOLIO,
+  SERVICES_PHOTOGRAPHIQUES,
+  STYLES_PHOTOGRAPHIQUES,
   THEMES_PORTFOLIO,
   TYPES_BLOC,
   VISIBILITES,
 } from "./portfolio.types";
-import type { BlocPortfolio } from "./portfolio.types";
+import type { BlocPortfolio, PlancheContactData } from "./portfolio.types";
 
 export type PortfolioDocument = {
   proprietaire: Types.ObjectId;
@@ -23,7 +25,12 @@ export type PortfolioDocument = {
   bioGenereeIA: boolean;
   photoCouverture: string;
   specialites: (typeof CATEGORIES_PORTFOLIO)[number][];
+  styles: (typeof STYLES_PHOTOGRAPHIQUES)[number][];
+  services: (typeof SERVICES_PHOTOGRAPHIQUES)[number][];
+  disponible: boolean;
   ville?: string;
+  region?: string;
+  pays?: string;
   theme: (typeof THEMES_PORTFOLIO)[number];
   couleurAccent: string;
   filigrane: boolean;
@@ -31,6 +38,7 @@ export type PortfolioDocument = {
   liensSociaux: { reseau: (typeof RESEAUX_SOCIAUX)[number]; url: string }[];
   blocs: BlocPortfolio[];
   blocsPublies: BlocPortfolio[];
+  plancheContact?: PlancheContactData;
   statut: (typeof STATUTS_PORTFOLIO)[number];
   visibilite: (typeof VISIBILITES)[number];
   nombreVues: number;
@@ -100,16 +108,24 @@ const portfolioSchema = new Schema<PortfolioDocument>(
     bioGenereeIA: { type: Boolean, default: false },
     photoCouverture: { type: String, required: true },
     specialites: { type: [String], enum: CATEGORIES_PORTFOLIO, default: [] },
+    styles: { type: [String], enum: STYLES_PHOTOGRAPHIQUES, default: [] },
+    services: { type: [String], enum: SERVICES_PHOTOGRAPHIQUES, default: [] },
+    disponible: { type: Boolean, default: false },
     ville: { type: String, trim: true, maxlength: 120 },
+    region: { type: String, trim: true, maxlength: 120 },
+    pays: { type: String, trim: true, maxlength: 120 },
     theme: { type: String, enum: THEMES_PORTFOLIO, default: "MINIMAL" },
-    couleurAccent: { type: String, match: /^#[\da-f]{6}$/i, default: "#146BFF" },
+    couleurAccent: { type: String, match: /^#[\da-f]{6}$/i, default: "#e0563b" },
     filigrane: { type: Boolean, default: false },
     seo: {
       metaTitre: { type: String, trim: true, maxlength: 160 },
       metaDescription: { type: String, trim: true, maxlength: 320 },
       imageOG: { type: String, trim: true },
     },
-    liensSociaux: { type: [{ reseau: { type: String, enum: RESEAUX_SOCIAUX }, url: String }], default: [] },
+    liensSociaux: {
+      type: [{ reseau: { type: String, enum: RESEAUX_SOCIAUX }, url: String }],
+      default: [],
+    },
     blocs: { type: [blocSchema], default: [] },
     blocsPublies: { type: [blocSchema], default: [] },
     statut: { type: String, enum: STATUTS_PORTFOLIO, default: "BROUILLON" },
@@ -128,16 +144,45 @@ const portfolioSchema = new Schema<PortfolioDocument>(
       ],
       default: [],
     },
+    plancheContact: {
+      type: {
+        active: { type: Boolean, default: false },
+        videoUrl: { type: String, trim: true },
+        trimStart: { type: Number, min: 0, default: 0 },
+        trimEnd: { type: Number, min: 0, default: 0 },
+        frames: {
+          type: [
+            {
+              id: { type: String, required: true },
+              imageUrl: { type: String, required: true },
+              timestamp: { type: Number, required: true },
+              caption: { type: String, trim: true },
+              order: { type: Number, required: true },
+            },
+          ],
+          default: [],
+        },
+      },
+      required: false,
+    },
     datePublication: Date,
   },
-  { timestamps: { createdAt: "dateCreation", updatedAt: "dateModification" }, collection: "portfolios" },
+  {
+    timestamps: { createdAt: "dateCreation", updatedAt: "dateModification" },
+    collection: "portfolios",
+  },
 );
 
 portfolioSchema.index({ statut: 1, visibilite: 1, specialites: 1 });
+portfolioSchema.index({ statut: 1, visibilite: 1, styles: 1 });
+portfolioSchema.index({ statut: 1, visibilite: 1, services: 1 });
+portfolioSchema.index({ statut: 1, visibilite: 1, disponible: 1 });
 portfolioSchema.index({ ville: 1 });
+portfolioSchema.index({ region: 1, pays: 1 });
 
 export const Portfolio: Model<PortfolioDocument> =
-  (models.Portfolio as Model<PortfolioDocument> | undefined) ?? model<PortfolioDocument>("Portfolio", portfolioSchema);
+  (models.Portfolio as Model<PortfolioDocument> | undefined) ??
+  model<PortfolioDocument>("Portfolio", portfolioSchema);
 
 export type PortfolioStatsDocument = {
   portfolioId: Types.ObjectId;
@@ -148,12 +193,19 @@ export type PortfolioStatsDocument = {
 };
 
 const statsSchema = new Schema<PortfolioStatsDocument>(
-  { portfolioId: { type: Schema.Types.ObjectId, ref: "Portfolio", required: true }, date: { type: Date, required: true }, vues: { type: Number, default: 0 }, visiteursUniques: { type: Number, default: 0 }, clicsContact: { type: Number, default: 0 } },
+  {
+    portfolioId: { type: Schema.Types.ObjectId, ref: "Portfolio", required: true },
+    date: { type: Date, required: true },
+    vues: { type: Number, default: 0 },
+    visiteursUniques: { type: Number, default: 0 },
+    clicsContact: { type: Number, default: 0 },
+  },
   { collection: "portfolio_stats" },
 );
 statsSchema.index({ portfolioId: 1, date: 1 }, { unique: true });
 export const PortfolioStats: Model<PortfolioStatsDocument> =
-  (models.PortfolioStats as Model<PortfolioStatsDocument> | undefined) ?? model<PortfolioStatsDocument>("PortfolioStats", statsSchema);
+  (models.PortfolioStats as Model<PortfolioStatsDocument> | undefined) ??
+  model<PortfolioStatsDocument>("PortfolioStats", statsSchema);
 
 export type DemandeContactDocument = {
   portfolioId: Types.ObjectId;
@@ -163,6 +215,9 @@ export type DemandeContactDocument = {
   telephone?: string;
   typeSeance: string;
   dateSouhaitee?: Date;
+  lieu?: string;
+  budget?: string;
+  forfaitDemande?: string;
   message: string;
   statut: (typeof STATUTS_DEMANDE)[number];
   seanceId?: Types.ObjectId;
@@ -170,9 +225,25 @@ export type DemandeContactDocument = {
   dateCreation: Date;
 };
 const contactSchema = new Schema<DemandeContactDocument>(
-  { portfolioId: { type: Schema.Types.ObjectId, ref: "Portfolio", required: true }, photographeId: { type: Schema.Types.ObjectId, ref: "Utilisateur", required: true }, nomVisiteur: { type: String, required: true, trim: true, maxlength: 120 }, email: { type: String, required: true, lowercase: true, trim: true, maxlength: 320 }, telephone: { type: String, trim: true, maxlength: 40 }, typeSeance: { type: String, enum: CATEGORIES_PORTFOLIO, required: true }, dateSouhaitee: Date, message: { type: String, required: true, trim: true, maxlength: 3000 }, statut: { type: String, enum: STATUTS_DEMANDE, default: "NOUVELLE" }, seanceId: Schema.Types.ObjectId, conversionClaim: { type: String, select: false } },
+  {
+    portfolioId: { type: Schema.Types.ObjectId, ref: "Portfolio", required: true },
+    photographeId: { type: Schema.Types.ObjectId, ref: "Utilisateur", required: true },
+    nomVisiteur: { type: String, required: true, trim: true, maxlength: 120 },
+    email: { type: String, required: true, lowercase: true, trim: true, maxlength: 320 },
+    telephone: { type: String, trim: true, maxlength: 40 },
+    typeSeance: { type: String, enum: CATEGORIES_PORTFOLIO, required: true },
+    dateSouhaitee: Date,
+    lieu: { type: String, trim: true, maxlength: 160 },
+    budget: { type: String, trim: true, maxlength: 80 },
+    forfaitDemande: { type: String, trim: true, maxlength: 160 },
+    message: { type: String, required: true, trim: true, maxlength: 500 },
+    statut: { type: String, enum: STATUTS_DEMANDE, default: "NOUVELLE" },
+    seanceId: Schema.Types.ObjectId,
+    conversionClaim: { type: String, select: false },
+  },
   { timestamps: { createdAt: "dateCreation", updatedAt: false }, collection: "demandes_contact" },
 );
 contactSchema.index({ photographeId: 1, statut: 1, dateCreation: -1 });
 export const DemandeContact: Model<DemandeContactDocument> =
-  (models.DemandeContact as Model<DemandeContactDocument> | undefined) ?? model<DemandeContactDocument>("DemandeContact", contactSchema);
+  (models.DemandeContact as Model<DemandeContactDocument> | undefined) ??
+  model<DemandeContactDocument>("DemandeContact", contactSchema);

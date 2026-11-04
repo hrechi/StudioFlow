@@ -13,12 +13,25 @@ import {
   Loader2,
   Sparkles,
   Check,
+  Star,
 } from "lucide-react";
 import { SafeImage } from "@/components/shared/safe-image";
 import { toast } from "sonner";
-import type { BlocPortfolio, MiseEnPage } from "../../portfolio.types";
+import {
+  CATEGORIES_PORTFOLIO,
+  categoriePortfolioLabels,
+  SERVICES_PHOTOGRAPHIQUES,
+  servicePhotographiqueLabels,
+  STYLES_PHOTOGRAPHIQUES,
+  stylePhotographiqueLabels,
+  type BlocPortfolio,
+  type MiseEnPage,
+  type PlancheContactData,
+} from "../../portfolio.types";
 import { editorFr } from "./fr";
 import { BLOCK_ICONS } from "./paletteData";
+import { PlancheContactEditor } from "./PlancheContactEditor";
+import { GALLERY_DISPLAY_MODES, resolveGalleryDisplayMode } from "../../lib/galleryDisplayModes";
 
 export type InspectorTab = "block" | "page";
 
@@ -47,11 +60,18 @@ type PropertiesPanelProps = {
     titre?: string;
     slogan?: string;
     ville?: string;
+    region?: string;
+    pays?: string;
     bio?: string;
     specialites?: string[];
+    styles?: string[];
+    services?: string[];
+    disponible?: boolean;
+    visibilite?: "PUBLIC" | "PRIVE";
     theme?: string;
     couleurAccent?: string;
     seo?: { metaTitre?: string; metaDescription?: string };
+    plancheContact?: PlancheContactData;
   };
   onUpdatePortfolioData?: (field: string, value: unknown) => void;
   portfolioSlug?: string;
@@ -82,13 +102,18 @@ export function PropertiesPanel({
   onDismissStorySuggestion,
   aiPending = false,
   portfolioData = {
-    titre: "Aurélie Morales",
-    slogan: "Photographe de mariage & portraits intimes",
-    ville: "Bordeaux",
-    bio: "Capturing delicate, candid memories in natural light for more than a decade.",
-    specialites: ["Mariage", "Portrait"],
-    theme: "Minimal",
-    couleurAccent: "#e8a34a",
+    titre: "",
+    slogan: "",
+    ville: "",
+    region: "",
+    pays: "",
+    bio: "",
+    specialites: [],
+    styles: [],
+    services: [],
+    disponible: false,
+    theme: "SOMBRE",
+    couleurAccent: "#e0563b",
   },
   onUpdatePortfolioData,
   portfolioSlug = "portfolio",
@@ -101,17 +126,23 @@ export function PropertiesPanel({
   const BlockIcon = blockType ? BLOCK_ICONS[blockType] : Images;
   const blockName = blockType ? editorFr.blockNames[blockType] : "";
 
-  const [uploadingCover, setUploadingCover] = useState(false);
+  const [uploadingVideo, setUploadingVideo] = useState(false);
   const [uploadingPortrait, setUploadingPortrait] = useState(false);
+  const [uploadingComparisonImage, setUploadingComparisonImage] = useState<
+    "photoAvant" | "photoApres" | null
+  >(null);
   const [newSocialReseau, setNewSocialReseau] = useState<string>("INSTAGRAM");
   const [newSocialUrl, setNewSocialUrl] = useState<string>("");
-  const coverFileInputRef = useRef<HTMLInputElement | null>(null);
+  const videoFileInputRef = useRef<HTMLInputElement | null>(null);
   const portraitFileInputRef = useRef<HTMLInputElement | null>(null);
+  const photoAvantInputRef = useRef<HTMLInputElement | null>(null);
+  const photoApresInputRef = useRef<HTMLInputElement | null>(null);
 
   async function handleFileUpload(
     file: File,
     onDone: (url: string) => void,
     setLoading: (b: boolean) => void,
+    mediaType: "image" | "video" = "image",
   ) {
     setLoading(true);
     try {
@@ -124,12 +155,23 @@ export function PropertiesPanel({
       const json = await res.json();
       if (json.ok && json.data?.url) {
         onDone(json.data.url);
-        toast.success("Image importée avec succès !");
+        toast.success(
+          mediaType === "video" ? "Vidéo importée avec succès !" : "Image importée avec succès !",
+        );
       } else {
-        toast.error(json.message || "Échec de l'importation de l'image.");
+        toast.error(
+          json.message ||
+            (mediaType === "video"
+              ? "Échec de l'importation de la vidéo."
+              : "Échec de l'importation de l'image."),
+        );
       }
     } catch {
-      toast.error("Erreur lors de l'importation de l'image.");
+      toast.error(
+        mediaType === "video"
+          ? "Erreur lors de l'importation de la vidéo."
+          : "Erreur lors de l'importation de l'image.",
+      );
     } finally {
       setLoading(false);
     }
@@ -258,130 +300,97 @@ export function PropertiesPanel({
               {/* HERO */}
               {selectedBlock.type === "HERO" && (
                 <div className="space-y-4">
-                  <div>
-                    <label className="text-[11px] text-[#9a8f82]">{editorFr.fields.titre}</label>
-                    <input
-                      type="text"
-                      value={(conf.titre as string) || ""}
-                      onChange={(e) =>
-                        onUpdateConfiguration(selectedBlock.idBloc, "titre", e.target.value)
-                      }
-                      className="mt-1 w-full rounded-[6px] border border-white/[0.08] bg-black/30 px-2.5 py-1.5 font-sans text-xs text-[#f3ebdd] focus:border-[#e8a34a] focus:outline-hidden"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-[11px] text-[#9a8f82]">
-                      {editorFr.fields.sousTitre}
-                    </label>
-                    <input
-                      type="text"
-                      value={(conf.sousTitre as string) || ""}
-                      onChange={(e) =>
-                        onUpdateConfiguration(selectedBlock.idBloc, "sousTitre", e.target.value)
-                      }
-                      className="mt-1 w-full rounded-[6px] border border-white/[0.08] bg-black/30 px-2.5 py-1.5 font-sans text-xs text-[#f3ebdd] focus:border-[#e8a34a] focus:outline-hidden"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-[11px] text-[#9a8f82]">
-                      {editorFr.fields.texteBouton}
-                    </label>
-                    <input
-                      type="text"
-                      value={(conf.texteBouton as string) || ""}
-                      onChange={(e) =>
-                        onUpdateConfiguration(selectedBlock.idBloc, "texteBouton", e.target.value)
-                      }
-                      className="mt-1 w-full rounded-[6px] border border-white/[0.08] bg-black/30 px-2.5 py-1.5 font-sans text-xs text-[#f3ebdd] focus:border-[#e8a34a] focus:outline-hidden"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-[11px] text-[#9a8f82]">Tagline / Spécialités</label>
-                    <input
-                      type="text"
-                      value={(conf.tagline as string) || ""}
-                      onChange={(e) =>
-                        onUpdateConfiguration(selectedBlock.idBloc, "tagline", e.target.value)
-                      }
-                      className="mt-1 w-full rounded-[6px] border border-white/[0.08] bg-black/30 px-2.5 py-1.5 font-sans text-xs text-[#f3ebdd] focus:border-[#e8a34a] focus:outline-hidden"
-                    />
-                  </div>
+                  <p className="text-[10px] leading-relaxed text-[#9a8f82]">
+                    La vidéo d’arrière-plan est facultative. Sans vidéo, la photo de couverture du
+                    portfolio est affichée.
+                  </p>
 
-                  {/* Cover Photo: URL + Upload */}
                   <div className="space-y-2 rounded-[8px] border border-white/[0.06] bg-black/30 p-3">
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between gap-2">
                       <label className="text-[11px] font-medium text-[#f3ebdd]">
-                        Photo de couverture (Cover photo)
+                        Vidéo d’arrière-plan (facultative)
                       </label>
-                      <button
-                        type="button"
-                        disabled={uploadingCover}
-                        onClick={() => coverFileInputRef.current?.click()}
-                        className="flex items-center gap-1.5 rounded-full border border-[#e8a34a]/30 bg-[#e8a34a]/10 px-2.5 py-1 font-sans text-[10px] font-semibold text-[#e8a34a] transition-colors hover:bg-[#e8a34a]/20 disabled:opacity-50"
-                      >
-                        {uploadingCover ? (
-                          <>
-                            <Loader2 className="size-3 animate-spin" />
-                            <span>Envoi…</span>
-                          </>
-                        ) : (
-                          <>
-                            <Upload className="size-3" />
-                            <span>Uploader photo</span>
-                          </>
+                      <div className="flex shrink-0 items-center gap-1">
+                        <button
+                          type="button"
+                          disabled={uploadingVideo}
+                          onClick={() => videoFileInputRef.current?.click()}
+                          className="flex items-center gap-1 rounded-full border border-[#e8a34a]/30 bg-[#e8a34a]/10 px-2 py-1 font-sans text-[10px] font-semibold text-[#e8a34a] transition-colors hover:bg-[#e8a34a]/20 disabled:opacity-50"
+                        >
+                          {uploadingVideo ? (
+                            <>
+                              <Loader2 className="size-3 animate-spin" />
+                              <span>Envoi…</span>
+                            </>
+                          ) : (
+                            <>
+                              <Upload className="size-3" />
+                              <span>Importer</span>
+                            </>
+                          )}
+                        </button>
+                        {typeof conf.videoFond === "string" && conf.videoFond && (
+                          <button
+                            type="button"
+                            aria-label="Retirer la vidéo du Hero"
+                            onClick={() =>
+                              onUpdateConfiguration(selectedBlock.idBloc, "videoFond", "")
+                            }
+                            className="flex size-7 items-center justify-center rounded-full border border-white/10 text-white/60 transition-colors hover:border-red-400/40 hover:text-red-300"
+                          >
+                            <Trash2 className="size-3" />
+                          </button>
                         )}
-                      </button>
+                      </div>
                     </div>
-
                     <input
-                      ref={coverFileInputRef}
+                      ref={videoFileInputRef}
                       type="file"
-                      accept="image/jpeg,image/png,image/webp"
+                      accept="video/mp4,video/webm"
                       className="hidden"
-                      onChange={(e: ChangeEvent<HTMLInputElement>) => {
-                        const file = e.target.files?.[0];
+                      onChange={(event: ChangeEvent<HTMLInputElement>) => {
+                        const file = event.currentTarget.files?.[0];
+                        event.currentTarget.value = "";
                         if (file) {
-                          handleFileUpload(
+                          void handleFileUpload(
                             file,
-                            (url) =>
-                              onUpdateConfiguration(selectedBlock.idBloc, "photoCouverture", url),
-                            setUploadingCover,
+                            (url) => onUpdateConfiguration(selectedBlock.idBloc, "videoFond", url),
+                            setUploadingVideo,
+                            "video",
                           );
                         }
                       }}
                     />
-
                     <input
                       type="text"
-                      placeholder="https://... ou chemin de l'image"
-                      value={(conf.photoCouverture as string) || ""}
-                      onChange={(e) =>
-                        onUpdateConfiguration(
-                          selectedBlock.idBloc,
-                          "photoCouverture",
-                          e.target.value,
-                        )
+                      placeholder="URL HTTPS ou chemin /api/..."
+                      value={(conf.videoFond as string) || ""}
+                      onChange={(event) =>
+                        onUpdateConfiguration(selectedBlock.idBloc, "videoFond", event.target.value)
                       }
                       className="w-full rounded-[6px] border border-white/[0.08] bg-black/40 px-2.5 py-1.5 font-sans text-xs text-[#f3ebdd] focus:border-[#e8a34a] focus:outline-hidden"
                     />
-
-                    {typeof conf.photoCouverture === "string" && conf.photoCouverture && (
-                      <div className="relative mt-2 aspect-[16/9] w-full overflow-hidden rounded-md border border-white/10">
-                        <SafeImage
-                          src={conf.photoCouverture}
-                          alt="Aperçu couverture"
-                          fill
-                          unoptimized
-                          className="object-cover"
-                        />
-                      </div>
+                    <p className="text-[10px] leading-relaxed text-[#9a8f82]">
+                      Importez un fichier MP4 ou WebM (100 Mo maximum), ou indiquez une URL HTTPS.
+                      La photo de couverture est utilisée si aucune vidéo n’est définie.
+                    </p>
+                    {typeof conf.videoFond === "string" && conf.videoFond && (
+                      <video
+                        controls
+                        muted
+                        playsInline
+                        preload="metadata"
+                        className="mt-2 aspect-video w-full rounded-md border border-white/10 bg-black object-cover"
+                      >
+                        <source src={conf.videoFond} />
+                      </video>
                     )}
                   </div>
 
                   {/* Social Networks in Hero */}
                   <div className="space-y-3 rounded-[8px] border border-white/[0.06] bg-black/30 p-3">
                     <label className="block text-[11px] font-medium text-[#f3ebdd]">
-                      Réseaux sociaux (Social links)
+                      Réseaux sociaux du portfolio
                     </label>
 
                     {/* Current list */}
@@ -455,7 +464,7 @@ export function PropertiesPanel({
                           ];
                           onUpdateConfiguration(selectedBlock.idBloc, "liensSociaux", next);
                           setNewSocialUrl("");
-                          toast.success("Réseau social ajouté au Hero !");
+                          toast.success("Réseau social ajouté au portfolio !");
                         }}
                         className="flex w-full items-center justify-center gap-1.5 rounded-[6px] border border-white/10 bg-white/[0.04] py-1.5 font-sans text-xs font-medium text-white hover:border-[#e8a34a]/40 hover:bg-[#e8a34a]/10"
                       >
@@ -517,6 +526,52 @@ export function PropertiesPanel({
                       className="mt-1 w-full rounded-[6px] border border-white/[0.08] bg-black/30 px-2.5 py-1.5 font-sans text-xs text-[#f3ebdd] focus:border-[#e8a34a] focus:outline-hidden"
                     />
                   </div>
+                  <div>
+                    <label className="text-[11px] text-[#9a8f82]">Citation (facultatif)</label>
+                    <textarea
+                      rows={2}
+                      maxLength={500}
+                      value={(conf.citation as string) || ""}
+                      onChange={(e) =>
+                        onUpdateConfiguration(selectedBlock.idBloc, "citation", e.target.value)
+                      }
+                      className="mt-1 w-full rounded-[6px] border border-white/[0.08] bg-black/30 p-2 font-sans text-xs text-[#f3ebdd] focus:border-[#e8a34a] focus:outline-hidden"
+                      placeholder="Une phrase qui résume votre approche."
+                    />
+                  </div>
+
+                  <div className="space-y-3 rounded-[8px] border border-white/[0.06] bg-black/30 p-3">
+                    <p className="font-mono text-[9px] font-semibold tracking-[0.16em] text-[#e8a34a] uppercase">
+                      Fiche profil
+                    </p>
+                    {(
+                      [
+                        ["legendePortrait", "Légende de la photo"],
+                        ["lieuBase", "Basée à"],
+                        ["depuis", "Depuis"],
+                        ["materiel", "Matériel"],
+                        ["langues", "Langues"],
+                        ["delaiReponse", "Délai de réponse"],
+                        ["zoneDeplacement", "Zone de déplacement"],
+                      ] as const
+                    ).map(([key, label]) => (
+                      <label key={key} className="block text-[11px] text-[#9a8f82]">
+                        {label}
+                        <input
+                          type="text"
+                          value={(conf[key] as string) || ""}
+                          onChange={(event) =>
+                            onUpdateConfiguration(selectedBlock.idBloc, key, event.target.value)
+                          }
+                          className="mt-1 w-full rounded-[6px] border border-white/[0.08] bg-black/40 px-2.5 py-1.5 font-sans text-xs text-[#f3ebdd] focus:border-[#e8a34a] focus:outline-hidden"
+                        />
+                      </label>
+                    ))}
+                    <p className="text-[10px] leading-relaxed text-[#9a8f82]">
+                      Ces valeurs sont enregistrées avec le bloc et affichées dans la fiche de la
+                      page publiée.
+                    </p>
+                  </div>
 
                   {/* Profile / Portrait: URL + Upload */}
                   <div className="space-y-2 rounded-[8px] border border-white/[0.06] bg-black/30 p-3">
@@ -572,6 +627,11 @@ export function PropertiesPanel({
                       className="w-full rounded-[6px] border border-white/[0.08] bg-black/40 px-2.5 py-1.5 font-sans text-xs text-[#f3ebdd] focus:border-[#e8a34a] focus:outline-hidden"
                     />
 
+                    <p className="mt-1.5 flex items-center gap-1.5 text-[11px] text-[#e8a34a]/90 font-medium">
+                      <span>💡</span>
+                      <span>Ajoute ta photo de profil pour être mieux visible dans l&apos;annuaire.</span>
+                    </p>
+
                     {typeof conf.photoPortrait === "string" && conf.photoPortrait && (
                       <div className="relative mt-2 size-20 overflow-hidden rounded-xl border border-white/10">
                         <SafeImage
@@ -584,6 +644,17 @@ export function PropertiesPanel({
                       </div>
                     )}
                   </div>
+                  <label className="flex items-center gap-2 rounded-[6px] border border-white/[0.08] bg-black/20 px-2.5 py-2 text-[11px] text-[#c8b9a7]">
+                    <input
+                      type="checkbox"
+                      checked={portfolioData.disponible ?? false}
+                      onChange={(event) =>
+                        onUpdatePortfolioData?.("disponible", event.target.checked)
+                      }
+                      className="accent-[#e8a34a]"
+                    />
+                    Séances ouvertes aux réservations
+                  </label>
                 </div>
               )}
 
@@ -604,27 +675,56 @@ export function PropertiesPanel({
                       className="mt-1 w-full rounded-[6px] border border-white/[0.08] bg-black/30 px-2.5 py-1.5 font-sans text-xs text-[#f3ebdd] focus:border-[#e8a34a] focus:outline-hidden"
                     />
                   </div>
-                  <div>
-                    <label className="text-[11px] text-[#9a8f82]">{editorFr.fields.colonnes}</label>
-                    <div className="mt-1 grid grid-cols-3 gap-1.5">
-                      {[2, 3, 4].map((col) => (
-                        <button
-                          key={col}
-                          type="button"
-                          onClick={() =>
-                            onUpdateConfiguration(selectedBlock.idBloc, "colonnes", col)
-                          }
-                          className={`rounded-[6px] border py-1.5 font-mono text-xs font-semibold ${
-                            Number(conf.colonnes || 3) === col
-                              ? "border-[#e8a34a] bg-[#e8a34a]/15 text-[#e8a34a]"
-                              : "border-white/[0.08] bg-white/[0.02] text-white/60"
-                          }`}
-                        >
-                          {col}
-                        </button>
+                  <div className="space-y-2">
+                    <label
+                      htmlFor="portfolio-gallery-display-mode"
+                      className="text-[11px] text-[#9a8f82]"
+                    >
+                      {editorFr.fields.modeAffichage}
+                    </label>
+                    <select
+                      id="portfolio-gallery-display-mode"
+                      value={resolveGalleryDisplayMode(conf.modeAffichage)}
+                      onChange={(event) =>
+                        onUpdateConfiguration(
+                          selectedBlock.idBloc,
+                          "modeAffichage",
+                          event.target.value,
+                        )
+                      }
+                      className="w-full rounded-[6px] border border-white/[0.08] bg-[#140d08] px-2.5 py-2 font-sans text-xs text-[#f3ebdd] focus:border-[#e8a34a] focus:outline-hidden"
+                    >
+                      {GALLERY_DISPLAY_MODES.map((mode) => (
+                        <option key={mode} value={mode}>
+                          {editorFr.galleryModes[mode]}
+                        </option>
                       ))}
-                    </div>
+                    </select>
+                    <p className="rounded-lg border border-[#e8a34a]/20 bg-[#e8a34a]/5 p-3 text-[10px] leading-relaxed text-white/65">
+                      {editorFr.galleryModeDescriptions[
+                        resolveGalleryDisplayMode(conf.modeAffichage)
+                      ]} Toutes les photos sélectionnées sont publiées progressivement au défilement.
+                    </p>
                   </div>
+                  {(
+                    [
+                      ["sousTitre", "Sous-titre"],
+                      ["lieu", "Lieu"],
+                      ["date", "Date ou période"],
+                    ] as const
+                  ).map(([key, label]) => (
+                    <label key={key} className="block text-[11px] text-[#c8b9a7]">
+                      {label}
+                      <input
+                        type="text"
+                        value={(conf[key] as string) || ""}
+                        onChange={(event) =>
+                          onUpdateConfiguration(selectedBlock.idBloc, key, event.target.value)
+                        }
+                        className="mt-1 w-full rounded-[6px] border border-white/[0.08] bg-black/30 px-2.5 py-1.5 font-sans text-xs text-[#f3ebdd]"
+                      />
+                    </label>
+                  ))}
                   <div>
                     <label className="text-[11px] text-[#9a8f82]">
                       {editorFr.fields.categorie}
@@ -636,11 +736,33 @@ export function PropertiesPanel({
                       }
                       className="mt-1 w-full rounded-[6px] border border-white/[0.08] bg-[#140d08] px-2.5 py-1.5 font-sans text-xs text-[#f3ebdd] focus:border-[#e8a34a] focus:outline-hidden"
                     >
-                      <option value="MARIAGE">Mariage</option>
-                      <option value="PORTRAIT">Portrait</option>
-                      <option value="PRODUIT">Produit</option>
-                      <option value="EVENEMENT">Événement</option>
+                      {CATEGORIES_PORTFOLIO.map((category) => (
+                        <option key={category} value={category}>
+                          {categoriePortfolioLabels[category]}
+                        </option>
+                      ))}
                     </select>
+                  </div>
+
+                  {/* Raccourci vers Planche Contact 35mm */}
+                  <div className="space-y-2 rounded-[8px] border border-[#e8a34a]/25 bg-[#e8a34a]/5 p-3">
+                    <div className="flex items-center justify-between">
+                      <span className="font-mono text-[10px] font-semibold text-[#e8a34a] uppercase">
+                        ● Planche contact 35mm
+                      </span>
+                      <span className="font-mono text-[9px] text-[#e8a34a]/80">Vidéo animée</span>
+                    </div>
+                    <p className="text-[10px] text-white/60">
+                      Générez automatiquement la pellicule Kodak Tri-X 400 interactive avec lecture
+                      au survol à partir d&apos;une vidéo.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => onTabChange("page")}
+                      className="w-full rounded-[6px] border border-[#e8a34a]/30 bg-[#e8a34a]/15 py-1.5 font-sans text-xs font-medium text-[#e8a34a] transition-colors hover:bg-[#e8a34a]/25"
+                    >
+                      Configurer la pellicule vidéo →
+                    </button>
                   </div>
                 </div>
               )}
@@ -736,6 +858,10 @@ export function PropertiesPanel({
               {/* AVANT_APRES */}
               {selectedBlock.type === "AVANT_APRES" && (
                 <div className="space-y-3">
+                  <p className="rounded-lg border border-amber-400/20 bg-amber-400/5 p-3 text-[10px] leading-relaxed text-[#e2c29a]">
+                    Pour une comparaison crédible, utilisez la même photo avant et après retouche.
+                    Les deux vues sont cadrées au même ratio.
+                  </p>
                   <div>
                     <label className="text-[11px] text-[#9a8f82]">{editorFr.fields.titre}</label>
                     <input
@@ -758,28 +884,82 @@ export function PropertiesPanel({
                       className="mt-1 w-full rounded-[6px] border border-white/[0.08] bg-black/30 px-2.5 py-1.5 font-sans text-xs text-[#f3ebdd] focus:border-[#e8a34a] focus:outline-hidden"
                     />
                   </div>
-                  <div>
-                    <label className="text-[11px] text-[#9a8f82]">Photo Avant (URL)</label>
-                    <input
-                      type="text"
-                      value={(conf.photoAvant as string) || ""}
-                      onChange={(e) =>
-                        onUpdateConfiguration(selectedBlock.idBloc, "photoAvant", e.target.value)
-                      }
-                      className="mt-1 w-full rounded-[6px] border border-white/[0.08] bg-black/30 px-2.5 py-1.5 font-sans text-xs text-[#f3ebdd] focus:border-[#e8a34a] focus:outline-hidden"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-[11px] text-[#9a8f82]">Photo Après (URL)</label>
-                    <input
-                      type="text"
-                      value={(conf.photoApres as string) || ""}
-                      onChange={(e) =>
-                        onUpdateConfiguration(selectedBlock.idBloc, "photoApres", e.target.value)
-                      }
-                      className="mt-1 w-full rounded-[6px] border border-white/[0.08] bg-black/30 px-2.5 py-1.5 font-sans text-xs text-[#f3ebdd] focus:border-[#e8a34a] focus:outline-hidden"
-                    />
-                  </div>
+                  {(
+                    [
+                      ["photoAvant", "Avant", photoAvantInputRef],
+                      ["photoApres", "Après", photoApresInputRef],
+                    ] as const
+                  ).map(([key, label, inputRef]) => {
+                    const imageUrl = typeof conf[key] === "string" ? (conf[key] as string) : "";
+                    return (
+                      <div
+                        key={key}
+                        className="space-y-2 rounded-lg border border-white/[0.08] bg-black/10 p-2.5"
+                      >
+                        <span className="block text-[11px] font-medium text-[#c8b9a7]">
+                          Photo {label}
+                        </span>
+                        {imageUrl ? (
+                          <div className="relative aspect-[4/3] overflow-hidden rounded-md">
+                            <SafeImage
+                              src={imageUrl}
+                              alt={`Photo ${label.toLowerCase()}`}
+                              fill
+                              unoptimized
+                              sizes="280px"
+                              className="object-cover"
+                            />
+                          </div>
+                        ) : (
+                          <p className="text-[11px] text-[#9a8f82]">
+                            Importez la photo {label.toLowerCase()}.
+                          </p>
+                        )}
+                        <input
+                          ref={inputRef}
+                          type="file"
+                          accept="image/jpeg,image/png,image/webp"
+                          className="sr-only"
+                          onChange={(event) => {
+                            const file = event.currentTarget.files?.[0];
+                            if (file) {
+                              void handleFileUpload(
+                                file,
+                                (url) => onUpdateConfiguration(selectedBlock.idBloc, key, url),
+                                (loading) => setUploadingComparisonImage(loading ? key : null),
+                              );
+                            }
+                            event.currentTarget.value = "";
+                          }}
+                        />
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            disabled={uploadingComparisonImage !== null}
+                            onClick={() => inputRef.current?.click()}
+                            className="flex items-center gap-1.5 rounded-md border border-[#e8a34a]/30 bg-[#e8a34a]/10 px-2.5 py-1.5 text-[11px] font-medium text-[#e8a34a] transition-colors hover:bg-[#e8a34a]/20 disabled:opacity-50"
+                          >
+                            {uploadingComparisonImage === key ? (
+                              <Loader2 className="size-3 animate-spin" />
+                            ) : (
+                              <Upload className="size-3" />
+                            )}
+                            {imageUrl ? "Remplacer l’image" : "Importer une image"}
+                          </button>
+                          {imageUrl && (
+                            <button
+                              type="button"
+                              disabled={uploadingComparisonImage !== null}
+                              onClick={() => onUpdateConfiguration(selectedBlock.idBloc, key, "")}
+                              className="text-[11px] text-[#9a8f82] hover:text-white disabled:opacity-50"
+                            >
+                              Retirer
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
 
@@ -799,6 +979,102 @@ export function PropertiesPanel({
                   conf={conf}
                   onUpdateConfiguration={onUpdateConfiguration}
                 />
+              )}
+
+              {selectedBlock.type === "PROCESSUS" && (
+                <div className="space-y-3">
+                  <label className="block text-[11px] text-[#9a8f82]">
+                    Titre
+                    <input
+                      value={(conf.titre as string) || ""}
+                      onChange={(event) =>
+                        onUpdateConfiguration(selectedBlock.idBloc, "titre", event.target.value)
+                      }
+                      className="mt-1 w-full rounded-[6px] border border-white/[0.08] bg-black/30 px-2.5 py-1.5 text-xs text-[#f3ebdd]"
+                    />
+                  </label>
+                  {Array.from({ length: 4 }, (_, index) => {
+                    const steps = Array.isArray(conf.etapes)
+                      ? (conf.etapes as { titre: string; description: string }[])
+                      : [];
+                    const step = steps[index] ?? { titre: "", description: "" };
+                    const updateStep = (key: "titre" | "description", value: string) => {
+                      const next = Array.from({ length: 4 }, (_, stepIndex) => ({
+                        titre: steps[stepIndex]?.titre ?? "",
+                        description: steps[stepIndex]?.description ?? "",
+                      }));
+                      next[index] = { ...next[index], [key]: value };
+                      onUpdateConfiguration(selectedBlock.idBloc, "etapes", next);
+                    };
+                    return (
+                      <fieldset key={index} className="space-y-2 rounded-lg border border-white/10 p-2.5">
+                        <legend className="px-1 text-[10px] text-[#e8a34a]">Étape {index + 1}</legend>
+                        <input
+                          aria-label={`Titre étape ${index + 1}`}
+                          placeholder="Titre"
+                          value={step.titre}
+                          onChange={(event) => updateStep("titre", event.target.value)}
+                          className="w-full rounded border border-white/10 bg-black/30 px-2 py-1.5 text-xs text-[#f3ebdd]"
+                        />
+                        <textarea
+                          aria-label={`Description étape ${index + 1}`}
+                          placeholder="Décrivez cette étape"
+                          value={step.description}
+                          onChange={(event) => updateStep("description", event.target.value)}
+                          className="w-full rounded border border-white/10 bg-black/30 p-2 text-xs text-[#f3ebdd]"
+                        />
+                      </fieldset>
+                    );
+                  })}
+                </div>
+              )}
+
+              {selectedBlock.type === "FAQ" && (
+                <div className="space-y-3">
+                  <label className="block text-[11px] text-[#9a8f82]">
+                    Titre
+                    <input
+                      value={(conf.titre as string) || ""}
+                      onChange={(event) =>
+                        onUpdateConfiguration(selectedBlock.idBloc, "titre", event.target.value)
+                      }
+                      className="mt-1 w-full rounded-[6px] border border-white/[0.08] bg-black/30 px-2.5 py-1.5 text-xs text-[#f3ebdd]"
+                    />
+                  </label>
+                  {Array.from({ length: 6 }, (_, index) => {
+                    const questions = Array.isArray(conf.questions)
+                      ? (conf.questions as { question: string; reponse: string }[])
+                      : [];
+                    const item = questions[index] ?? { question: "", reponse: "" };
+                    const updateQuestion = (key: "question" | "reponse", value: string) => {
+                      const next = Array.from({ length: 6 }, (_, itemIndex) => ({
+                        question: questions[itemIndex]?.question ?? "",
+                        reponse: questions[itemIndex]?.reponse ?? "",
+                      }));
+                      next[index] = { ...next[index], [key]: value };
+                      onUpdateConfiguration(selectedBlock.idBloc, "questions", next);
+                    };
+                    return (
+                      <fieldset key={index} className="space-y-2 rounded-lg border border-white/10 p-2.5">
+                        <legend className="px-1 text-[10px] text-[#e8a34a]">Question {index + 1}</legend>
+                        <input
+                          aria-label={`Question FAQ ${index + 1}`}
+                          placeholder="Question"
+                          value={item.question}
+                          onChange={(event) => updateQuestion("question", event.target.value)}
+                          className="w-full rounded border border-white/10 bg-black/30 px-2 py-1.5 text-xs text-[#f3ebdd]"
+                        />
+                        <textarea
+                          aria-label={`Réponse FAQ ${index + 1}`}
+                          placeholder="Réponse"
+                          value={item.reponse}
+                          onChange={(event) => updateQuestion("reponse", event.target.value)}
+                          className="w-full rounded border border-white/10 bg-black/30 p-2 text-xs text-[#f3ebdd]"
+                        />
+                      </fieldset>
+                    );
+                  })}
+                </div>
               )}
 
               {/* STATISTIQUES */}
@@ -841,44 +1117,6 @@ export function PropertiesPanel({
                 </div>
               )}
 
-              {/* VIDEO */}
-              {selectedBlock.type === "VIDEO" && (
-                <div className="space-y-3">
-                  <div>
-                    <label className="text-[11px] text-[#9a8f82]">{editorFr.fields.titre}</label>
-                    <input
-                      type="text"
-                      value={(conf.titre as string) || ""}
-                      onChange={(e) =>
-                        onUpdateConfiguration(selectedBlock.idBloc, "titre", e.target.value)
-                      }
-                      className="mt-1 w-full rounded-[6px] border border-white/[0.08] bg-black/30 px-2.5 py-1.5 font-sans text-xs text-[#f3ebdd] focus:border-[#e8a34a] focus:outline-hidden"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-[11px] text-[#9a8f82]">{editorFr.fields.urlVideo}</label>
-                    <input
-                      type="text"
-                      value={(conf.urlVideo as string) || ""}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        onUpdateConfiguration(selectedBlock.idBloc, "urlVideo", val);
-                      }}
-                      className={`mt-1 w-full rounded-[6px] border bg-black/30 px-2.5 py-1.5 font-sans text-xs text-[#f3ebdd] focus:outline-hidden ${
-                        (conf.urlVideo as string)?.startsWith("https://")
-                          ? "border-white/[0.08] focus:border-[#e8a34a]"
-                          : "border-red-500/60 text-red-200"
-                      }`}
-                    />
-                    {!(conf.urlVideo as string)?.startsWith("https://") && (
-                      <p className="mt-1 text-[10px] text-red-400">
-                        {"L'URL de la vidéo doit commencer par https://"}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              )}
-
               {/* CONTACT */}
               {selectedBlock.type === "CONTACT" && (
                 <div className="space-y-3">
@@ -906,6 +1144,45 @@ export function PropertiesPanel({
                       className="mt-1 w-full rounded-[6px] border border-white/[0.08] bg-black/30 p-2 font-sans text-xs text-[#f3ebdd] focus:border-[#e8a34a] focus:outline-hidden"
                     />
                   </div>
+                  <fieldset className="space-y-2 rounded-[8px] border border-white/[0.06] bg-black/30 p-3">
+                    <legend className="px-1 text-[11px] font-medium text-[#f3ebdd]">
+                      Types de séance proposés
+                    </legend>
+                    <div className="grid grid-cols-2 gap-2">
+                      {CATEGORIES_PORTFOLIO.map((category) => {
+                        const selectedCategories = Array.isArray(conf.typesSeanceProposes)
+                          ? (conf.typesSeanceProposes as string[])
+                          : [];
+                        const checked = selectedCategories.includes(category);
+                        return (
+                          <label
+                            key={category}
+                            className="flex items-center gap-2 text-[11px] text-[#c8b9a7]"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={() =>
+                                onUpdateConfiguration(
+                                  selectedBlock.idBloc,
+                                  "typesSeanceProposes",
+                                  checked
+                                    ? selectedCategories.filter((item) => item !== category)
+                                    : [...selectedCategories, category],
+                                )
+                              }
+                              className="accent-[#e8a34a]"
+                            />
+                            {categoriePortfolioLabels[category]}
+                          </label>
+                        );
+                      })}
+                    </div>
+                    <p className="text-[10px] leading-relaxed text-[#9a8f82]">
+                      Si aucun type n’est sélectionné, le formulaire reprend les spécialités du
+                      portfolio.
+                    </p>
+                  </fieldset>
                 </div>
               )}
             </div>
@@ -918,17 +1195,24 @@ export function PropertiesPanel({
               <div className="space-y-3 border-t border-white/[0.08] pt-4">
                 <div className="flex items-center justify-between">
                   <span className="font-mono text-[9px] font-semibold tracking-[0.16em] text-[#6f655a] uppercase">
-                    {editorFr.photos} ({selectedBlock.elements?.length || 0})
+                    {editorFr.photos} ({selectedBlock.elements?.length || 0}/12)
                   </span>
                   <button
                     type="button"
+                    disabled={(selectedBlock.elements?.length || 0) >= 12}
                     onClick={() => onOpenPhotoPicker?.(selectedBlock.idBloc)}
-                    className="flex items-center gap-1 rounded-full border border-[#e8a34a]/30 bg-[#e8a34a]/10 px-2.5 py-0.5 font-sans text-[11px] font-medium text-[#e8a34a] transition-colors hover:bg-[#e8a34a]/20"
+                    className="flex items-center gap-1 rounded-full border border-[#e8a34a]/30 bg-[#e8a34a]/10 px-2.5 py-0.5 font-sans text-[11px] font-medium text-[#e8a34a] transition-colors hover:bg-[#e8a34a]/20 disabled:cursor-not-allowed disabled:opacity-40"
                   >
                     <Plus className="size-3" />
                     <span>{editorFr.addPhotos}</span>
                   </button>
                 </div>
+
+                {(selectedBlock.elements?.length || 0) >= 12 && (
+                  <p className="rounded-md border border-[#e8a34a]/20 bg-[#e8a34a]/5 px-2.5 py-1.5 font-sans text-[11px] text-[#e8a34a]">
+                    Limite maximale de 12 photos atteinte pour cette galerie.
+                  </p>
+                )}
 
                 {selectedBlock.elements?.length === 0 ? (
                   <p className="text-xs text-[#9a8f82]">{editorFr.noPhotos}</p>
@@ -949,9 +1233,22 @@ export function PropertiesPanel({
                           />
                         </div>
                         <div className="min-w-0 flex-1">
-                          <p className="truncate text-xs font-medium text-white/90">
-                            {elem.titre || "Photograph"}
-                          </p>
+                          <input
+                            aria-label="Titre de la photo (facultatif)"
+                            placeholder="Titre facultatif"
+                            value={elem.titre || ""}
+                            maxLength={160}
+                            onChange={(event) =>
+                              onUpdateBlock(selectedBlock.idBloc, {
+                                elements: selectedBlock.elements.map((element) =>
+                                  element.idElement === elem.idElement
+                                    ? { ...element, titre: event.target.value }
+                                    : element,
+                                ),
+                              })
+                            }
+                            className="w-full truncate rounded border border-white/10 bg-black/30 px-2 py-1 text-xs text-white/90 placeholder:text-white/50"
+                          />
                           <span
                             className={`py-0.2 inline-block rounded-full px-1.5 font-mono text-[8px] uppercase ${
                               elem.statutConsentement === "ACCORDE"
@@ -969,6 +1266,27 @@ export function PropertiesPanel({
                           </span>
                         </div>
                         <div className="flex shrink-0 flex-col gap-1">
+                          {(selectedBlock.type === "GALERIE" || selectedBlock.type === "COLLECTION") && (
+                            <button
+                              type="button"
+                              aria-pressed={elem.estMisEnAvant}
+                              disabled={!elem.estMisEnAvant && selectedBlock.elements.filter((element) => element.estMisEnAvant).length >= 8}
+                              onClick={() =>
+                                onUpdateBlock(selectedBlock.idBloc, {
+                                  elements: selectedBlock.elements.map((element) =>
+                                    element.idElement === elem.idElement
+                                      ? { ...element, estMisEnAvant: !element.estMisEnAvant }
+                                      : element,
+                                  ),
+                                })
+                              }
+                              className={`inline-flex items-center gap-1 rounded px-1.5 py-1 text-[9px] ${elem.estMisEnAvant ? "text-[#e8a34a]" : "text-white/50"} disabled:opacity-30`}
+                              title="Afficher dans la sélection Meilleures photos"
+                            >
+                              <Star className={`size-3 ${elem.estMisEnAvant ? "fill-current" : ""}`} />
+                              À la une
+                            </button>
+                          )}
                           <button
                             type="button"
                             disabled={aiPending || !onGeneratePhotoText}
@@ -1031,6 +1349,15 @@ export function PropertiesPanel({
               <div className="font-mono text-[9px] font-semibold tracking-[0.16em] text-[#6f655a] uppercase">
                 {editorFr.pageSections.identity}
               </div>
+              <div className="rounded-lg border border-[#e8a34a]/20 bg-[#e8a34a]/[0.06] p-2.5 text-xs">
+                <p className="flex items-center gap-1.5 font-medium text-[#e8a34a]">
+                  <span>💡</span>
+                  <span>Photo de profil pour l&apos;annuaire</span>
+                </p>
+                <p className="mt-1 text-[11px] leading-relaxed text-white/60">
+                  Ajoute ta photo de profil pour être mieux visible dans l&apos;annuaire des photographes (depuis la section <strong>À propos</strong>).
+                </p>
+              </div>
               <div className="space-y-2">
                 <div>
                   <label className="text-[11px] text-[#9a8f82]">{editorFr.labels.title}</label>
@@ -1058,6 +1385,26 @@ export function PropertiesPanel({
                     onChange={(e) => onUpdatePortfolioData?.("ville", e.target.value)}
                     className="mt-1 w-full rounded-[6px] border border-white/[0.08] bg-black/30 px-2.5 py-1.5 font-sans text-xs text-[#f3ebdd] focus:border-[#e8a34a] focus:outline-hidden"
                   />
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <label className="text-[11px] text-[#9a8f82]">
+                    Région
+                    <input
+                      type="text"
+                      value={portfolioData.region || ""}
+                      onChange={(event) => onUpdatePortfolioData?.("region", event.target.value)}
+                      className="mt-1 w-full rounded-[6px] border border-white/[0.08] bg-black/30 px-2.5 py-1.5 font-sans text-xs text-[#f3ebdd] focus:border-[#e8a34a] focus:outline-hidden"
+                    />
+                  </label>
+                  <label className="text-[11px] text-[#9a8f82]">
+                    Pays
+                    <input
+                      type="text"
+                      value={portfolioData.pays || ""}
+                      onChange={(event) => onUpdatePortfolioData?.("pays", event.target.value)}
+                      className="mt-1 w-full rounded-[6px] border border-white/[0.08] bg-black/30 px-2.5 py-1.5 font-sans text-xs text-[#f3ebdd] focus:border-[#e8a34a] focus:outline-hidden"
+                    />
+                  </label>
                 </div>
                 <div>
                   <div className="flex items-center justify-between">
@@ -1166,17 +1513,17 @@ export function PropertiesPanel({
                 {editorFr.pageSections.specialities}
               </div>
               <div className="flex flex-wrap gap-1.5">
-                {(["Mariage", "Portrait", "Produit", "Événement"] as const).map((spec) => {
-                  const isSelected = portfolioData.specialites?.includes(spec);
+                {CATEGORIES_PORTFOLIO.map((specialite) => {
+                  const isSelected = portfolioData.specialites?.includes(specialite);
                   return (
                     <button
-                      key={spec}
+                      key={specialite}
                       type="button"
                       onClick={() => {
                         const current = portfolioData.specialites || [];
-                        const next = current.includes(spec)
-                          ? current.filter((s) => s !== spec)
-                          : [...current, spec];
+                        const next = current.includes(specialite)
+                          ? current.filter((value) => value !== specialite)
+                          : [...current, specialite];
                         onUpdatePortfolioData?.("specialites", next);
                       }}
                       className={`rounded-full px-2.5 py-1 font-sans text-xs transition-colors ${
@@ -1185,7 +1532,73 @@ export function PropertiesPanel({
                           : "border border-white/10 bg-white/[0.03] text-white/50 hover:text-white"
                       }`}
                     >
-                      {spec}
+                      {categoriePortfolioLabels[specialite]}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="space-y-2 border-t border-white/[0.08] pt-4">
+              <div className="font-mono text-[9px] font-semibold tracking-[0.16em] text-[#6f655a] uppercase">
+                Styles photographiques
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {STYLES_PHOTOGRAPHIQUES.map((style) => {
+                  const selected = portfolioData.styles?.includes(style);
+                  return (
+                    <button
+                      key={style}
+                      type="button"
+                      onClick={() => {
+                        const current = portfolioData.styles || [];
+                        onUpdatePortfolioData?.(
+                          "styles",
+                          selected
+                            ? current.filter((value) => value !== style)
+                            : [...current, style],
+                        );
+                      }}
+                      className={`rounded-full px-2.5 py-1 font-sans text-xs transition-colors ${
+                        selected
+                          ? "border border-[#e8a34a]/40 bg-[#e8a34a]/15 text-[#e8a34a]"
+                          : "border border-white/10 bg-white/[0.03] text-white/50 hover:text-white"
+                      }`}
+                    >
+                      {stylePhotographiqueLabels[style]}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="space-y-2 border-t border-white/[0.08] pt-4">
+              <div className="font-mono text-[9px] font-semibold tracking-[0.16em] text-[#6f655a] uppercase">
+                Services proposés
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {SERVICES_PHOTOGRAPHIQUES.map((service) => {
+                  const selected = portfolioData.services?.includes(service);
+                  return (
+                    <button
+                      key={service}
+                      type="button"
+                      onClick={() => {
+                        const current = portfolioData.services || [];
+                        onUpdatePortfolioData?.(
+                          "services",
+                          selected
+                            ? current.filter((value) => value !== service)
+                            : [...current, service],
+                        );
+                      }}
+                      className={`rounded-full px-2.5 py-1 font-sans text-xs transition-colors ${
+                        selected
+                          ? "border border-[#e8a34a]/40 bg-[#e8a34a]/15 text-[#e8a34a]"
+                          : "border border-white/10 bg-white/[0.03] text-white/50 hover:text-white"
+                      }`}
+                    >
+                      {servicePhotographiqueLabels[service]}
                     </button>
                   );
                 })}
@@ -1198,25 +1611,33 @@ export function PropertiesPanel({
                 {editorFr.pageSections.theme}
               </div>
               <div className="grid grid-cols-2 gap-1.5">
-                {(["Minimal", "Dark", "Editorial", "Colour"] as const).map((t) => (
+                {(
+                  [
+                    ["MINIMAL", "Minimal"],
+                    ["SOMBRE", "Dark"],
+                    ["EDITORIAL", "Editorial"],
+                    ["COLORE", "Colour"],
+                  ] as const
+                ).map(([value, label]) => (
                   <button
-                    key={t}
+                    key={value}
                     type="button"
-                    onClick={() => onUpdatePortfolioData?.("theme", t)}
+                    onClick={() => onUpdatePortfolioData?.("theme", value)}
                     className={`rounded-[6px] border p-2 text-center text-xs font-medium transition-all ${
-                      portfolioData.theme === t
+                      portfolioData.theme === value
                         ? "border-[#e8a34a] bg-[#e8a34a]/15 text-[#e8a34a]"
                         : "border-white/[0.08] bg-white/[0.02] text-white/60 hover:text-white"
                     }`}
                   >
-                    {t}
+                    {label}
                   </button>
                 ))}
               </div>
 
               {/* Accent colours */}
-              <div className="flex items-center gap-2 pt-2">
+              <div className="flex flex-wrap items-center gap-2 pt-2">
                 {[
+                  { name: "cramoisi labo (Chambre Noire)", color: "#e0563b" },
                   { name: "ambre", color: "#e8a34a" },
                   { name: "terracotta", color: "#d97746" },
                   { name: "olive", color: "#848e42" },
@@ -1227,16 +1648,45 @@ export function PropertiesPanel({
                     key={c.name}
                     type="button"
                     onClick={() => onUpdatePortfolioData?.("couleurAccent", c.color)}
-                    className={`size-5 rounded-full border transition-transform hover:scale-110 ${
+                    className={`size-6 rounded-full border transition-transform hover:scale-110 ${
                       portfolioData.couleurAccent === c.color
-                        ? "border-white ring-2 ring-[#e8a34a]/50"
+                        ? "scale-110 border-white ring-2 ring-[#e0563b]/60"
                         : "border-white/20"
                     }`}
                     style={{ backgroundColor: c.color }}
                     title={c.name}
                   />
                 ))}
+
+                {/* Sélecteur de couleur personnalisée */}
+                <label
+                  className="flex size-6 cursor-pointer items-center justify-center rounded-full border border-dashed border-white/40 transition-transform hover:scale-110"
+                  title="Choisir une couleur personnalisée"
+                >
+                  <input
+                    type="color"
+                    value={portfolioData.couleurAccent || "#e0563b"}
+                    onChange={(e) => onUpdatePortfolioData?.("couleurAccent", e.target.value)}
+                    className="sr-only"
+                  />
+                  <span className="font-mono text-[9px] text-white/70">+</span>
+                </label>
               </div>
+            </div>
+
+            {/* Planche contact 35mm (Vidéo -> Pellicule) */}
+            <div className="space-y-3 border-t border-white/[0.08] pt-4">
+              <div className="flex items-center justify-between">
+                <div className="font-mono text-[9px] font-semibold tracking-[0.16em] text-[#6f655a] uppercase">
+                  Planche contact 35mm
+                </div>
+                <span className="font-mono text-[9px] text-[#e8a34a]">Animation vidéo</span>
+              </div>
+              <PlancheContactEditor
+                plancheContact={portfolioData.plancheContact}
+                accentColor={portfolioData.couleurAccent || "#e8a34a"}
+                onChange={(nextData) => onUpdatePortfolioData?.("plancheContact", nextData)}
+              />
             </div>
 
             {/* Publication details */}
@@ -1246,16 +1696,35 @@ export function PropertiesPanel({
               </div>
               <div className="space-y-2 rounded-[8px] border border-white/[0.06] bg-black/40 p-3">
                 <div className="flex items-center justify-between">
-                  <span className="font-mono text-[10px] text-white/40">URL PUBLIQUE</span>
+                  <span className="font-mono text-[10px] text-white/40">
+                    {portfolioData.visibilite === "PRIVE" ? "APERÇU PRIVÉ" : "URL PUBLIQUE"}
+                  </span>
                   <ExternalLink className="size-3 text-white/30" />
                 </div>
                 <div className="truncate font-mono text-[11px] text-[#e8a34a]">
                   studioflow.app/portfolio/{portfolioSlug || "portfolio"}
                 </div>
               </div>
+              <label className="block text-[11px] text-[#9a8f82]" htmlFor="portfolio-visibility">
+                {editorFr.labels.visibility}
+                <select
+                  id="portfolio-visibility"
+                  value={portfolioData.visibilite ?? "PUBLIC"}
+                  onChange={(event) => onUpdatePortfolioData?.("visibilite", event.target.value)}
+                  className="mt-1 w-full rounded-[6px] border border-white/[0.08] bg-black/30 px-2.5 py-2 font-sans text-xs text-[#f3ebdd] focus:border-[#e8a34a] focus:outline-hidden"
+                >
+                  <option value="PUBLIC">{editorFr.visibility.PUBLIC}</option>
+                  <option value="PRIVE">{editorFr.visibility.PRIVE}</option>
+                </select>
+                <span className="mt-1 block text-[10px] leading-relaxed">
+                  {portfolioData.visibilite === "PRIVE"
+                    ? editorFr.privateVisibilityHelp
+                    : editorFr.publicVisibilityHelp}
+                </span>
+              </label>
               <p className="text-[10px] leading-relaxed text-[#9a8f82]">
-                La page publique ne lit que la version publiée. Les brouillons ne sont jamais
-                visibles.
+                Seule une version publiée et réglée sur Public est accessible sans connexion.
+                L’aperçu du brouillon reste réservé au propriétaire connecté.
               </p>
             </div>
 
@@ -1359,12 +1828,64 @@ function TestimonialsPanel({
                   <X className="size-3.5" />
                 </button>
               </div>
-              <p className="text-[10px] text-[#9a8f82]">
-                {t.role} · {"★".repeat(t.note)}
-              </p>
-              <p className="line-clamp-2 text-[11px] leading-relaxed text-white/70 italic">
-                «&nbsp;{t.texte}&nbsp;»
-              </p>
+              <input
+                type="text"
+                aria-label="Nom de l’auteur"
+                value={t.auteur}
+                onChange={(event) =>
+                  save(
+                    list.map((item, itemIndex) =>
+                      itemIndex === idx ? { ...item, auteur: event.target.value } : item,
+                    ),
+                  )
+                }
+                className="w-full rounded-[6px] border border-white/[0.08] bg-black/40 px-2.5 py-1.5 font-sans text-xs text-[#f3ebdd]"
+              />
+              <input
+                type="text"
+                aria-label="Contexte du témoignage"
+                value={t.role}
+                onChange={(event) =>
+                  save(
+                    list.map((item, itemIndex) =>
+                      itemIndex === idx ? { ...item, role: event.target.value } : item,
+                    ),
+                  )
+                }
+                className="w-full rounded-[6px] border border-white/[0.08] bg-black/40 px-2.5 py-1.5 font-sans text-xs text-[#f3ebdd]"
+              />
+              <div className="flex items-center gap-1">
+                {[1, 2, 3, 4, 5].map((note) => (
+                  <button
+                    key={note}
+                    type="button"
+                    aria-label={`${note} étoile${note > 1 ? "s" : ""}`}
+                    onClick={() =>
+                      save(
+                        list.map((item, itemIndex) =>
+                          itemIndex === idx ? { ...item, note } : item,
+                        ),
+                      )
+                    }
+                    className={`text-sm ${note <= t.note ? "text-[#e8a34a]" : "text-white/20"}`}
+                  >
+                    ★
+                  </button>
+                ))}
+              </div>
+              <textarea
+                rows={3}
+                aria-label="Texte du témoignage"
+                value={t.texte}
+                onChange={(event) =>
+                  save(
+                    list.map((item, itemIndex) =>
+                      itemIndex === idx ? { ...item, texte: event.target.value } : item,
+                    ),
+                  )
+                }
+                className="w-full rounded-[6px] border border-white/[0.08] bg-black/40 p-2 font-sans text-xs text-[#f3ebdd]"
+              />
             </div>
           ))}
         </div>
@@ -1427,9 +1948,10 @@ function TestimonialsPanel({
 type ServicePackage = {
   id: string;
   nom: string;
-  prixAPartirDe: number;
-  duree: string;
+  prixAPartirDe?: number;
+  delai?: string;
   description: string;
+  inclus?: string[];
 };
 
 function ServicesPanel({
@@ -1446,10 +1968,14 @@ function ServicesPanel({
     : [];
   const [newNom, setNewNom] = useState("");
   const [newPrix, setNewPrix] = useState(0);
-  const [newDuree, setNewDuree] = useState("");
+  const [newDelai, setNewDelai] = useState("");
   const [newDesc, setNewDesc] = useState("");
+  const [newInclus, setNewInclus] = useState("");
 
   const save = (next: ServicePackage[]) => onUpdateConfiguration(blocId, "forfaits", next);
+  const updatePackage = (index: number, patch: Partial<ServicePackage>) => {
+    save(list.map((item, itemIndex) => (itemIndex === index ? { ...item, ...patch } : item)));
+  };
 
   const add = () => {
     if (!newNom.trim()) return;
@@ -1459,14 +1985,19 @@ function ServicesPanel({
         id: crypto.randomUUID().slice(0, 16),
         nom: newNom.trim(),
         prixAPartirDe: newPrix,
-        duree: newDuree.trim(),
+        delai: newDelai.trim(),
         description: newDesc.trim(),
+        inclus: newInclus
+          .split("\n")
+          .map((item) => item.trim())
+          .filter(Boolean),
       },
     ]);
     setNewNom("");
     setNewPrix(0);
-    setNewDuree("");
+    setNewDelai("");
     setNewDesc("");
+    setNewInclus("");
   };
 
   return (
@@ -1478,7 +2009,7 @@ function ServicesPanel({
           {list.map((pkg, idx) => (
             <div
               key={pkg.id}
-              className="space-y-0.5 rounded-[6px] border border-white/[0.06] bg-white/[0.02] p-2.5"
+              className="space-y-2 rounded-[6px] border border-white/[0.06] bg-white/[0.02] p-2.5"
             >
               <div className="flex items-center justify-between">
                 <span className="text-[11px] font-semibold text-white/90">{pkg.nom}</span>
@@ -1490,12 +2021,61 @@ function ServicesPanel({
                   <X className="size-3.5" />
                 </button>
               </div>
-              <p className="font-mono text-[10px] text-[#e8a34a]">
-                À partir de {pkg.prixAPartirDe} €{pkg.duree ? ` · ${pkg.duree}` : ""}
-              </p>
-              {pkg.description && (
-                <p className="line-clamp-1 text-[10px] text-white/50">{pkg.description}</p>
-              )}
+              <input
+                type="text"
+                aria-label="Nom de la formule"
+                value={pkg.nom}
+                onChange={(event) => updatePackage(idx, { nom: event.target.value })}
+                className="w-full rounded-[6px] border border-white/[0.08] bg-black/40 px-2.5 py-1.5 font-sans text-xs text-[#f3ebdd]"
+              />
+              <div className="grid grid-cols-2 gap-2">
+                <label className="text-[10px] text-[#9a8f82]">
+                  Prix de départ (€)
+                  <input
+                    type="number"
+                    min={0}
+                    value={pkg.prixAPartirDe ?? ""}
+                    onChange={(event) =>
+                      updatePackage(idx, {
+                        prixAPartirDe:
+                          event.target.value === "" ? undefined : Number(event.target.value),
+                      })
+                    }
+                    className="mt-1 w-full rounded-[6px] border border-white/[0.08] bg-black/40 px-2.5 py-1.5 font-sans text-xs text-[#f3ebdd]"
+                  />
+                </label>
+                <label className="text-[10px] text-[#9a8f82]">
+                  Délai
+                  <input
+                    type="text"
+                    value={pkg.delai ?? ""}
+                    onChange={(event) => updatePackage(idx, { delai: event.target.value })}
+                    className="mt-1 w-full rounded-[6px] border border-white/[0.08] bg-black/40 px-2.5 py-1.5 font-sans text-xs text-[#f3ebdd]"
+                  />
+                </label>
+              </div>
+              <textarea
+                rows={2}
+                aria-label="Description de la formule"
+                value={pkg.description}
+                onChange={(event) => updatePackage(idx, { description: event.target.value })}
+                className="w-full rounded-[6px] border border-white/[0.08] bg-black/40 p-2 font-sans text-xs text-[#f3ebdd]"
+              />
+              <textarea
+                rows={3}
+                aria-label="Éléments inclus, un par ligne"
+                value={(pkg.inclus ?? []).join("\n")}
+                onChange={(event) =>
+                  updatePackage(idx, {
+                    inclus: event.target.value
+                      .split("\n")
+                      .map((item) => item.trim())
+                      .filter(Boolean),
+                  })
+                }
+                placeholder="Éléments inclus, un par ligne"
+                className="w-full rounded-[6px] border border-white/[0.08] bg-black/40 p-2 font-sans text-xs text-[#f3ebdd]"
+              />
             </div>
           ))}
         </div>
@@ -1525,12 +2105,12 @@ function ServicesPanel({
             />
           </div>
           <div>
-            <label className="text-[10px] text-[#9a8f82]">Durée</label>
+            <label className="text-[10px] text-[#9a8f82]">Délai</label>
             <input
               type="text"
-              placeholder="2h30"
-              value={newDuree}
-              onChange={(e) => setNewDuree(e.target.value)}
+              placeholder="Livraison sous 3 semaines"
+              value={newDelai}
+              onChange={(e) => setNewDelai(e.target.value)}
               className="mt-1 w-full rounded-[6px] border border-white/[0.08] bg-black/40 px-2.5 py-1.5 font-sans text-xs text-[#f3ebdd] focus:border-[#e8a34a] focus:outline-hidden"
             />
           </div>
@@ -1540,6 +2120,13 @@ function ServicesPanel({
           placeholder="Description courte…"
           value={newDesc}
           onChange={(e) => setNewDesc(e.target.value)}
+          className="w-full rounded-[6px] border border-white/[0.08] bg-black/40 p-2 font-sans text-xs text-[#f3ebdd] focus:border-[#e8a34a] focus:outline-hidden"
+        />
+        <textarea
+          rows={3}
+          placeholder="Éléments inclus, un par ligne"
+          value={newInclus}
+          onChange={(e) => setNewInclus(e.target.value)}
           className="w-full rounded-[6px] border border-white/[0.08] bg-black/40 p-2 font-sans text-xs text-[#f3ebdd] focus:border-[#e8a34a] focus:outline-hidden"
         />
         <button

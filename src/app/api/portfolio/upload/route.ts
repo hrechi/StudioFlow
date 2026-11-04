@@ -12,8 +12,11 @@ const cloudinaryResponseSchema = z.object({
   height: z.number().int().positive(),
 });
 
-const acceptedTypes = new Set(["image/jpeg", "image/png", "image/webp"]);
-const maxBytes = 20 * 1024 * 1024;
+const acceptedImageTypes = new Set(["image/jpeg", "image/png", "image/webp"]);
+const acceptedVideoTypes = new Set(["video/mp4", "video/webm", "video/quicktime"]);
+const maxImageBytes = 20 * 1024 * 1024;
+const maxVideoBytes = 100 * 1024 * 1024;
+const maxRequestBytes = maxVideoBytes + 1024 * 1024;
 
 export async function POST(request: Request) {
   const user = await requireArea("portfolio");
@@ -21,6 +24,14 @@ export async function POST(request: Request) {
     return NextResponse.json(
       { ok: false, code: "RATE_LIMITED", message: "Upload limit reached. Try again later." },
       { status: 429 }
+    );
+  }
+
+  const contentLength = Number(request.headers.get("content-length"));
+  if (Number.isFinite(contentLength) && contentLength > maxRequestBytes) {
+    return NextResponse.json(
+      { ok: false, code: "FILE_TOO_LARGE", message: "The upload exceeds the 100 MB limit." },
+      { status: 413 },
     );
   }
 
@@ -35,9 +46,21 @@ export async function POST(request: Request) {
   }
 
   const file = incoming.get("file");
-  if (!(file instanceof File) || !acceptedTypes.has(file.type) || file.size < 1 || file.size > maxBytes) {
+  const isImage = file instanceof File && acceptedImageTypes.has(file.type);
+  const isVideo = file instanceof File && acceptedVideoTypes.has(file.type);
+  const maxBytes = isImage ? maxImageBytes : maxVideoBytes;
+  if (
+    !(file instanceof File) ||
+    (!isImage && !isVideo) ||
+    file.size < 1 ||
+    file.size > maxBytes
+  ) {
     return NextResponse.json(
-      { ok: false, code: "INVALID_FILE", message: "Choose a JPG, PNG or WebP image up to 20 MB." },
+      {
+        ok: false,
+        code: "INVALID_FILE",
+        message: "Choose a JPG, PNG or WebP image (20 MB max), or an MP4/WebM video (100 MB max).",
+      },
       { status: 400 }
     );
   }
@@ -47,7 +70,7 @@ export async function POST(request: Request) {
   const apiSecret = process.env.CLOUDINARY_API_SECRET;
 
   // 1. If Cloudinary is configured, use Cloudinary
-  if (cloudName && apiKey && apiSecret) {
+  if (isImage && cloudName && apiKey && apiSecret) {
     const timestamp = Math.floor(Date.now() / 1000).toString();
     const folder = "studioflow/portfolios";
     const signature = createHmac("sha1", apiSecret)
@@ -115,7 +138,7 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error("MongoDB GridFS upload error:", error);
     return NextResponse.json(
-      { ok: false, code: "UPLOAD_FAILED", message: "Failed to store image in database." },
+      { ok: false, code: "UPLOAD_FAILED", message: "Failed to store media in database." },
       { status: 500 }
     );
   }

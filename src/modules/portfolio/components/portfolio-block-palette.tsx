@@ -12,6 +12,8 @@ import {
   UserRound,
   Video,
   ChartNoAxesColumn,
+  ListChecks,
+  CircleHelp,
   type LucideIcon,
 } from "lucide-react";
 import type { BlocPortfolio, TypeBloc } from "../portfolio.types";
@@ -20,8 +22,8 @@ import { editorFr } from "./editor/fr";
 const groups: { name: keyof typeof editorFr.groups; types: TypeBloc[] }[] = [
   { name: "OPENING", types: ["HERO"] },
   { name: "STORY", types: ["A_PROPOS"] },
-  { name: "WORK", types: ["GALERIE", "COLLECTION", "CASE_STUDY", "AVANT_APRES", "VIDEO"] },
-  { name: "TRUST", types: ["TEMOIGNAGES", "SERVICES", "STATISTIQUES"] },
+  { name: "WORK", types: ["GALERIE", "COLLECTION", "CASE_STUDY", "AVANT_APRES"] },
+  { name: "TRUST", types: ["TEMOIGNAGES", "SERVICES", "PROCESSUS", "FAQ", "STATISTIQUES"] },
   { name: "CLOSING", types: ["CONTACT"] },
 ];
 
@@ -34,6 +36,8 @@ const icons: Record<TypeBloc, LucideIcon> = {
   AVANT_APRES: Scaling,
   TEMOIGNAGES: MessageSquareQuote,
   SERVICES: Package,
+  PROCESSUS: ListChecks,
+  FAQ: CircleHelp,
   STATISTIQUES: ChartNoAxesColumn,
   VIDEO: Video,
   CONTACT: Mail,

@@ -1,9 +1,15 @@
 import "server-only";
 import { Types } from "mongoose";
 import { connectDB } from "@/lib/db";
+import { Avis } from "@/modules/avis-reclamations/avis.model";
 import { Photo } from "@/modules/photos-galeries/photo.model";
+import { Seance } from "@/modules/seances/seance.model";
 import { createNotification } from "@/modules/utilisateurs/notification.service";
-import { findUtilisateurById, listUtilisateurs } from "@/modules/utilisateurs/utilisateur.service";
+import {
+  findUtilisateurById,
+  findUtilisateurRefs,
+  listUtilisateurs,
+} from "@/modules/utilisateurs/utilisateur.service";
 import {
   mockAvisService,
   mockNotificationsService,
@@ -22,12 +28,65 @@ const mocks: PortfolioIntegrations = {
   notificationsService: mockNotificationsService,
 };
 
+async function getPhotographerSessionIds(photographeId: string): Promise<Types.ObjectId[]> {
+  await connectDB();
+  if (!Types.ObjectId.isValid(photographeId)) return [];
+  const sessions = await Seance.find({
+    "equipe.employe": new Types.ObjectId(photographeId),
+  })
+    .select("_id")
+    .lean();
+  return sessions.map((session) => session._id);
+}
+
+async function loadPublishedReviews(photographeId: string) {
+  const sessionIds = await getPhotographerSessionIds(photographeId);
+  if (sessionIds.length === 0) return { items: [], total: 0, moyenne: 0 };
+
+  const [reviews, total, [summary]] = await Promise.all([
+    Avis.find({ seance: { $in: sessionIds }, statut: "PUBLIE" })
+      .sort({ createdAt: -1 })
+      .limit(12)
+      .lean(),
+    Avis.countDocuments({ seance: { $in: sessionIds }, statut: "PUBLIE" }),
+    Avis.aggregate<{ moyenne: number }>([
+      { $match: { seance: { $in: sessionIds }, statut: "PUBLIE" } },
+      { $group: { _id: null, moyenne: { $avg: "$note" } } },
+    ]),
+  ]);
+  const authors = await findUtilisateurRefs(reviews.map((review) => review.auteur.toString()));
+
+  return {
+    items: reviews.map((review) => {
+      const author = authors.get(review.auteur.toString());
+      return {
+        id: review._id.toString(),
+        auteur: author ? `${author.prenom} ${author.nom}`.trim() : "Client",
+        texte: review.commentaire,
+        note: review.note,
+        seanceTitre: review.seanceTitre,
+        seanceType: review.seanceType,
+        date: review.createdAt.toISOString(),
+      };
+    }),
+    total,
+    moyenne: Number((summary?.moyenne ?? 0).toFixed(1)),
+  };
+}
+
 const realIntegrations: PortfolioIntegrations = {
   utilisateursService: {
     async getUtilisateur(id) {
       const user = await findUtilisateurById(id);
       return user?.statut === "ACTIF"
-        ? { id: user.id, nom: user.nom, prenom: user.prenom, role: user.role, statut: user.statut }
+        ? {
+            id: user.id,
+            nom: user.nom,
+            prenom: user.prenom,
+            photoProfil: user.photoProfil,
+            role: user.role,
+            statut: user.statut,
+          }
         : null;
     },
     async verifierRole(userId, roles) {
@@ -90,8 +149,29 @@ const realIntegrations: PortfolioIntegrations = {
       }));
     },
   },
-  avisService: mocks.avisService,
-  seancesService: mocks.seancesService,
+  avisService: {
+    async obtenirAvisPublics(photographeId) {
+      await connectDB();
+      return loadPublishedReviews(photographeId);
+    },
+    async listerAvisPublies(photographeId) {
+      return (await realIntegrations.avisService.obtenirAvisPublics(photographeId)).items;
+    },
+    async calculerNoteMoyenne(photographeId) {
+      return (await realIntegrations.avisService.obtenirAvisPublics(photographeId)).moyenne;
+    },
+  },
+  seancesService: {
+    ...mocks.seancesService,
+    async compterSeancesTerminees(photographeId) {
+      await connectDB();
+      if (!Types.ObjectId.isValid(photographeId)) return 0;
+      return Seance.countDocuments({
+        "equipe.employe": new Types.ObjectId(photographeId),
+        statut: "TERMINEE",
+      });
+    },
+  },
   notificationsService: {
     async envoyer(notification) {
       await createNotification({

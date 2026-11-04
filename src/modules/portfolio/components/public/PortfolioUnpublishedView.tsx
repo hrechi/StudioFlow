@@ -47,8 +47,8 @@ export function PortfolioUnpublishedView({
         {/* Paragraph max 52ch */}
         <p className="mt-4 max-w-[52ch] font-sans text-sm text-[#9a8f82] leading-relaxed">
           {isDraft
-            ? "Le photographe y travaille encore, ou l'a retiré pour un temps — le brouillon reste privé."
-            : "Aucun portfolio n'a été trouvé à cette adresse."}
+            ? "The photographer is still working on it or has temporarily hidden it — the draft remains private."
+            : "No portfolio was found at this address."}
         </p>
 
         {/* Two actions */}
@@ -74,4 +74,3 @@ export function PortfolioUnpublishedView({
     </div>
   );
 }
-

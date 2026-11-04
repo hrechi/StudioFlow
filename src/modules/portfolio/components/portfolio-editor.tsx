@@ -71,11 +71,16 @@ import {
   CATEGORIES_PORTFOLIO,
   MISES_EN_PAGE,
   RESEAUX_SOCIAUX,
-  THEMES_PORTFOLIO,
+  SERVICES_PHOTOGRAPHIQUES,
+  STYLES_PHOTOGRAPHIQUES,
+  servicePhotographiqueLabels,
+  stylePhotographiqueLabels,
   type BlocPortfolio,
   type ElementBlocPortfolio,
   type PortfolioQualityAudit as PortfolioQualityAuditResult,
   type PhotoQualityReport,
+  type ServicePhotographique,
+  type StylePhotographique,
   type TypeBloc,
 } from "../portfolio.types";
 import { PortfolioQualityAudit } from "./editor/PortfolioQualityAudit";
@@ -85,6 +90,13 @@ import type { PhotoPortfolio } from "../integrations/portfolio-integrations.type
 import styles from "./portfolio-editor.module.css";
 
 type History = { past: BlocPortfolio[][]; future: BlocPortfolio[][] };
+type PublicationBlocker = {
+  id: string;
+  title: string;
+  detail: string;
+  blockId?: string;
+  blockType?: TypeBloc;
+};
 const objectId = () => crypto.randomUUID().replaceAll("-", "").slice(0, 24);
 
 const defaults: Record<TypeBloc, Record<string, unknown>> = {
@@ -95,8 +107,8 @@ const defaults: Record<TypeBloc, Record<string, unknown>> = {
     lienBouton: "#contact",
   },
   A_PROPOS: { texte: "Présentez votre approche et votre expérience.", anneesExperience: 0 },
-  GALERIE: { titre: "", colonnes: 3, espacement: 16 },
-  COLLECTION: { titre: "", colonnes: 3, espacement: 16 },
+  GALERIE: { titre: "" },
+  COLLECTION: { titre: "" },
   CASE_STUDY: {
     titre: "Une histoire de séance",
     texte: "Racontez le déroulement de ce projet.",
@@ -106,8 +118,10 @@ const defaults: Record<TypeBloc, Record<string, unknown>> = {
   AVANT_APRES: {},
   TEMOIGNAGES: { avisIds: [] },
   SERVICES: { forfaits: [] },
+  PROCESSUS: { titre: "Comment se déroule une séance", etapes: [] },
+  FAQ: { titre: "Questions fréquentes", questions: [] },
   STATISTIQUES: { afficher: ["SEANCES", "NOTE_MOYENNE"] },
-  VIDEO: { urlVideo: "https://", titre: "Dans les coulisses" },
+  VIDEO: { urlVideo: "", titre: "Dans les coulisses" },
   CONTACT: {
     texteIntro: "Parlez-moi de la séance que vous imaginez.",
     typesSeanceProposes: [],
@@ -116,7 +130,9 @@ const defaults: Record<TypeBloc, Record<string, unknown>> = {
 
 export function PortfolioEditor({ portfolio }: { portfolio: PortfolioEditorData }) {
   const router = useRouter();
-  const [blocks, setBlocks] = useState<BlocPortfolio[]>(portfolio.blocs);
+  const [blocks, setBlocks] = useState<BlocPortfolio[]>(
+    portfolio.blocs.filter((b) => b.type !== "VIDEO"),
+  );
   const [selected, setSelected] = useState<string | null>(portfolio.blocs[0]?.idBloc ?? null);
   const [selectedElement, setSelectedElement] = useState<string | null>(null);
   const [inspectorTab, setRéglagesTab] = useState<"block" | "page">("block");
@@ -310,6 +326,10 @@ export function PortfolioEditor({ portfolio }: { portfolio: PortfolioEditorData 
   function addPhoto(blockId: string, photo: (typeof photos)[number]) {
     const block = blocks.find((item) => item.idBloc === blockId);
     if (!block) return;
+    if (block.elements.length >= 12) {
+      toast.error("La galerie est limitée à 12 photos maximum.");
+      return;
+    }
     const element: ElementBlocPortfolio = {
       idElement: objectId(),
       source: photo.clientId ? "GALERIE_CLIENT" : "UPLOAD_PERSONNEL",
@@ -350,6 +370,10 @@ export function PortfolioEditor({ portfolio }: { portfolio: PortfolioEditorData 
     }
     const block = blocks.find((item) => item.idBloc === blockId);
     if (!block) return;
+    if (block.elements.length >= 12) {
+      toast.error("La galerie est limitée à 12 photos maximum.");
+      return;
+    }
     const element: ElementBlocPortfolio = {
       idElement: objectId(),
       source: "UPLOAD_PERSONNEL",
@@ -368,6 +392,16 @@ export function PortfolioEditor({ portfolio }: { portfolio: PortfolioEditorData 
   }
   async function publish() {
     if (!window.confirm("Publier your current portfolio?")) return;
+    if (timer.current) clearTimeout(timer.current);
+    setStatus("saving");
+    const saved = await savePortfolio({ portfolioId: portfolio.id, blocs: blocksRef.current });
+    if (!saved.ok) {
+      setStatus("error");
+      toast.error(saved.error);
+      return;
+    }
+    setStatus("saved");
+    setLastModification(new Date());
     setPubliering(true);
     const result = await publierPortfolio({ portfolioId: portfolio.id });
     setPubliering(false);
@@ -568,6 +602,37 @@ export function PortfolioEditor({ portfolio }: { portfolio: PortfolioEditorData 
   const dirty =
     portfolio.statut === "PUBLIE" &&
     (status !== "saved" || lastModification > new Date(portfolio.datePublication ?? 0));
+  const heroBlocks = blocks.filter((block) => block.type === "HERO");
+  const publicationBlockers: PublicationBlocker[] =
+    heroBlocks.length === 1
+      ? []
+      : [
+          {
+            id: "hero",
+            title: heroBlocks.length === 0 ? "Bloc Hero manquant" : "Plusieurs blocs Hero",
+            detail: "La page doit contenir exactement un bloc Hero.",
+            ...(heroBlocks[0]
+              ? { blockId: heroBlocks[heroBlocks.length > 1 ? 1 : 0]?.idBloc }
+              : { blockType: "HERO" as const }),
+          },
+        ];
+  for (const block of blocks.filter((item) => item.type === "AVANT_APRES")) {
+    const pairRoles = new Map<number, Set<string>>();
+    for (const element of block.elements) {
+      if (element.paire === undefined || element.role === "NORMAL") continue;
+      const roles = pairRoles.get(element.paire) ?? new Set<string>();
+      roles.add(element.role);
+      pairRoles.set(element.paire, roles);
+    }
+    if ([...pairRoles.values()].some((roles) => !roles.has("AVANT") || !roles.has("APRES"))) {
+      publicationBlockers.push({
+        id: `before-after-${block.idBloc}`,
+        title: "Comparaison Avant / Après incomplète",
+        detail: "Chaque paire doit contenir une photo Avant et une photo Après.",
+        blockId: block.idBloc,
+      });
+    }
+  }
 
   return (
     <div className={styles.editor}>
@@ -1065,6 +1130,45 @@ export function PortfolioEditor({ portfolio }: { portfolio: PortfolioEditorData 
           isLoading={qualityAuditLoading}
           onClose={() => setQualityAuditOpen(false)}
           onAddBlock={(type) => addBlock(type, blocks.length)}
+          publicationBlockers={publicationBlockers}
+          onFixBlock={(blocker) => {
+            setQualityAuditOpen(false);
+            if (blocker.blockId) {
+              selectBlock(blocker.blockId);
+            } else if (blocker.blockType) {
+              addBlock(blocker.blockType, blocks.length);
+            }
+          }}
+          onFixCheck={(check) => {
+            setQualityAuditOpen(false);
+            if (check === "SEO") {
+              setSelected(null);
+              setSelectedElement(null);
+              setRéglagesTab("page");
+              setMobilePanel("inspector");
+              return;
+            }
+            if (check === "PROFILE_PHOTO") {
+              const about = blocks.find((block) => block.type === "A_PROPOS");
+              if (about) {
+                selectBlock(about.idBloc);
+              } else {
+                addBlock("A_PROPOS", blocks.length);
+              }
+              return;
+            }
+            const target = blocks
+              .flatMap((block) => block.elements.map((element) => ({ block, element })))
+              .find(({ element }) =>
+                check === "CONSENT"
+                  ? element.source === "GALERIE_CLIENT" && element.statutConsentement !== "ACCORDE"
+                  : !element.texteAlt?.trim(),
+              );
+            if (target) {
+              selectBlock(target.block.idBloc);
+              setSelectedElement(target.element.idElement);
+            }
+          }}
         />
       )}
     </div>
@@ -1398,7 +1502,7 @@ function BlockPreview({
   const text = (key: string) => (typeof config[key] === "string" ? (config[key] as string) : "");
   const photos = [...block.elements].sort((a, b) => a.ordreAffichage - b.ordreAffichage);
   const columns =
-    block.miseEnPage === "PLEIN_ECRAN" ? 1 : Math.min(4, Math.max(2, Number(config.colonnes) || 3));
+    block.miseEnPage === "PLEIN_ECRAN" ? 1 : Math.min(4, Math.max(2, Number(config.colonnes) || 4));
   const gap = Math.min(100, Math.max(0, Number(config.espacement ?? 16)));
   const photoGrid = photos.length ? (
     <div
@@ -1424,6 +1528,41 @@ function BlockPreview({
           />
         </div>
       ))}
+    </div>
+  ) : (
+    <div className={styles.emptyMedia}>
+      Ajoutez des photos depuis votre galerie pour prévisualiser cette section.
+    </div>
+  );
+  const exhibitionPreview = photos.length ? (
+    <div className="relative mt-6 h-64 overflow-hidden rounded-xl border border-white/10 bg-[#080504]">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_46%,rgba(232,163,74,.22),transparent_50%)]" />
+      <div className="absolute inset-x-0 top-0 h-10 border-b border-black/10 bg-[#f0efe9]" />
+      <div className="absolute inset-x-0 bottom-0 h-12 border-t border-white/10 bg-[#20201f] bg-[linear-gradient(90deg,#282827_1px,transparent_1px),linear-gradient(#282827_1px,transparent_1px)] bg-[size:32px_32px]" />
+      {photos.slice(0, 3).map((photo, index) => (
+        <div
+          key={photo.idElement}
+          className="absolute top-1/2 aspect-[4/5] w-[min(22%,8rem)] -translate-y-1/2 border-[5px] border-[#33271f] bg-[#eee8df] p-1.5 shadow-2xl"
+          style={{
+            left: `${index === 0 ? 24 : index === 1 ? 50 : 76}%`,
+            transform: `translate(-50%, -50%) perspective(500px) rotateY(${index === 0 ? 12 : index === 2 ? -12 : 0}deg) scale(${index === 1 ? 1 : 0.82})`,
+          }}
+        >
+          <div className="relative size-full overflow-hidden">
+            <SafeImage
+              src={photo.media.urlMiniature || photo.media.url}
+              alt={photo.texteAlt || photo.titre || ""}
+              fill
+              unoptimized
+              sizes="120px"
+              className="object-cover"
+            />
+          </div>
+        </div>
+      ))}
+      <p className="absolute right-3 bottom-3 left-3 text-center font-mono text-[9px] tracking-wider text-[#e9b984] uppercase">
+        Aperçu · {photos.length} photos dans une exposition 3D
+      </p>
     </div>
   ) : (
     <div className={styles.emptyMedia}>
@@ -1494,15 +1633,16 @@ function BlockPreview({
     case "COLLECTION":
       return (
         <section className={styles.previewSection}>
-          <p className={styles.previewStamp}>
-            {block.type === "COLLECTION" ? "Collection" : "Galerie"}
-          </p>
+          <p className={styles.previewStamp}>Exposition 3D</p>
           <h2>
             {title === block.type.replaceAll("_", " ")
               ? String(config.categorie ?? "Sélection")
               : title}
           </h2>
-          {photoGrid}
+          {exhibitionPreview}
+          <p className="mt-3 text-xs text-[#62574c]">
+            La grille accessible reste disponible si la 3D n’est pas prise en charge.
+          </p>
         </section>
       );
     case "CASE_STUDY":
@@ -1521,23 +1661,28 @@ function BlockPreview({
     case "AVANT_APRES": {
       const before = photos.find((photo) => photo.role === "AVANT");
       const after = photos.find((photo) => photo.role === "APRES");
+      const beforeUrl = before?.media.urlMiniature || text("photoAvant");
+      const afterUrl = after?.media.urlMiniature || text("photoApres");
       return (
         <section className={styles.previewSection}>
           <p className={styles.previewStamp}>Avant / après</p>
           <h2>{title}</h2>
-          {before && after ? (
+          {beforeUrl && afterUrl ? (
             <div className={styles.comparePreview}>
-              {[before, after].map((photo) => (
-                <div key={photo.idElement} className={styles.previewImage}>
+              {[
+                { label: "Avant", url: beforeUrl },
+                { label: "Après", url: afterUrl },
+              ].map((photo) => (
+                <div key={photo.label} className={styles.previewImage}>
                   <SafeImage
-                    src={photo.media.urlMiniature}
-                    alt={photo.role}
+                    src={photo.url}
+                    alt={photo.label}
                     fill
                     unoptimized
                     sizes="30vw"
                     className="object-cover"
                   />
-                  <span>{photo.role}</span>
+                  <span>{photo.label}</span>
                 </div>
               ))}
             </div>
@@ -1584,6 +1729,22 @@ function BlockPreview({
         </section>
       );
     }
+    case "PROCESSUS":
+      return (
+        <section className={styles.previewSection}>
+          <p className={styles.previewStamp}>Accompagnement</p>
+          <h2>{title || "Votre processus de travail"}</h2>
+          <div className={styles.emptyMedia}>Les étapes de votre accompagnement seront présentées ici.</div>
+        </section>
+      );
+    case "FAQ":
+      return (
+        <section className={styles.previewSection}>
+          <p className={styles.previewStamp}>FAQ</p>
+          <h2>{title || "Questions fréquentes"}</h2>
+          <div className={styles.emptyMedia}>Les réponses aux questions de vos clients seront présentées ici.</div>
+        </section>
+      );
     case "STATISTIQUES":
       return (
         <section className={styles.previewSection}>
@@ -1593,17 +1754,7 @@ function BlockPreview({
         </section>
       );
     case "VIDEO":
-      return (
-        <section className={styles.previewSection}>
-          <p className={styles.previewStamp}>Film</p>
-          <h2>{title || "Un film de cette journée"}</h2>
-          <div className={styles.emptyMedia}>
-            {text("urlVideo") && text("urlVideo") !== "https://"
-              ? "Lien vidéo ajouté"
-              : "Ajoutez l’URL de la vidéo dans les réglages du bloc."}
-          </div>
-        </section>
-      );
+      return null;
     case "CONTACT":
       return (
         <section className={styles.contactPreview}>
@@ -1639,9 +1790,42 @@ function BlockProperties({
   onGenerateStory: () => void;
   aiPending: boolean;
 }) {
+  const [uploadingImage, setUploadingImage] = useState<"photoAvant" | "photoApres" | null>(null);
+  const photoAvantInput = useRef<HTMLInputElement | null>(null);
+  const photoApresInput = useRef<HTMLInputElement | null>(null);
   const configurationFields = Object.entries(block.configuration).filter(
-    ([key]) => key !== "forfaits" && key !== "categorie",
+    ([key]) =>
+      key !== "forfaits" &&
+      key !== "categorie" &&
+      !(
+        ["GALERIE", "COLLECTION"].includes(block.type) &&
+        ["colonnes", "espacement", "modeAffichage"].includes(key)
+      ) &&
+      !(block.type === "AVANT_APRES" && ["photoAvant", "photoApres"].includes(key)),
   );
+  async function uploadComparisonImage(key: "photoAvant" | "photoApres", file: File) {
+    setUploadingImage(key);
+    try {
+      const formData = new FormData();
+      formData.set("file", file);
+      const response = await fetch("/api/portfolio/upload", { method: "POST", body: formData });
+      const result = (await response.json()) as {
+        ok?: boolean;
+        message?: string;
+        data?: { url?: string };
+      };
+      if (!response.ok || !result.ok || !result.data?.url) {
+        toast.error(result.message ?? "Impossible d’importer cette image.");
+        return;
+      }
+      onChange(key, result.data.url);
+      toast.success(`Photo « ${key === "photoAvant" ? "Avant" : "Après"} » importée.`);
+    } catch {
+      toast.error("Erreur lors de l’importation de l’image.");
+    } finally {
+      setUploadingImage(null);
+    }
+  }
   return (
     <div className="space-y-4 p-4">
       <label className="flex items-center gap-2 text-xs">
@@ -1652,27 +1836,34 @@ function BlockProperties({
         />
         {editorFr.visible}
       </label>
-      <section className="space-y-2 border-b border-border pb-4">
-        <h3 className="text-[10px] font-semibold tracking-widest text-muted-foreground uppercase">
-          {editorFr.layout}
-        </h3>
-        <div className="grid grid-cols-2 gap-2">
-          {MISES_EN_PAGE.map((item) => (
-            <button
-              type="button"
-              key={item}
-              aria-pressed={block.miseEnPage === item}
-              onClick={() => onLayout(item)}
-              className={`rounded-md border px-2 py-2 text-xs ${block.miseEnPage === item ? "border-amber-500 bg-amber-500/10" : "border-border"}`}
-            >
-              {editorFr.layouts[item]}
-            </button>
-          ))}
-        </div>
-        {["GALERIE", "COLLECTION", "AVANT_APRES"].includes(block.type) && (
-          <p className="text-[10px] text-muted-foreground">{editorFr.labels.layoutHelp}</p>
-        )}
-      </section>
+      {["GALERIE", "COLLECTION"].includes(block.type) ? (
+        <p className="border-b border-border pb-4 text-[10px] leading-relaxed text-muted-foreground">
+          Les photos sont accrochées automatiquement dans l’exposition 3D. Leur disposition s’adapte
+          à leur nombre et à leur format ; seules les 12 premières sont affichées.
+        </p>
+      ) : (
+        <section className="space-y-2 border-b border-border pb-4">
+          <h3 className="text-[10px] font-semibold tracking-widest text-muted-foreground uppercase">
+            {editorFr.layout}
+          </h3>
+          <div className="grid grid-cols-2 gap-2">
+            {MISES_EN_PAGE.map((item) => (
+              <button
+                type="button"
+                key={item}
+                aria-pressed={block.miseEnPage === item}
+                onClick={() => onLayout(item)}
+                className={`rounded-md border px-2 py-2 text-xs ${block.miseEnPage === item ? "border-amber-500 bg-amber-500/10" : "border-border"}`}
+              >
+                {editorFr.layouts[item]}
+              </button>
+            ))}
+          </div>
+          {block.type === "AVANT_APRES" && (
+            <p className="text-[10px] text-muted-foreground">{editorFr.labels.layoutHelp}</p>
+          )}
+        </section>
+      )}
       <section className="space-y-3">
         <h3 className="text-[10px] font-semibold tracking-widest text-muted-foreground uppercase">
           {editorFr.content}
@@ -1688,6 +1879,80 @@ function BlockProperties({
             <Sparkles className="size-4" />
             Suggérer un récit depuis mes notes
           </Button>
+        )}
+        {block.type === "AVANT_APRES" && (
+          <div className="space-y-3">
+            {(
+              [
+                ["photoAvant", "Avant", photoAvantInput],
+                ["photoApres", "Après", photoApresInput],
+              ] as const
+            ).map(([key, label, inputRef]) => {
+              const imageUrl =
+                typeof block.configuration[key] === "string"
+                  ? (block.configuration[key] as string)
+                  : "";
+              return (
+                <div key={key} className="space-y-2 rounded-lg border border-border p-3">
+                  <p className="text-xs font-medium">Photo {label}</p>
+                  {imageUrl ? (
+                    <div className="relative aspect-[4/3] overflow-hidden rounded-md">
+                      <SafeImage
+                        src={imageUrl}
+                        alt={`Photo ${label.toLowerCase()}`}
+                        fill
+                        unoptimized
+                        sizes="280px"
+                        className="object-cover"
+                      />
+                    </div>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">
+                      Importez la photo {label.toLowerCase()} de la comparaison.
+                    </p>
+                  )}
+                  <input
+                    ref={inputRef}
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    className="sr-only"
+                    onChange={(event) => {
+                      const file = event.currentTarget.files?.[0];
+                      if (file) void uploadComparisonImage(key, file);
+                      event.currentTarget.value = "";
+                    }}
+                  />
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      disabled={uploadingImage !== null}
+                      onClick={() => inputRef.current?.click()}
+                    >
+                      {uploadingImage === key ? (
+                        <LoaderCircle className="size-4 animate-spin" />
+                      ) : (
+                        <ImagePlus className="size-4" />
+                      )}
+                      {imageUrl ? "Remplacer" : "Importer"}
+                    </Button>
+                    {imageUrl && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        disabled={uploadingImage !== null}
+                        onClick={() => onChange(key, "")}
+                      >
+                        Retirer
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         )}
         {configurationFields.map(([key, value]) => {
           const label = editorFr.fields[key] ?? key;
@@ -1948,6 +2213,20 @@ function PortfolioPageProperties({
   onApplySEO: () => void;
   aiPending: boolean;
 }) {
+  const themeOptions = [
+    { value: "MINIMAL", label: "Minimal", color: "#f7f2e9" },
+    { value: "SOMBRE", label: "Sombre", color: "#0f0905" },
+    { value: "EDITORIAL", label: "Éditorial", color: "#faf6ee" },
+    { value: "COLORE", label: "Coloré", color: "#fdfaf5" },
+  ] as const;
+  const accentPresets = [
+    { name: "Ambre", color: "#e8a34a" },
+    { name: "Terracotta", color: "#d97746" },
+    { name: "Olive", color: "#848e42" },
+    { name: "Rose argile", color: "#c98f82" },
+    { name: "Encre", color: "#2d3748" },
+  ] as const;
+
   return (
     <div className="space-y-4">
       <section className="space-y-3 border-b border-border pb-4">
@@ -1977,6 +2256,22 @@ function PortfolioPageProperties({
           />
         </label>
         <label className="grid gap-1 text-xs">
+          Région
+          <Input
+            defaultValue={portfolio.region ?? ""}
+            maxLength={120}
+            onBlur={(event) => onUpdate({ region: event.target.value })}
+          />
+        </label>
+        <label className="grid gap-1 text-xs">
+          Pays
+          <Input
+            defaultValue={portfolio.pays ?? ""}
+            maxLength={120}
+            onBlur={(event) => onUpdate({ pays: event.target.value })}
+          />
+        </label>
+        <label className="grid gap-1 text-xs">
           Biographie
           <textarea
             value={bio}
@@ -2001,28 +2296,87 @@ function PortfolioPageProperties({
       </section>
       <section className="space-y-3 border-b border-border pb-4">
         <h3 className="text-sm font-semibold">Apparence</h3>
-        <label className="grid gap-1 text-xs">
-          Thème
-          <select
-            defaultValue={portfolio.theme}
-            onChange={(event) =>
-              onUpdate({ theme: event.target.value as PortfolioUpdateInput["theme"] })
-            }
-            className="h-9 rounded-lg border border-border bg-background px-2"
-          >
-            {THEMES_PORTFOLIO.map((theme) => (
-              <option key={theme}>{theme}</option>
+        <fieldset className="space-y-2">
+          <legend className="text-xs">Thème de base</legend>
+          <div className="grid grid-cols-2 gap-2">
+            {themeOptions.map((theme) => (
+              <button
+                key={theme.value}
+                type="button"
+                aria-pressed={portfolio.theme === theme.value}
+                onClick={() => onUpdate({ theme: theme.value as PortfolioUpdateInput["theme"] })}
+                className={`flex items-center gap-2 rounded-lg border px-2 py-2 text-xs transition-colors ${
+                  portfolio.theme === theme.value
+                    ? "border-primary bg-primary/10 font-medium"
+                    : "border-border hover:bg-muted"
+                }`}
+              >
+                <span
+                  aria-hidden="true"
+                  className="size-4 shrink-0 rounded-full border border-black/15"
+                  style={{ backgroundColor: theme.color }}
+                />
+                {theme.label}
+              </button>
             ))}
-          </select>
-        </label>
-        <label className="grid gap-1 text-xs">
-          Couleur d’accent
-          <Input
-            type="color"
-            defaultValue={portfolio.couleurAccent}
-            onChange={(event) => onUpdate({ couleurAccent: event.target.value })}
-          />
-        </label>
+          </div>
+        </fieldset>
+        <fieldset className="space-y-2">
+          <legend className="text-xs">Couleur d’accent personnalisée</legend>
+          <p className="text-[11px] text-muted-foreground">
+            Choisissez une palette ou créez votre propre couleur pour personnaliser le thème.
+          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            {accentPresets.map((preset) => (
+              <button
+                key={preset.color}
+                type="button"
+                aria-label={`Utiliser la couleur ${preset.name}`}
+                aria-pressed={portfolio.couleurAccent.toLowerCase() === preset.color}
+                onClick={() => onUpdate({ couleurAccent: preset.color })}
+                className={`size-7 rounded-full border transition-transform hover:scale-110 ${
+                  portfolio.couleurAccent.toLowerCase() === preset.color
+                    ? "border-foreground ring-2 ring-primary/40 ring-offset-2"
+                    : "border-border"
+                }`}
+                style={{ backgroundColor: preset.color }}
+                title={preset.name}
+              />
+            ))}
+          </div>
+          <div className="flex items-center gap-2">
+            <label
+              className="flex size-10 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-lg border border-border"
+              title="Choisir une couleur personnalisée"
+            >
+              <span className="sr-only">Choisir une couleur personnalisée</span>
+              <input
+                type="color"
+                value={portfolio.couleurAccent}
+                onChange={(event) => onUpdate({ couleurAccent: event.target.value })}
+                className="size-14 cursor-pointer"
+              />
+            </label>
+            <label className="grid flex-1 gap-1 text-[11px]">
+              Code HEX
+              <Input
+                key={portfolio.couleurAccent}
+                defaultValue={portfolio.couleurAccent}
+                maxLength={7}
+                pattern="^#[\da-fA-F]{6}$"
+                aria-label="Code HEX de la couleur personnalisée"
+                onBlur={(event) => {
+                  if (!/^#[\da-fA-F]{6}$/.test(event.currentTarget.value)) {
+                    event.currentTarget.value = portfolio.couleurAccent;
+                    toast.error("Saisissez une couleur HEX valide, par exemple #E8A34A.");
+                    return;
+                  }
+                  onUpdate({ couleurAccent: event.currentTarget.value });
+                }}
+              />
+            </label>
+          </div>
+        </fieldset>
         <label className="grid gap-1 text-xs">
           Spécialités
           <select
@@ -2044,6 +2398,58 @@ function PortfolioPageProperties({
               </option>
             ))}
           </select>
+        </label>
+        <label className="grid gap-1 text-xs">
+          Styles photographiques
+          <select
+            multiple
+            defaultValue={portfolio.styles ?? []}
+            onChange={(event) =>
+              onUpdate({
+                styles: Array.from(
+                  event.target.selectedOptions,
+                  (option) => option.value as StylePhotographique,
+                ),
+              })
+            }
+            className="min-h-24 rounded-lg border border-border bg-background p-2"
+          >
+            {STYLES_PHOTOGRAPHIQUES.map((style) => (
+              <option key={style} value={style}>
+                {stylePhotographiqueLabels[style]}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="grid gap-1 text-xs">
+          Services proposés
+          <select
+            multiple
+            defaultValue={portfolio.services ?? []}
+            onChange={(event) =>
+              onUpdate({
+                services: Array.from(
+                  event.target.selectedOptions,
+                  (option) => option.value as ServicePhotographique,
+                ),
+              })
+            }
+            className="min-h-20 rounded-lg border border-border bg-background p-2"
+          >
+            {SERVICES_PHOTOGRAPHIQUES.map((service) => (
+              <option key={service} value={service}>
+                {servicePhotographiqueLabels[service]}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="flex items-center gap-2 text-xs">
+          <input
+            type="checkbox"
+            defaultChecked={portfolio.disponible}
+            onChange={(event) => onUpdate({ disponible: event.target.checked })}
+          />
+          Disponible pour de nouvelles réservations
         </label>
         <label className="flex items-center gap-2 text-xs">
           <input
@@ -2091,7 +2497,7 @@ function PortfolioPageProperties({
         )}
         <fieldset className="space-y-2">
           <legend className="text-xs font-medium">Liens sociaux</legend>
-          {RESEAUX_SOCIAUX.map((reseau) => (
+          {RESEAUX_SOCIAUX.filter((reseau) => reseau !== "SITE_WEB").map((reseau) => (
             <label key={reseau} className="grid gap-1 text-xs">
               {
                 {
@@ -2099,7 +2505,6 @@ function PortfolioPageProperties({
                   FACEBOOK: "Facebook",
                   TIKTOK: "TikTok",
                   YOUTUBE: "YouTube",
-                  SITE_WEB: "Site web",
                 }[reseau]
               }
               <Input
@@ -2119,6 +2524,23 @@ function PortfolioPageProperties({
               />
             </label>
           ))}
+          <div className="grid gap-1 text-xs">
+            <span>Site web — portfolio public</span>
+            {portfolio.slug && portfolio.statut === "PUBLIE" ? (
+              <a
+                href={`/portfolio/${portfolio.slug}`}
+                target="_blank"
+                rel="noreferrer"
+                className="truncate rounded-lg border border-border bg-muted px-3 py-2 text-primary underline underline-offset-2"
+              >
+                {`/portfolio/${portfolio.slug}`}
+              </a>
+            ) : (
+              <p className="rounded-lg border border-border bg-muted px-3 py-2 text-muted-foreground">
+                Le lien sera disponible après la publication du portfolio.
+              </p>
+            )}
+          </div>
         </fieldset>
       </section>
       <section className="space-y-3">
@@ -2309,10 +2731,52 @@ function EditorPreview({
   blocks: BlocPortfolio[];
   mobile: boolean;
 }) {
+  const palettes = {
+    MINIMAL: {
+      background: "#f7f2e9",
+      text: "#1b1712",
+      muted: "#7d7264",
+      border: "#ddd1bf",
+      surface: "#fff",
+    },
+    SOMBRE: {
+      background: "#0f0905",
+      text: "#f3ebdd",
+      muted: "#9a8f82",
+      border: "rgba(255,255,255,0.08)",
+      surface: "#1c1410",
+    },
+    EDITORIAL: {
+      background: "#faf6ee",
+      text: "#1a1612",
+      muted: "#706659",
+      border: "#e2d9cb",
+      surface: "#f2ebde",
+    },
+    COLORE: {
+      background: "#fdfaf5",
+      text: "#191e24",
+      muted: "#6b7280",
+      border: "#e5e7eb",
+      surface: "#f4f3ef",
+    },
+  } as const;
+  const palette = palettes[portfolio.theme];
+
   return (
     <div
       className={`${styles.previewPage} mx-auto overflow-hidden shadow-soft ${mobile ? "max-w-sm" : "max-w-5xl"}`}
-      style={{ "--portfolio-accent": portfolio.couleurAccent } as CSSProperties}
+      style={
+        {
+          "--portfolio-accent": portfolio.couleurAccent,
+          "--editor-accent": portfolio.couleurAccent,
+          "--editor-background": palette.background,
+          "--editor-text": palette.text,
+          "--editor-muted": palette.muted,
+          "--editor-border": palette.border,
+          "--editor-surface": palette.surface,
+        } as CSSProperties
+      }
     >
       <div className={styles.hero}>
         <SafeImage

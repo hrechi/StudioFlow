@@ -21,6 +21,7 @@ import {
   getPortfolioById,
   getPortfolioForEditor,
   getPortfolioStats,
+  listPublicPortfolios,
   analyserQualitePhotosPhotographe,
   listerPhotosPhotographePourPortfolio,
   noterPortfolio,
@@ -40,6 +41,7 @@ import {
   portfolioCreateSchema,
   portfolioIdSchema,
   portfolioUpdateSchema,
+  publicPortfolioSearchSchema,
   publishPortfolioSchema,
   savePortfolioSchema,
 } from "./portfolio.schemas";
@@ -265,7 +267,19 @@ export async function mettreAJourPortfolio(
   try {
     await updatePortfolio(portfolioId, user.id, parsed.data);
     revalidatePath(`/dashboard/portfolio/${portfolioId}`);
+    revalidatePath("/portfolio");
+    revalidatePath("/portfolio/[slug]", "page");
     return success();
+  } catch (error) {
+    return toFailure(error);
+  }
+}
+
+export async function rechercherPortfoliosPublics(input: unknown) {
+  const parsed = publicPortfolioSearchSchema.safeParse(input);
+  if (!parsed.success) return validationFailure(parsed.error);
+  try {
+    return success(await listPublicPortfolios(parsed.data));
   } catch (error) {
     return toFailure(error);
   }
@@ -300,6 +314,7 @@ export async function depublierPortfolio(input: unknown): Promise<ActionResult> 
     await unpublishPortfolio(parsed.data.portfolioId, user.id, user.role === "ADMIN");
     revalidatePath("/");
     revalidatePath("/portfolio");
+    revalidatePath("/portfolio/[slug]", "page");
     return success();
   } catch (error) {
     return toFailure(error);

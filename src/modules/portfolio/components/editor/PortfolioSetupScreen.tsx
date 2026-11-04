@@ -15,12 +15,9 @@ type PortfolioSetupScreenProps = {
 const SPECIALTIES = [
   "Mariage",
   "Portrait",
-  "Couple",
-  "Mode",
+  "Produit",
   "Événement",
-  "Commercial",
-  "Architecture",
-  "Voyage",
+  "Mode",
 ];
 
 export function PortfolioSetupScreen({
@@ -52,6 +49,14 @@ export function PortfolioSetupScreen({
       toast.error("Veuillez saisir votre nom ou le titre de votre portfolio.");
       return;
     }
+    if (
+      hasExistingPortfolio &&
+      !window.confirm(
+        "Cette action remplacera votre portfolio actuel, son contenu publié et ses demandes de contact. Continuer ?",
+      )
+    ) {
+      return;
+    }
 
     setIsSubmitting(true);
     try {
@@ -59,7 +64,9 @@ export function PortfolioSetupScreen({
         titre: titre.trim(),
         slogan: slogan.trim(),
         ville: ville.trim(),
-        specialites: selectedSpecialties,
+        specialites: selectedSpecialties.map((specialite) =>
+          specialite === "Événement" ? "Evenement" : specialite,
+        ),
         structureInitiale,
       });
 
@@ -190,6 +197,7 @@ export function PortfolioSetupScreen({
                       <button
                         key={sp}
                         type="button"
+                        aria-pressed={active}
                         onClick={() => toggleSpecialty(sp)}
                         className={`rounded-full px-2.5 py-1 text-[11px] font-medium transition-all ${
                           active
@@ -216,8 +224,14 @@ export function PortfolioSetupScreen({
                 <div
                   role="button"
                   tabIndex={0}
+                  aria-pressed={structureInitiale === "MODELE"}
                   onClick={() => setStructureInitiale("MODELE")}
-                  onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && setStructureInitiale("MODELE")}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      setStructureInitiale("MODELE");
+                    }
+                  }}
                   className={`relative cursor-pointer rounded-xl border p-4 text-left transition-all ${
                     structureInitiale === "MODELE"
                       ? "border-[#e8a34a] bg-[#e8a34a]/10 ring-2 ring-[#e8a34a]/50 shadow-lg"
@@ -238,10 +252,10 @@ export function PortfolioSetupScreen({
                     )}
                   </div>
                   <p className="text-xs text-white/90 font-medium">
-                    Template StudioFlow complet
+                    Structure StudioFlow prête à personnaliser
                   </p>
                   <p className="mt-1 text-[11px] text-[#9a8f82] leading-relaxed">
-                    Démarrez avec tous les blocs pré-remplis (Hero, À propos, Galerie, Étude de cas, Avant/Après, Témoignages, Forfaits, Contact). Vous pourrez tout modifier facilement.
+                    Démarrez avec 9 sections déjà composées : Hero, À propos, Galerie, Étude de cas, Avant/Après, Témoignages, Services, Statistiques et Contact. Vous pourrez tout modifier ou retirer.
                   </p>
                 </div>
 
@@ -249,8 +263,14 @@ export function PortfolioSetupScreen({
                 <div
                   role="button"
                   tabIndex={0}
+                  aria-pressed={structureInitiale === "VIDE"}
                   onClick={() => setStructureInitiale("VIDE")}
-                  onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && setStructureInitiale("VIDE")}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      setStructureInitiale("VIDE");
+                    }
+                  }}
                   className={`relative cursor-pointer rounded-xl border p-4 text-left transition-all ${
                     structureInitiale === "VIDE"
                       ? "border-[#e8a34a] bg-[#e8a34a]/10 ring-2 ring-[#e8a34a]/50 shadow-lg"
@@ -308,4 +328,3 @@ export function PortfolioSetupScreen({
     </div>
   );
 }
-

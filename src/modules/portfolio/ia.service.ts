@@ -204,6 +204,12 @@ export function analyserQualitePortfolio(
     (element) => element.source === "GALERIE_CLIENT" && element.statutConsentement !== "ACCORDE",
   ).length;
   const imageCount = elements.length;
+  const aboutBlock = input.blocs.find((block) => block.type === "A_PROPOS");
+  const hasProfilePhoto = Boolean(
+    (typeof aboutBlock?.configuration?.photoPortrait === "string" &&
+      aboutBlock.configuration.photoPortrait.trim()) ||
+    aboutBlock?.elements?.[0]?.media?.url,
+  );
   const hasBlock = (type: BlocPortfolio["type"]) =>
     visibleBlocks.some((block) => block.type === type);
   const textLength = [input.titre, input.slogan, input.bio].filter(Boolean).join(" ").length;
@@ -388,6 +394,14 @@ export function analyserQualitePortfolio(
       missingBlocks,
       idealStructure,
       checksPublication: [
+        {
+          id: "PROFILE_PHOTO" as const,
+          label: "Photo de profil",
+          status: hasProfilePhoto ? ("READY" as const) : ("ACTION" as const),
+          detail: hasProfilePhoto
+            ? "Votre photo de profil est configurée pour l’annuaire."
+            : "Ajoute ta photo de profil pour être mieux visible dans l'annuaire.",
+        },
         {
           id: "CONSENT" as const,
           label: "Consentement client",

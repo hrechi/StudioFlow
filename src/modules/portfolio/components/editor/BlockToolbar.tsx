@@ -42,7 +42,7 @@ export function BlockToolbar({
   dragHandleProps,
 }: BlockToolbarProps) {
   const name = editorFr.blockNames[blockType] || blockType;
-  const supportsPhotos = ["GALERIE", "COLLECTION", "HERO", "A_PROPOS", "AVANT_APRES"].includes(blockType);
+  const supportsPhotos = ["GALERIE", "COLLECTION", "A_PROPOS", "AVANT_APRES"].includes(blockType);
 
   return (
     <div

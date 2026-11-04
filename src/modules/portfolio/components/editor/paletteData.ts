@@ -7,6 +7,8 @@ import {
   Mail,
   MessageSquareQuote,
   Package,
+  ListChecks,
+  CircleHelp,
   Scaling,
   UserRound,
   Video,
@@ -27,12 +29,12 @@ export const PALETTE_GROUPS: BlockGroup[] = [
   {
     id: "WORK",
     name: editorFr.groups.WORK,
-    types: ["GALERIE", "COLLECTION", "CASE_STUDY", "AVANT_APRES", "VIDEO"],
+    types: ["GALERIE", "COLLECTION", "CASE_STUDY", "AVANT_APRES"],
   },
   {
     id: "TRUST",
     name: editorFr.groups.TRUST,
-    types: ["TEMOIGNAGES", "SERVICES", "STATISTIQUES"],
+    types: ["TEMOIGNAGES", "SERVICES", "PROCESSUS", "FAQ", "STATISTIQUES"],
   },
   { id: "CLOSING", name: editorFr.groups.CLOSING, types: ["CONTACT"] },
 ];
@@ -47,7 +49,8 @@ export const BLOCK_ICONS: Record<TypeBloc, LucideIcon> = {
   VIDEO: Video,
   TEMOIGNAGES: MessageSquareQuote,
   SERVICES: Briefcase,
+  PROCESSUS: ListChecks,
+  FAQ: CircleHelp,
   STATISTIQUES: BarChart3,
   CONTACT: Mail,
 };
-

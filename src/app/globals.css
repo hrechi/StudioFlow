@@ -1,6 +1,7 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
+@import "page-flip/src/Style/stPageFlip.css";
 
 /*
  * ReFrame design tokens — light mode on :root, dark mode on .dark (default).
@@ -14,6 +15,33 @@
  */
 
 @custom-variant dark (&:is(.dark *));
+
+.portfolio-album-stage {
+  background-image:
+    linear-gradient(125deg, rgb(255 255 255 / 5%), transparent 48%, rgb(54 37 19 / 4%)),
+    repeating-linear-gradient(
+      2deg,
+      transparent 0,
+      transparent 22px,
+      rgb(108 81 49 / 3%) 23px,
+      transparent 25px
+    );
+}
+
+.portfolio-pageflip {
+  filter: drop-shadow(0 26px 26px rgb(34 24 14 / 20%));
+}
+
+.portfolio-pageflip .stf__block {
+  overflow: visible;
+}
+
+.portfolio-pageflip .stf__item.album-book-cover {
+  background-color: var(--album-cover-color, #443326);
+  box-shadow:
+    inset 10px 0 20px rgb(0 0 0 / 20%),
+    inset -3px 0 8px rgb(255 255 255 / 16%);
+}
 
 @theme inline {
   --color-background: var(--background);
@@ -358,6 +386,32 @@
 }
 
 @layer utilities {
+  .darkroom-portfolio {
+    --font-sans:
+      "Jost", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    --font-serif: "Playfair Display", Georgia, serif;
+    --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  }
+
+  .portfolio-gallery-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .portfolio-gallery-masonry {
+    column-count: 2;
+  }
+
+  @media (min-width: 1024px) {
+    .portfolio-gallery-grid {
+      grid-template-columns: repeat(var(--portfolio-gallery-columns, 4), minmax(0, 1fr));
+    }
+
+    .portfolio-gallery-masonry {
+      column-count: var(--portfolio-gallery-columns, 4);
+    }
+  }
+
   /* Scroll reveal (see components/shared/reveal.tsx) */
   .reveal {
     transition:
@@ -367,6 +421,52 @@
   .reveal[data-visible="false"] {
     opacity: 0;
     transform: translateY(28px);
+  }
+  .darkroom-portfolio .reveal {
+    transition:
+      opacity 700ms var(--ease-cinematic),
+      transform 700ms var(--ease-cinematic);
+  }
+  .darkroom-portfolio .reveal[data-visible="false"] {
+    transform: translateY(26px);
+  }
+  .gallery-reveal-item {
+    transition:
+      opacity 800ms var(--ease-cinematic),
+      transform 800ms var(--ease-cinematic);
+  }
+  .darkroom-portfolio .gallery-reveal-item {
+    transition:
+      opacity 700ms var(--ease-cinematic),
+      transform 700ms var(--ease-cinematic);
+  }
+  .gallery-reveal-item[data-revealed="false"] {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  .hero-image-enter {
+    animation: hero-image-enter 1.4s var(--ease-cinematic) both;
+  }
+  .hero-overlay-enter {
+    animation: hero-overlay-enter 1s ease-out both;
+  }
+  .hero-copy-enter {
+    animation: hero-copy-enter 800ms var(--ease-cinematic) both;
+  }
+  .hero-copy-delay-1 {
+    animation-delay: 250ms;
+  }
+  .hero-copy-delay-2 {
+    animation-delay: 420ms;
+  }
+  .hero-copy-delay-3 {
+    animation-delay: 600ms;
+  }
+  .hero-copy-delay-4 {
+    animation-delay: 750ms;
+  }
+  .hero-scroll-indicator {
+    animation: hero-scroll-indicator 1.8s ease-in-out infinite;
   }
   /* Slow zoom on hover for photo cards */
   .img-zoom {
@@ -387,6 +487,39 @@
   .text-balance {
     text-wrap: balance;
   }
+  .portfolio-nav-link::after {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    height: 1px;
+    background: var(--portfolio-accent);
+    content: "";
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 240ms ease;
+  }
+  .portfolio-nav-link:hover::after,
+  .portfolio-nav-link:focus-visible::after {
+    transform: scaleX(1);
+  }
+  .portfolio-status-pulse {
+    animation: portfolio-status-pulse 2.4s ease-out infinite;
+  }
+  .portfolio-topbar-enter {
+    animation: topbar-glide 0.65s var(--ease-cinematic) both;
+  }
+}
+
+@keyframes topbar-glide {
+  from {
+    opacity: 0;
+    transform: translateY(-14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @keyframes ken-burns {
@@ -395,6 +528,47 @@
   }
   to {
     transform: scale(1.09);
+  }
+}
+@keyframes hero-image-enter {
+  from {
+    opacity: 0;
+    transform: scale(1.12);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+@keyframes hero-overlay-enter {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes hero-copy-enter {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes hero-scroll-indicator {
+  0%,
+  100% {
+    transform: scaleY(0.65);
+    transform-origin: top;
+    opacity: 0.45;
+  }
+  50% {
+    transform: scaleY(1);
+    transform-origin: top;
+    opacity: 1;
   }
 }
 @keyframes page-enter {
@@ -433,6 +607,16 @@
     transform: translateX(100%);
   }
 }
+@keyframes portfolio-status-pulse {
+  0% {
+    opacity: 0.7;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(3.2);
+  }
+}
 
 @media (prefers-reduced-motion: reduce) {
   html {
@@ -445,8 +629,27 @@
     transition: none;
   }
   .ken-burns,
+  .hero-image-enter,
+  .hero-overlay-enter,
+  .hero-copy-enter,
+  .hero-scroll-indicator,
+  .portfolio-topbar-enter,
   .film-grain::after {
     animation: none;
+  }
+  .gallery-reveal-item,
+  .gallery-reveal-item[data-revealed="false"] {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+  .darkroom-portfolio video {
+    display: none;
+  }
+  .darkroom-portfolio .group:hover img,
+  .darkroom-portfolio .portfolio-service-card,
+  .darkroom-portfolio .portfolio-film-frame {
+    transform: none !important;
   }
   *,
   *::before,
@@ -454,5 +657,480 @@
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+  }
+}
+
+/* ==========================================================================
+   Walk The Wall — 3D Immersive Museum Gallery
+   ========================================================================== */
+
+.museum {
+  position: relative;
+  width: 100%;
+  background: #080504;
+  --p: 0;
+  --intro: 1;
+  /* Offset for the fixed topbar when navigated via anchor */
+  scroll-margin-top: 54px;
+}
+
+.museum-pin {
+  position: sticky;
+  top: 0;
+  height: 100svh;
+  overflow: hidden;
+  perspective: 1600px;
+  perspective-origin: 50% 46%;
+  /* Explicit isolation so sticky works even if a parent has will-change */
+  isolation: isolate;
+}
+
+/* 1. L’arrière-plan en couloir */
+.museum-plate {
+  position: absolute !important;
+  inset: -6% -3%;
+  width: 106% !important;
+  height: 112% !important;
+  object-fit: cover;
+  opacity: 0.95;
+  filter: saturate(0.9) brightness(0.88);
+  transform: scale(calc(1 + var(--p) * 0.12)) translateY(calc(var(--p) * -2%));
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+}
+
+.museum-vignette {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(
+      circle at 50% 46%,
+      transparent 18%,
+      rgba(6, 4, 3, 0.45) 55%,
+      rgba(6, 4, 3, 0.96) 100%
+    ),
+    linear-gradient(
+      180deg,
+      rgba(6, 4, 3, 0.88) 0%,
+      transparent 22%,
+      transparent 78%,
+      rgba(6, 4, 3, 0.96) 100%
+    );
+}
+
+.hall {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+  pointer-events: none;
+}
+
+/* 2. Le titre au centre */
+.intro {
+  position: absolute;
+  left: 50%;
+  top: 41%;
+  transform: translate(-50%, -50%);
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  max-width: 580px;
+  width: 90%;
+  pointer-events: none;
+  opacity: calc(var(--intro, 1) * 0.48);
+  transition: opacity 120ms linear;
+  user-select: none;
+}
+
+.intro-label {
+  font:
+    600 11px/1 ui-monospace,
+    monospace;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: rgba(233, 185, 132, 0.65);
+  margin-bottom: 10px;
+}
+
+.intro-title-bold {
+  font-family:
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    Roboto,
+    sans-serif;
+  font-size: clamp(36px, 5.2vw, 68px);
+  font-weight: 800;
+  line-height: 1.05;
+  color: rgba(244, 236, 228, 0.42);
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+
+.intro-title-serif {
+  font-family: Georgia, "Playfair Display", serif;
+  font-style: italic;
+  font-weight: 400;
+  font-size: clamp(38px, 5.6vw, 72px);
+  line-height: 1.05;
+  color: rgba(233, 185, 132, 0.52);
+  margin: 4px 0 0;
+}
+
+.intro-dot {
+  color: #e9b984;
+}
+
+.intro-desc {
+  margin-top: 14px;
+  font-size: 11px;
+  line-height: 1.6;
+  color: rgba(244, 236, 228, 0.35);
+  max-width: 440px;
+}
+
+.intro-hint {
+  margin-top: 20px;
+  font:
+    600 9px/1 ui-monospace,
+    monospace;
+  letter-spacing: 0.26em;
+  text-transform: uppercase;
+  color: rgba(233, 185, 132, 0.6);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* 3. Les cadres en 3D */
+.work {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: clamp(230px, 23vw, 360px);
+  transform-style: preserve-3d;
+  transform: translate(-50%, -50%) translate3d(var(--x, 0px), var(--y, 0px), var(--z, 0px))
+    rotateY(var(--ry, 0deg)) rotateZ(var(--rz, 0deg));
+  opacity: var(--op, 1);
+  will-change: transform, opacity;
+  pointer-events: auto;
+  cursor: zoom-in;
+  z-index: 10;
+}
+
+.work-glow {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 220%;
+  height: 180%;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(
+    50% 50% at 50% 50%,
+    rgba(233, 185, 132, 0.55),
+    rgba(233, 185, 132, 0.16) 45%,
+    transparent 75%
+  );
+  filter: blur(30px);
+  opacity: calc(var(--lit, 0) * 0.95);
+  pointer-events: none;
+}
+
+.frame {
+  position: relative;
+  margin: 0;
+  background: #17110c;
+  border: 8px solid #231812;
+  box-shadow:
+    0 0 0 2px #3a291e,
+    0 35px 85px rgba(0, 0, 0, 0.92),
+    0 10px 30px rgba(0, 0, 0, 0.7);
+  border-radius: 2px;
+  padding: clamp(16px, 2.2vw, 26px);
+  filter: brightness(calc(0.42 + var(--lit, 0) * 0.58)) blur(calc((1 - var(--lit, 0)) * 2px));
+  transition: filter 0.15s ease;
+}
+
+.matting {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 4 / 5;
+  overflow: hidden;
+  background: #f1ebd9;
+  border-radius: 1px;
+  box-shadow:
+    inset 0 0 0 1px rgba(60, 40, 25, 0.25),
+    0 2px 5px rgba(0, 0, 0, 0.15);
+}
+
+.image {
+  object-fit: cover;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.35);
+}
+
+/* 4. La plaque de légende */
+.cartouche {
+  position: absolute;
+  top: calc(100% + 14px);
+  min-width: 190px;
+  max-width: 280px;
+  padding: 10px 16px;
+  border-radius: 6px;
+  background: rgba(14, 10, 8, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.7);
+  opacity: var(--lit, 0);
+  pointer-events: none;
+  transform: rotate(var(--cartouche-rot, -0.8deg));
+  transition: opacity 0.15s ease;
+}
+
+.work[data-side="left"] .cartouche {
+  left: 6px;
+  --cartouche-rot: -0.9deg;
+}
+
+.work[data-side="right"] .cartouche {
+  right: 6px;
+  --cartouche-rot: 0.9deg;
+}
+
+.cartouche-index {
+  display: block;
+  font:
+    700 10px/1 ui-monospace,
+    monospace;
+  letter-spacing: 0.18em;
+  color: #bfa382;
+}
+
+.cartouche-title {
+  margin: 4px 0 2px;
+  font-family:
+    system-ui,
+    -apple-system,
+    sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.3;
+  color: #f4ece4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cartouche-meta {
+  margin: 0;
+  font:
+    600 9px/1.2 ui-monospace,
+    monospace;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #8e8378;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 5. La navigation en bas */
+.hud {
+  position: absolute;
+  left: 50%;
+  bottom: clamp(22px, 4vh, 44px);
+  z-index: 30;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  gap: 8px !important;
+  transform: translateX(-50%);
+  pointer-events: auto;
+  user-select: none;
+  width: max-content;
+}
+
+.hud-pill {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  gap: 4px !important;
+  padding: 4px 10px !important;
+  border-radius: 9999px !important;
+  background: rgba(18, 14, 12, 0.88) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.55) !important;
+  transition: box-shadow 0.2s ease;
+}
+
+.hud-btn-nav {
+  width: 26px !important;
+  height: 26px !important;
+  border-radius: 9999px !important;
+  border: none !important;
+  background: transparent !important;
+  color: #8e8378 !important;
+  font-size: 13px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  cursor: pointer !important;
+  transition:
+    opacity 0.15s ease,
+    color 0.15s ease;
+}
+
+.hud-btn-nav:disabled {
+  opacity: 0.25 !important;
+  cursor: not-allowed !important;
+}
+
+.hud-btn-nav:hover:not(:disabled) {
+  color: #f4ece4 !important;
+}
+
+.hud-btn-num {
+  width: 28px !important;
+  height: 28px !important;
+  border-radius: 9999px !important;
+  border: none !important;
+  background: transparent !important;
+  color: #756b60 !important;
+  font:
+    600 11px/1 ui-monospace,
+    monospace !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  cursor: pointer !important;
+  transition: color 0.15s ease;
+}
+
+.hud-btn-num:hover {
+  color: #f4ece4 !important;
+}
+
+.hud-btn-active {
+  width: 28px !important;
+  height: 28px !important;
+  border-radius: 9999px !important;
+  border: none !important;
+  background: #e9b984 !important;
+  color: #140d07 !important;
+  font:
+    700 11px/1 ui-monospace,
+    monospace !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  cursor: default !important;
+  transition: box-shadow 0.2s ease;
+}
+
+.hud[data-keyboard="true"] .hud-btn-active {
+  box-shadow:
+    0 0 0 2px rgba(233, 185, 132, 0.95),
+    0 0 0 6px rgba(233, 185, 132, 0.25) !important;
+}
+
+.hud-current {
+  font:
+    600 10px/1.2 ui-monospace,
+    monospace !important;
+  letter-spacing: 0.18em !important;
+  text-transform: uppercase !important;
+  color: #bfa382 !important;
+  text-align: center !important;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.85) !important;
+  white-space: nowrap;
+}
+
+.hud-prompt {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  gap: 5px !important;
+}
+
+.hud-keycap {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  min-width: 18px !important;
+  height: 18px !important;
+  padding: 0 3px !important;
+  border: 1px solid rgba(244, 236, 228, 0.25) !important;
+  border-radius: 3px !important;
+  background: rgba(255, 255, 255, 0.05) !important;
+  font:
+    700 9px ui-monospace,
+    monospace !important;
+  color: #bfa382 !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3) !important;
+}
+
+.hud-prompt-text {
+  font:
+    600 8.5px/1 ui-monospace,
+    monospace !important;
+  letter-spacing: 0.16em !important;
+  text-transform: uppercase !important;
+  color: #8e8378 !important;
+}
+
+/* Lightbox plein écran */
+.lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  padding: 32px;
+  background: rgba(8, 5, 4, 0.92);
+  backdrop-filter: blur(18px);
+}
+
+.lightbox-image {
+  position: relative;
+  width: min(88vw, 1100px);
+  height: min(88vh, 820px);
+}
+
+.lightbox-photo {
+  object-fit: contain;
+}
+
+.lightbox-close {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  z-index: 2;
+  width: 44px;
+  height: 44px;
+  border: 1px solid rgba(244, 236, 228, 0.18);
+  border-radius: 9999px;
+  background: rgba(20, 16, 14, 0.88);
+  color: #f4ece4;
+  font-size: 24px;
+  cursor: pointer;
+}
+
+@media (max-width: 700px) {
+  .work {
+    width: clamp(190px, 62vw, 260px);
+  }
+  .cartouche {
+    min-width: 160px;
+    max-width: 220px;
+    padding: 8px 12px;
+  }
+  .intro {
+    top: 38%;
   }
 }

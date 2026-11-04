@@ -294,21 +294,21 @@
   font-size: 0.8rem;
 }
 
-.palettePanel :global(button) {
+.palettePanel button {
   border-color: transparent;
   background: transparent;
   color: color-mix(in srgb, var(--editor-text) 82%, transparent);
   box-shadow: none;
 }
 
-.palettePanel :global(button:hover) {
+.palettePanel button:hover {
   border-color: color-mix(in srgb, var(--editor-text) 14%, transparent);
   background: color-mix(in srgb, var(--editor-text) 6%, transparent);
   color: var(--editor-text);
 }
 
-.palettePanel :global(.text-muted-foreground),
-.inspector :global(.text-muted-foreground) {
+.palettePanel [class~="text-muted-foreground"],
+.inspector [class~="text-muted-foreground"] {
   color: var(--editor-muted);
 }
 
@@ -384,9 +384,9 @@
   color: var(--editor-text);
 }
 
-.inspector :global(input:not([type="checkbox"]):not([type="color"])),
-.inspector :global(textarea),
-.inspector :global(select) {
+.inspector input:not([type="checkbox"]):not([type="color"]),
+.inspector textarea,
+.inspector select {
   border-color: color-mix(in srgb, var(--editor-text) 15%, transparent);
   border-radius: 0.4rem;
   background: color-mix(in srgb, var(--editor-surface) 72%, transparent);
@@ -394,24 +394,24 @@
   font-size: 0.78rem;
 }
 
-.inspector :global(input:focus),
-.inspector :global(textarea:focus),
-.inspector :global(select:focus) {
+.inspector input:focus,
+.inspector textarea:focus,
+.inspector select:focus {
   border-color: color-mix(in srgb, var(--editor-accent) 60%, transparent);
   outline: none;
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--editor-accent) 14%, transparent);
 }
 
-.inspector :global(input[type="checkbox"]) {
+.inspector input[type="checkbox"] {
   accent-color: var(--editor-accent);
 }
-.inspector :global(button) {
+.inspector button {
   border-color: color-mix(in srgb, var(--editor-text) 14%, transparent);
   background: color-mix(in srgb, var(--editor-surface) 60%, transparent);
   color: var(--editor-text);
   box-shadow: none;
 }
-.inspector :global(button:hover) {
+.inspector button:hover {
   background: color-mix(in srgb, var(--editor-text) 8%, transparent);
 }
 
@@ -570,15 +570,15 @@
   font-weight: 600;
 }
 .previewSection {
-  border-bottom: 1px solid #e4d9c9;
+  border-bottom: 1px solid var(--editor-border, #e4d9c9);
   padding: clamp(2rem, 5vw, 3.5rem);
-  background: #fff;
-  color: #211a14;
+  background: var(--editor-surface, #fff);
+  color: var(--editor-text, #211a14);
 }
 .previewSection h2,
 .contactPreview h2 {
   margin-top: 0.8rem;
-  color: #211a14;
+  color: var(--editor-text, #211a14);
   font-family: var(--font-display), Georgia, serif;
   font-size: clamp(1.8rem, 4vw, 3rem);
   line-height: 1.08;
@@ -587,14 +587,14 @@
 .previewBody {
   max-width: 46rem;
   margin-top: 1rem;
-  color: #62574c;
+  color: var(--editor-muted, #62574c);
   font-size: 0.92rem;
   line-height: 1.75;
   white-space: pre-wrap;
 }
 .previewMeta {
   margin-top: 1rem;
-  color: #8c7860;
+  color: var(--editor-muted, #8c7860);
   font-size: 0.72rem;
 }
 .previewGrid {
@@ -615,9 +615,9 @@
   min-height: 5.5rem;
   place-items: center;
   margin-top: 1.25rem;
-  border: 1px dashed #d7cbbb;
+  border: 1px dashed var(--editor-border, #d7cbbb);
   padding: 1rem;
-  color: #857664;
+  color: var(--editor-muted, #857664);
   font-size: 0.75rem;
   text-align: center;
 }
@@ -662,17 +662,17 @@
   display: flex;
   min-height: 8rem;
   flex-direction: column;
-  border: 1px solid #e6ddd1;
+  border: 1px solid var(--editor-border, #e6ddd1);
   padding: 1rem;
 }
 .serviceCard h3 {
-  color: #211a14;
+  color: var(--editor-text, #211a14);
   font-family: var(--font-display), Georgia, serif;
   font-size: 1.1rem;
 }
 .serviceCard p {
   margin-top: 0.5rem;
-  color: #75695d;
+  color: var(--editor-muted, #75695d);
   font-size: 0.75rem;
   line-height: 1.5;
 }
@@ -684,7 +684,7 @@
 }
 .serviceCard small {
   margin-top: 0.25rem;
-  color: #897c6d;
+  color: var(--editor-muted, #897c6d);
   font-size: 0.65rem;
 }
 .contactPreview {
@@ -692,9 +692,9 @@
   align-items: end;
   justify-content: space-between;
   gap: 2rem;
-  border-bottom: 1px solid #e4d9c9;
+  border-bottom: 1px solid var(--editor-border, #e4d9c9);
   padding: clamp(2rem, 5vw, 3.5rem);
-  background: #f8f4ed;
+  background: var(--editor-surface, #f8f4ed);
 }
 .contactPreview .heroButton {
   flex: none;
@@ -707,8 +707,8 @@
   overflow: hidden;
   border: 1px solid #ffffff24;
   border-radius: 0.75rem;
-  background: #fff;
-  color: #211a14;
+  background: var(--editor-background, #fff);
+  color: var(--editor-text, #211a14);
   box-shadow: 0 1.5rem 4rem #0005;
 }
 
@@ -719,7 +719,7 @@
 
 .previewPage h2,
 .previewPage h3 {
-  color: #211a14;
+  color: var(--editor-text, #211a14);
 }
 
 @media (max-width: 1240px) {
@@ -748,7 +748,7 @@
     border-right: 0;
     display: none;
   }
-  .palettePanel :global(div[class*="grid"]) {
+  .palettePanel div[class*="grid"] {
     grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
   }
   .inspector {

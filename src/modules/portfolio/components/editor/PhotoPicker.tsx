@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Check, Images, Loader2, Sparkles, Upload, X } from "lucide-react";
+import { Check, Images, Loader2, RefreshCw, Sparkles, X } from "lucide-react";
 import { SafeImage } from "@/components/shared/safe-image";
 import { lancerSelectionIA } from "../../portfolio.actions";
 import {
@@ -21,6 +21,7 @@ export type PhotoItem = {
   clientId?: string;
   dateAjout?: string;
   scoreQualite?: number;
+  galerie?: string;
 };
 
 type PhotoPickerProps = {
@@ -28,8 +29,11 @@ type PhotoPickerProps = {
   destinationBlockName?: string;
   photos?: PhotoItem[];
   isLoadingPhotos?: boolean;
+  maxPhotos?: number;
+  currentCount?: number;
   onClose: () => void;
   onAddPhotos: (newElements: ElementBlocPortfolio[]) => void;
+  onRefreshPhotos?: () => Promise<void> | void;
 };
 
 export function PhotoPicker({
@@ -37,14 +41,17 @@ export function PhotoPicker({
   destinationBlockName = "Gallery",
   photos = [],
   isLoadingPhotos = false,
+  maxPhotos = 12,
+  currentCount = 0,
   onClose,
   onAddPhotos,
+  onRefreshPhotos,
 }: PhotoPickerProps) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [customUrl, setCustomUrl] = useState("");
-  const [customTitle, setCustomTitle] = useState("");
-  const [isUploading, setIsUploading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const maxLimit = maxPhotos;
+  const remainingSlots = Math.max(0, maxLimit - currentCount);
   const [isAnalysing, setIsAnalysing] = useState(false);
   const [analysis, setAnalysis] = useState<{
     recommendedIds: string[];
@@ -54,7 +61,16 @@ export function PhotoPicker({
     reports: Record<string, PhotoQualityReport>;
   } | null>(null);
   const [category, setCategory] = useState<CategoriePortfolio | "">("");
+  const [searchQuery, setSearchQuery] = useState("");
   const [aiConsent, setAiConsent] = useState(false);
+  const normalizedSearch = searchQuery.trim().toLowerCase();
+  const filteredPhotos = normalizedSearch
+    ? photos.filter((photo) =>
+        [photo.titre, photo.client, photo.galerie]
+          .filter(Boolean)
+          .some((value) => value!.toLowerCase().includes(normalizedSearch)),
+      )
+    : photos;
 
   // Close on Escape key
   useEffect(() => {
@@ -73,8 +89,19 @@ export function PhotoPicker({
     setErrorMessage(null);
     setSelectedIds((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        if (next.size >= remainingSlots) {
+          setErrorMessage(
+            remainingSlots === maxLimit
+              ? `Vous pouvez sélectionner jusqu'à ${maxLimit} photos maximum.`
+              : `Vous pouvez ajouter encore ${remainingSlots} photo(s) au maximum (limite de ${maxLimit} photos par galerie).`,
+          );
+          return prev;
+        }
+        next.add(id);
+      }
       return next;
     });
   };
@@ -101,7 +128,7 @@ export function PhotoPicker({
         uniquePhotoUrls.add(photo.url);
         return true;
       })
-      .slice(0, MAX_AUTOMATIC_PORTFOLIO_PHOTOS);
+      .slice(0, Math.min(remainingSlots, MAX_AUTOMATIC_PORTFOLIO_PHOTOS));
     const recommendedPhotoIds = uniqueRecommendedPhotos.map((photo) => photo.id);
     setAnalysis({
       recommendedIds: recommendedPhotoIds,
@@ -123,7 +150,6 @@ export function PhotoPicker({
         hauteur: 1060,
         publicId: photo.id,
       },
-      titre: photo.titre,
       ordreAffichage: 0,
       estMisEnAvant: false,
       role: "NORMAL",
@@ -139,50 +165,6 @@ export function PhotoPicker({
     }
 
     setSelectedIds(new Set());
-  };
-
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setIsUploading(true);
-    setErrorMessage(null);
-    try {
-      const formData = new FormData();
-      formData.append("file", file);
-      const res = await fetch("/api/portfolio/upload", {
-        method: "POST",
-        body: formData,
-      });
-      const data = await res.json();
-      if (!res.ok || !data.ok) {
-        throw new Error(data.message || "Échec du téléversement");
-      }
-      const uploadedMedia = data.data;
-      const newElem: ElementBlocPortfolio = {
-        idElement: crypto.randomUUID().replaceAll("-", "").slice(0, 24),
-        source: "UPLOAD_PERSONNEL",
-        media: {
-          url: uploadedMedia.url,
-          urlMiniature: uploadedMedia.urlMiniature || uploadedMedia.url,
-          largeur: uploadedMedia.largeur || 1600,
-          hauteur: uploadedMedia.hauteur || 1060,
-          publicId: uploadedMedia.publicId || `upload-${Date.now()}`,
-        },
-        titre: file.name.replace(/\.[^/.]+$/, ""),
-        ordreAffichage: 0,
-        estMisEnAvant: false,
-        role: "NORMAL",
-        statutConsentement: "NON_REQUIS", // UPLOAD_PERSONNEL n'exige pas de consentement client
-        nombreLikes: 0,
-        dateAjout: new Date().toISOString(),
-      };
-      onAddPhotos([newElem]);
-      onClose();
-    } catch (err: unknown) {
-      setErrorMessage(err instanceof Error ? err.message : "Erreur de téléversement");
-    } finally {
-      setIsUploading(false);
-    }
   };
 
   const handleConfirm = () => {
@@ -202,7 +184,6 @@ export function PhotoPicker({
             hauteur: 1060,
             publicId: photo.id,
           },
-          titre: photo.titre,
           ordreAffichage: 0,
           estMisEnAvant: false,
           role: "NORMAL",
@@ -213,41 +194,13 @@ export function PhotoPicker({
       }
     });
 
-    // Custom URL if provided
-    if (customUrl.trim()) {
-      if (!customUrl.startsWith("https://")) {
-        setErrorMessage("L'URL personnalisée doit obligatoirement commencer par https://");
-        return;
-      }
-      selectedElements.push({
-        idElement: crypto.randomUUID().replaceAll("-", "").slice(0, 24),
-        source: "UPLOAD_PERSONNEL",
-        media: {
-          url: customUrl.trim(),
-          urlMiniature: customUrl.trim(),
-          largeur: 1600,
-          hauteur: 1060,
-          publicId: `upload-${Date.now()}`,
-        },
-        titre: customTitle.trim() || "Importation personnalisée",
-        ordreAffichage: 0,
-        estMisEnAvant: false,
-        role: "NORMAL",
-        statutConsentement: "NON_REQUIS", // UPLOAD_PERSONNEL n'exige pas de consentement client
-        nombreLikes: 0,
-        dateAjout: new Date().toISOString(),
-      });
-    }
-
     if (selectedElements.length === 0) {
-      setErrorMessage("Veuillez sélectionner au moins une photo ou saisir une URL valide.");
+      setErrorMessage("Sélectionnez au moins une photo de votre bibliothèque MongoDB.");
       return;
     }
 
     onAddPhotos(selectedElements);
     setSelectedIds(new Set());
-    setCustomUrl("");
-    setCustomTitle("");
     setErrorMessage(null);
     onClose();
   };
@@ -272,9 +225,9 @@ export function PhotoPicker({
         <div className="flex items-center justify-between border-b border-white/[0.08] p-5">
           <div>
             <h2 id="photo-picker-title" className="font-sans text-lg font-bold text-white">
-              Add photographs
+              Choisir des photos
             </h2>
-            <p className="font-mono text-xs text-[#e8a34a]">Into {destinationBlockName}</p>
+            <p className="font-mono text-xs text-[#e8a34a]">Pour {destinationBlockName}</p>
           </div>
           <button
             type="button"
@@ -290,26 +243,31 @@ export function PhotoPicker({
         <div className="flex-1 space-y-6 overflow-y-auto p-5">
           {/* Photographer's MongoDB library grid */}
           <div>
-            <div className="mb-3 flex items-center justify-between">
+            <div className="mb-3 flex items-center justify-between gap-3">
               <p className="font-mono text-[10px] font-semibold tracking-wider text-[#9a8f82] uppercase">
-                Vos photos de galeries ({photos.length})
+                Photos disponibles dans MongoDB ({photos.length})
               </p>
-              <label className="flex cursor-pointer items-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-2.5 py-1 text-[11px] font-medium text-white/80 transition-colors hover:border-[#e8a34a] hover:text-[#e8a34a]">
-                {isUploading ? (
-                  <Loader2 className="size-3 animate-spin text-[#e8a34a]" />
-                ) : (
-                  <Upload className="size-3" />
+              <div className="flex items-center gap-2">
+                {onRefreshPhotos && (
+                  <button
+                    type="button"
+                    disabled={isLoadingPhotos}
+                    onClick={() => void onRefreshPhotos()}
+                    className="flex size-8 items-center justify-center rounded-full border border-white/15 bg-white/5 text-white/70 transition-colors hover:border-[#e8a34a] hover:text-[#e8a34a] disabled:opacity-50"
+                    aria-label="Actualiser les photos depuis MongoDB"
+                  >
+                    <RefreshCw className={`size-3.5 ${isLoadingPhotos ? "animate-spin" : ""}`} />
+                  </button>
                 )}
-                <span>Téléverser</span>
-                <input
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp"
-                  className="hidden"
-                  disabled={isUploading}
-                  onChange={handleFileUpload}
-                />
-              </label>
+              </div>
             </div>
+            <input
+              type="search"
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              placeholder="Rechercher une galerie, un client ou une photo…"
+              className="mb-3 w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-xs text-white placeholder:text-white/30 focus:border-[#e8a34a] focus:outline-hidden"
+            />
             <div className="mb-4 flex flex-wrap items-center gap-2 rounded-xl border border-[#e8a34a]/20 bg-[#e8a34a]/[0.06] p-3">
               <Sparkles className="size-4 text-[#e8a34a]" />
               <div className="min-w-0 flex-1">
@@ -385,22 +343,25 @@ export function PhotoPicker({
               <div className="flex items-center justify-center py-12 text-white/40">
                 <Loader2 className="size-6 animate-spin text-[#e8a34a]" />
               </div>
-            ) : photos.length === 0 ? (
+            ) : photos.length === 0 || filteredPhotos.length === 0 ? (
               <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-white/10 bg-white/[0.02] p-8 text-center">
                 <div className="mb-3 flex size-12 items-center justify-center rounded-full bg-[#e8a34a]/10 text-[#e8a34a]">
                   <Images className="size-6" />
                 </div>
                 <p className="font-sans text-sm font-medium text-white">
-                  Aucune photo dans vos galeries
+                  {photos.length === 0
+                    ? "Aucune photo disponible dans votre bibliothèque MongoDB"
+                    : "Aucune photo ne correspond à la recherche"}
                 </p>
                 <p className="mt-1 max-w-sm text-xs text-white/50">
-                  Seules les photos de votre compte photographe sont disponibles. Vous pouvez
-                  téléverser un fichier ou utiliser une URL externe ci-dessous.
+                  {photos.length === 0
+                    ? "Ajoutez d’abord vos photos dans le module Photos, puis actualisez cette liste."
+                    : "Modifiez votre recherche ou actualisez la galerie depuis MongoDB."}
                 </p>
               </div>
             ) : (
               <div className="grid max-h-[380px] grid-cols-2 gap-3 overflow-y-auto pr-1 sm:grid-cols-3">
-                {photos.map((photo) => {
+                {filteredPhotos.map((photo) => {
                   const isSelected = selectedIds.has(photo.id);
                   return (
                     <div
@@ -462,9 +423,9 @@ export function PhotoPicker({
                       {/* Metadata badge at bottom */}
                       <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/50 to-transparent p-2 text-left">
                         <p className="truncate text-xs font-medium text-white">{photo.titre}</p>
-                        {photo.client && (
+                        {(photo.galerie || photo.client) && (
                           <p className="truncate font-mono text-[9px] text-[#e8a34a]">
-                            {photo.client}
+                            {[photo.galerie, photo.client].filter(Boolean).join(" · ")}
                           </p>
                         )}
                         {analysis?.recommendedIds.includes(photo.id) && (
@@ -487,36 +448,6 @@ export function PhotoPicker({
             )}
           </div>
 
-          {/* Custom URL upload */}
-          <div className="border-t border-white/[0.08] pt-5">
-            <p className="mb-2 font-mono text-[10px] font-semibold tracking-wider text-[#9a8f82] uppercase">
-              Ou importer depuis une URL externe (https)
-            </p>
-            <div className="grid gap-2 sm:grid-cols-3">
-              <div className="sm:col-span-2">
-                <input
-                  type="url"
-                  placeholder="https://example.com/photo.jpg"
-                  value={customUrl}
-                  onChange={(e) => {
-                    setErrorMessage(null);
-                    setCustomUrl(e.target.value);
-                  }}
-                  className="w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 font-sans text-xs text-white placeholder:text-white/30 focus:border-[#e8a34a] focus:outline-hidden"
-                />
-              </div>
-              <div>
-                <input
-                  type="text"
-                  placeholder="Titre de la photo"
-                  value={customTitle}
-                  onChange={(e) => setCustomTitle(e.target.value)}
-                  className="w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 font-sans text-xs text-white placeholder:text-white/30 focus:border-[#e8a34a] focus:outline-hidden"
-                />
-              </div>
-            </div>
-          </div>
-
           {/* Error Message */}
           {errorMessage && (
             <div className="rounded-lg border border-red-500/30 bg-red-950/40 p-3 text-xs text-red-300">
@@ -528,7 +459,7 @@ export function PhotoPicker({
         {/* Footer */}
         <div className="flex items-center justify-between border-t border-white/[0.08] bg-[#120b07] p-4">
           <span className="font-mono text-xs text-[#9a8f82]">
-            {selectedIds.size + (customUrl.trim() ? 1 : 0)} selected
+            {selectedIds.size} sélectionnée(s) {currentCount > 0 ? `(${currentCount + selectedIds.size}/${maxLimit} au total)` : `(max ${maxLimit})`}
           </span>
           <div className="flex items-center gap-2">
             <button
@@ -536,14 +467,14 @@ export function PhotoPicker({
               onClick={onClose}
               className="rounded-full px-4 py-2 font-sans text-xs font-medium text-white/70 hover:text-white"
             >
-              Cancel
+              Annuler
             </button>
             <button
               type="button"
               onClick={handleConfirm}
               className="rounded-full bg-[#e8a34a] px-5 py-2 font-sans text-xs font-semibold text-[#0f0905] shadow-md transition-transform hover:scale-105"
             >
-              Add photographs
+              Ajouter au portfolio ({selectedIds.size})
             </button>
           </div>
         </div>

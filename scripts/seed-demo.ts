@@ -171,6 +171,7 @@ const PHOTO_URLS: Record<CategorieGalerie, string[]> = {
   PORTRAIT: MOCK_IMAGES.portrait.slice(0, 6),
   PRODUIT: MOCK_IMAGES.produit.slice(0, 6),
   EVENEMENT: MOCK_IMAGES.evenement.slice(0, 6),
+  MODE: MOCK_IMAGES.portrait.slice(0, 6),
 };
 
 const GALERIES: {
