@@ -1,0 +1,22 @@
+{
+  "name": "snapseal-contracts",
+  "version": "0.1.0",
+  "private": true,
+  "description": "SnapSeal smart contracts. Isolated from the Reframe app: it has its own dependencies.",
+  "scripts": {
+    "compile": "hardhat compile",
+    "test": "hardhat test",
+    "export-abi": "hardhat compile && node scripts/export-abi.cjs",
+    "ganache": "ganache --server.port 7545 --chain.chainId 1337 --chain.networkId 1337 --wallet.deterministic --database.dbPath .ganache-db",
+    "deploy:ganache": "hardhat run scripts/deploy.cjs --network ganache",
+    "deploy:sepolia": "hardhat run scripts/deploy.cjs --network sepolia"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-chai-matchers": "^2.1.2",
+    "@nomicfoundation/hardhat-ethers": "^3.1.3",
+    "chai": "^4.5.0",
+    "ethers": "^6.17.0",
+    "ganache": "^7.9.2",
+    "hardhat": "^2.29.1"
+  }
+}

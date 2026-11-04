@@ -48,6 +48,11 @@ services:
     environment:
       MONGODB_URI: *mongo-uri
       AUTH_SECRET: ${AUTH_SECRET:?Set AUTH_SECRET in .env (e.g. openssl rand -base64 32)}
+      # SnapSeal network and contract addresses; empty addresses keep the feature inactive.
+      SNAPSEAL_NETWORK: ${SNAPSEAL_NETWORK:-sepolia}
+      SNAPSEAL_REGISTRY_ADDRESS: ${SNAPSEAL_REGISTRY_ADDRESS:-}
+      SNAPSEAL_DELIVERY_ADDRESS: ${SNAPSEAL_DELIVERY_ADDRESS:-}
+      SNAPSEAL_RPC_URL: ${SNAPSEAL_RPC_URL:-}
       # Online payments (Konnect sandbox/production); without keys the test checkout is used if enabled.
       APP_URL: ${APP_URL:-http://localhost:3000}
       KONNECT_API_KEY: ${KONNECT_API_KEY:-}
