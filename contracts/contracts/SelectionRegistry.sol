@@ -68,6 +68,9 @@ contract SelectionRegistry {
             inSelection[id][hashes[i]] = true;
             gallery.selection.push(hashes[i]);
         }
+
+
+        
         gallery.selectionSubmittedAt = block.timestamp;
         emit SelectionSubmitted(id, msg.sender, hashes);
     }
