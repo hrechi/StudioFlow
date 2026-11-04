@@ -4,7 +4,7 @@ import { STATUTS_RESERVATION, type StatutReservation } from "./materiel.types";
 
 export interface IReservationMateriel {
   materiel: Types.ObjectId;
-  /** Séance id (today in `seances_demo`, later in the Séances module). */
+  /** Séance id in the Séances module (`seances`), read through seance-source.ts. */
   seance: Types.ObjectId;
   /** Copies taken at booking time: the history stays readable and feeds the future AI kit. */
   seanceTitre: string;
@@ -15,6 +15,7 @@ export interface IReservationMateriel {
   dateFin: Date;
   statut: StatutReservation;
   remarqueRetour?: string;
+  dernierRappelAt?: Date;
   seed: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -25,7 +26,7 @@ export type ReservationMaterielDocument = HydratedDocument<IReservationMateriel>
 const reservationMaterielSchema = new Schema<IReservationMateriel>(
   {
     materiel: { type: Schema.Types.ObjectId, ref: "Materiel", required: true },
-    // No `ref`: today a `seances_demo` id, later a real `seances` id (see seance-source.ts).
+    // No `ref` and no populate: the séance is read through the Séances service (seance-source.ts).
     seance: { type: Schema.Types.ObjectId, required: true },
     seanceTitre: { type: String, required: true, trim: true, maxlength: 120 },
     typeEvenement: { type: String, required: true, trim: true, maxlength: 60 },
@@ -34,6 +35,7 @@ const reservationMaterielSchema = new Schema<IReservationMateriel>(
     dateFin: { type: Date, required: true },
     statut: { type: String, enum: STATUTS_RESERVATION, default: "EN_ATTENTE", required: true },
     remarqueRetour: { type: String, trim: true, maxlength: 500 },
+    dernierRappelAt: { type: Date },
     seed: { type: Boolean, default: false, required: true },
   },
   { timestamps: true, collection: "reservations_materiel" },

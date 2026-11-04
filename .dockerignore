@@ -17,3 +17,4 @@ npm-debug.log*
 
 # local only: broken copy from integration (6d17a5d), breaks next build
 src_updated
+*.zip

@@ -1,13 +1,14 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2 } from "lucide-react";
+import { ImagePlus, Loader2, RotateCcw, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState, useTransition, type ReactNode } from "react";
+import { useEffect, useRef, useState, useTransition, type ReactNode } from "react";
 import { Controller, useForm, useWatch, type Resolver } from "react-hook-form";
 import { toast } from "sonner";
 import { FormField, IconInput, describedBy } from "@/components/shared/form-field";
 import { applyFieldErrors } from "@/components/shared/form-utils";
+import { SafeImage } from "@/components/shared/safe-image";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -49,7 +50,6 @@ function defaults(materiel?: Materiel): MaterielInput {
     dateAchat: materiel?.dateAchat.slice(0, 10) ?? today(),
     prix: materiel?.prix ?? 0,
     disponible: materiel?.disponible ?? true,
-    photo: materiel?.photo ?? "",
   };
 }
 
@@ -73,6 +73,11 @@ export function MaterielFormDialog({
   const [innerOpen, setInnerOpen] = useState(false);
   const open = controlledOpen ?? innerOpen;
   const [pending, startTransition] = useTransition();
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [photoError, setPhotoError] = useState("");
+  const [photoRemoved, setPhotoRemoved] = useState(false);
+  const [photoPreview, setPhotoPreview] = useState(materiel?.photoUrl ?? "");
+  const fileInput = useRef<HTMLInputElement>(null);
 
   const form = useForm<MaterielInput>({
     resolver: zodResolver(materielSchema) as unknown as Resolver<MaterielInput>,
@@ -84,9 +89,48 @@ export function MaterielFormDialog({
 
   const setOpen = (next: boolean) => {
     if (pending) return;
-    if (next) form.reset(defaults(materiel));
+    if (next) {
+      form.reset(defaults(materiel));
+      setPhotoFile(null);
+      setPhotoError("");
+      setPhotoRemoved(false);
+      setPhotoPreview(materiel?.photoUrl ?? "");
+    }
     setInnerOpen(next);
     onOpenChange?.(next);
+  };
+
+  useEffect(
+    () => () => {
+      if (photoPreview.startsWith("blob:")) URL.revokeObjectURL(photoPreview);
+    },
+    [photoPreview],
+  );
+
+  const choosePhoto = (file?: File) => {
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      setPhotoError("The image must be 5 MB or smaller.");
+      toast.error("The image must be 5 MB or smaller.");
+      return;
+    }
+    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
+      setPhotoError("Choose a JPG, PNG, or WebP image.");
+      toast.error("Choose a JPG, PNG, or WebP image.");
+      return;
+    }
+    setPhotoError("");
+    setPhotoFile(file);
+    setPhotoRemoved(false);
+    setPhotoPreview(URL.createObjectURL(file));
+  };
+
+  const uploadPhoto = async (id: string, file: File) => {
+    const body = new FormData();
+    body.append("file", file);
+    const response = await fetch(`/api/materiel/${id}/photo`, { method: "POST", body });
+    const result = (await response.json()) as { ok: boolean; error?: string };
+    if (!response.ok || !result.ok) throw new Error(result.error ?? "Photo upload failed.");
   };
 
   const onSubmit = form.handleSubmit((values) => {
@@ -100,7 +144,28 @@ export function MaterielFormDialog({
         toast.error(result.error);
         return;
       }
-      toast.success(editing ? `${values.nom} saved` : `${values.nom} added to the inventory`);
+      const equipmentId = editing ? materiel.id : result.data?.id;
+      if (!equipmentId) {
+        toast.error("Equipment was saved, but its identifier was not returned.");
+        return;
+      }
+      try {
+        if (photoFile) await uploadPhoto(equipmentId, photoFile);
+        else if (editing && photoRemoved && materiel?.photoUrl) {
+          const response = await fetch(`/api/materiel/${equipmentId}/photo`, { method: "DELETE" });
+          const removal = (await response.json()) as { ok: boolean; error?: string };
+          if (!response.ok || !removal.ok) {
+            throw new Error(removal.error ?? "Photo removal failed.");
+          }
+        }
+        toast.success(editing ? `${values.nom} saved` : `${values.nom} added to the inventory`);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Try again from Edit equipment.";
+        setPhotoError(message);
+        toast.error(
+          `${values.nom} was saved, but the photo failed: ${message} You can retry from Edit equipment.`,
+        );
+      }
       setInnerOpen(false);
       onOpenChange?.(false);
       router.refresh();
@@ -233,17 +298,82 @@ export function MaterielFormDialog({
           </div>
           <FormField
             id="photo"
-            label="Photo URL"
-            error={errors.photo?.message}
-            hint="Optional. A link to a picture of the item."
+            label="Equipment photo"
+            error={photoError}
+            hint="Optional. JPG, PNG, or WebP, up to 5 MB."
           >
-            <IconInput
-              id="photo"
-              type="url"
-              placeholder="https://…"
-              invalid={!!errors.photo}
-              {...form.register("photo")}
-            />
+            <div
+              className="rounded-lg border border-dashed p-3"
+              onDragOver={(event) => event.preventDefault()}
+              onDrop={(event) => {
+                event.preventDefault();
+                choosePhoto(event.dataTransfer.files[0]);
+              }}
+            >
+              {photoPreview && !photoRemoved ? (
+                <div className="flex items-center gap-3">
+                  <SafeImage
+                    src={photoPreview}
+                    alt="Equipment preview"
+                    width={64}
+                    height={64}
+                    unoptimized
+                    className="size-16 rounded-md object-cover"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium text-foreground">
+                      {photoFile?.name ?? "Current equipment photo"}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Drop another image to replace it.
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    size="icon-sm"
+                    variant="ghost"
+                    onClick={() => fileInput.current?.click()}
+                    aria-label="Replace photo"
+                  >
+                    <RotateCcw aria-hidden />
+                  </Button>
+                  <Button
+                    type="button"
+                    size="icon-sm"
+                    variant="ghost"
+                    onClick={() => {
+                      setPhotoRemoved(true);
+                      setPhotoFile(null);
+                      setPhotoError("");
+                    }}
+                    aria-label="Remove photo"
+                  >
+                    <Trash2 aria-hidden />
+                  </Button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  className="flex w-full flex-col items-center gap-2 py-4 text-sm text-muted-foreground hover:text-foreground"
+                  onClick={() => fileInput.current?.click()}
+                >
+                  <ImagePlus className="size-6" aria-hidden />
+                  <span className="font-medium">Drag and drop an image or Choose a file</span>
+                  <span className="text-xs">JPG, PNG, WebP · 5 MB maximum</span>
+                </button>
+              )}
+              <input
+                ref={fileInput}
+                id="photo"
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                className="sr-only"
+                onChange={(event) => {
+                  choosePhoto(event.target.files?.[0]);
+                  event.target.value = "";
+                }}
+              />
+            </div>
           </FormField>
         </form>
         <DialogFooter>

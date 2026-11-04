@@ -1,4 +1,8 @@
-import { SafeImage } from "@/components/shared/safe-image";
+"use client";
+
+import Image from "next/image";
+import { ImageOff } from "lucide-react";
+import { useState } from "react";
 import { PLACEHOLDER_IMAGE } from "@/lib/mock-images";
 
 /** Hosts allowed by next.config `images.remotePatterns`; other URLs are loaded as-is. */
@@ -12,7 +16,7 @@ function canOptimize(src: string): boolean {
   }
 }
 
-/** Equipment photo (any URL entered by an admin), with the shared placeholder as fallback. */
+/** Equipment photo. A real photo never silently falls back to the empty-state placeholder. */
 export function MaterielPhoto({
   src,
   alt,
@@ -27,8 +31,24 @@ export function MaterielPhoto({
   priority?: boolean;
 }) {
   const url = src || PLACEHOLDER_IMAGE;
+  const [failedUrl, setFailedUrl] = useState<string | null>(null);
+  const failed = failedUrl === url;
+
+  if (failed && src) {
+    return (
+      <div
+        role="img"
+        aria-label={`${alt}: image unavailable`}
+        className="flex size-full items-center justify-center bg-muted text-muted-foreground"
+        title="The equipment photo could not be loaded."
+      >
+        <ImageOff className="size-8" aria-hidden />
+      </div>
+    );
+  }
+
   return (
-    <SafeImage
+    <Image
       src={url}
       alt={alt}
       fill
@@ -36,6 +56,7 @@ export function MaterielPhoto({
       className={className}
       priority={priority}
       unoptimized={url !== PLACEHOLDER_IMAGE && !canOptimize(url)}
+      onError={() => setFailedUrl(url)}
     />
   );
 }

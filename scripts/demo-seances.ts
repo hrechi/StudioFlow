@@ -1,7 +1,7 @@
 /**
- * Demo sessions shared by scripts/seed-demo.ts (real `seances` of the Séances module) and
- * scripts/seed-materiel.ts (`seances_demo`, stand-in of the Matériel module), so both
- * collections describe the same sessions. All dates are relative to today.
+ * Demo sessions created by scripts/seed-demo.ts in `seances` (Séances module), tagged
+ * "[seed:demo] <key>"; scripts/seed-materiel.ts finds them by that key to book equipment.
+ * All dates are relative to today.
  *
  * One studio, one client (amel.mediouni@gmail.com, Amoulette); event types are the ones of
  * scripts/seed-facturation.ts.

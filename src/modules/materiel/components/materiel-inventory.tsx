@@ -115,7 +115,12 @@ export function MaterielInventory({
                       className="group flex items-center gap-3"
                     >
                       <span className="relative size-10 shrink-0 overflow-hidden rounded-lg bg-muted">
-                        <MaterielPhoto src={m.photo} alt="" sizes="40px" className="object-cover" />
+                        <MaterielPhoto
+                          src={m.photoUrl}
+                          alt=""
+                          sizes="40px"
+                          className="object-cover"
+                        />
                       </span>
                       <span>
                         <span className="block font-semibold text-foreground group-hover:text-primary-text">

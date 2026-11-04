@@ -58,6 +58,7 @@ services:
       GEMINI_API_KEY: ${GEMINI_API_KEY:-} # chatbot, AI payment proof checker, portfolio AI
       GEMINI_API_KEYS: ${GEMINI_API_KEYS:-} # spare keys, tried on quota errors
       GEMINI_MODEL: ${GEMINI_MODEL:-}
+      GROQ_API_KEY: ${GROQ_API_KEY:-} # chatbot, pack suggestions
       STUDIO_CONTACT_EMAIL: ${STUDIO_CONTACT_EMAIL:-} # given by the chatbot
       STUDIO_CONTACT_PHONE: ${STUDIO_CONTACT_PHONE:-}
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}

@@ -6,21 +6,19 @@
  * scripts/seed-inventaire.ts: finished shoots (equipment returned, some with remarks),
  * one shoot in progress, upcoming confirmed / pending shoots and one cancelled.
  *
- * Each session is written to `seances` (Séances module) AND, with the same id, to
- * `seances_demo`, the stand-in the Matériel module still reads (see seance-source.ts),
- * so the sessions appear in both modules and can be booked. Clients are external
+ * Each session is written to `seances` (Séances module), which the Matériel module reads
+ * through the Séances service (see seance-source.ts). Clients are external
  * contacts (no account needed); reservations are made by the ADMIN (ADMIN_EMAIL) and the
  * first active PHOTOGRAPHE (if any) is the lead photographer of every session.
  *
- * Idempotent: sessions tagged "[seed:reservations]" in their notes, their seances_demo
- * twins and their reservations are deleted and recreated. Dates are relative to today.
+ * Idempotent: sessions tagged "[seed:reservations]" in their notes and their reservations
+ * are deleted and recreated. Dates are relative to today.
  */
 import mongoose, { Types } from "mongoose";
 import { connectDB } from "../src/lib/db";
 import { Materiel } from "../src/modules/materiel/materiel.model";
 import type { StatutReservation } from "../src/modules/materiel/materiel.types";
 import { ReservationMateriel } from "../src/modules/materiel/reservation-materiel.model";
-import { SeanceDemo } from "../src/modules/materiel/seance-demo.model";
 import type { StatutSeanceReel } from "../src/modules/seances/seance.dto";
 import { Seance } from "../src/modules/seances/seance.model";
 import { TypeEvenement } from "../src/modules/seances/type-evenement.model";
@@ -330,7 +328,6 @@ async function main() {
   const oldIds = old.map((s) => s._id);
   const removed = await Promise.all([
     ReservationMateriel.deleteMany({ seance: { $in: oldIds } }),
-    SeanceDemo.deleteMany({ _id: { $in: oldIds } }),
     Seance.deleteMany({ _id: { $in: oldIds } }),
   ]);
 
@@ -353,18 +350,6 @@ async function main() {
       equipe: photographe ? [{ employe: photographe._id, role: "PHOTOGRAPHE_PRINCIPAL" }] : [],
       notes: `${TAG} Equipment booked in the Matériel module.`,
       prixFinal: s.prix,
-    });
-    await SeanceDemo.create({
-      _id,
-      titre: s.titre,
-      typeEvenement: typeName.get(s.type),
-      lieu: s.lieu,
-      dateDebut,
-      dateFin,
-      statut: s.statut,
-      clientNom: s.client.nom,
-      photographe: admin._id,
-      seed: true,
     });
     const statut = reservationStatus(s.statut);
     await ReservationMateriel.insertMany(
@@ -394,7 +379,7 @@ async function main() {
       .map(([k, n]) => `${k} ${n}`)
       .join(" · ");
   console.log(
-    `✔ ${SESSIONS.length} sessions and ${reservationCount} equipment reservations in "${mongoose.connection.name}" (replaced ${removed[2].deletedCount} sessions, ${removed[0].deletedCount} reservations).`,
+    `✔ ${SESSIONS.length} sessions and ${reservationCount} equipment reservations in "${mongoose.connection.name}" (replaced ${removed[1].deletedCount} sessions, ${removed[0].deletedCount} reservations).`,
   );
   console.log(`  Sessions: ${count((s) => s.statut)}`);
   console.log(`  Booked by ${admin.prenom} ${admin.nom}; ${serials.length} different items used.`);

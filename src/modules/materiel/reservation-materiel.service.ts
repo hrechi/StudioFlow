@@ -7,10 +7,13 @@ import { formatDateTime } from "@/lib/utils";
 import { createNotification } from "@/modules/utilisateurs/notification.service";
 import { findUtilisateurRefs } from "@/modules/utilisateurs/utilisateur.service";
 import type { UtilisateurDTO } from "@/modules/utilisateurs/utilisateur.types";
+import { findSeanceById } from "@/modules/seances/seance.service";
+import { nomClient } from "@/modules/seances/seance.dto";
 import { Materiel as MaterielModel, type IMateriel } from "./materiel.model";
 import {
   statutReservationConfig,
   type Reservation,
+  type ReservationStats,
   type ResultatReservation,
   type StatutReservation,
 } from "./materiel.types";
@@ -18,6 +21,7 @@ import { ReservationMateriel, type IReservationMateriel } from "./reservation-ma
 import { STATUTS_BLOQUANTS, peutPasser } from "./reservation-materiel.rules";
 import type { PanneInput, ReservationsInput, RetourInput } from "./reservation-materiel.schemas";
 import { getSeanceReservable, type SeanceReservableDTO } from "./seance-source";
+import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 
 type ReservationLean = IReservationMateriel & { _id: Types.ObjectId };
 type MaterielLean = IMateriel & { _id: Types.ObjectId };
@@ -34,19 +38,31 @@ export type ReservationFilter = {
   au?: Date | string;
 };
 
+export type BulkReservationResult =
+  { id: string; ok: true } | { id: string; ok: false; error: string };
+
 async function hydrate(docs: ReservationLean[]): Promise<Reservation[]> {
   if (docs.length === 0) return [];
   const materielIds = [...new Set(docs.map((d) => d.materiel.toString()))];
   const [materiels, users] = await Promise.all([
     MaterielModel.find({ _id: { $in: materielIds } })
-      .select("nom categorie")
+      .select("nom categorie numeroSerie")
       .lean<MaterielLean[]>(),
     findUtilisateurRefs([...new Set(docs.map((d) => d.utilisateur.toString()))]),
   ]);
   const materielById = new Map(materiels.map((m) => [m._id.toString(), m]));
 
+  const seanceIds = [...new Set(docs.map((d) => d.seance.toString()))];
+  const seances = await Promise.all(seanceIds.map((id) => findSeanceById(id)));
+  const seanceById = new Map(
+    seances
+      .filter(Boolean)
+      .map((seance) => [seance!.id, { lieu: seance!.lieu, clientNom: nomClient(seance!) }]),
+  );
+
   return docs.map((d) => {
     const m = materielById.get(d.materiel.toString());
+    const meta = seanceById.get(d.seance.toString());
     return {
       id: d._id.toString(),
       dateDebut: d.dateDebut.toISOString(),
@@ -57,8 +73,14 @@ async function hydrate(docs: ReservationLean[]): Promise<Reservation[]> {
         id: d.materiel.toString(),
         nom: m?.nom ?? "Deleted equipment",
         categorie: m?.categorie ?? "ACCESSOIRE",
+        numeroSerie: m?.numeroSerie ?? "—",
       },
-      seance: { id: d.seance.toString(), titre: d.seanceTitre, typeEvenement: d.typeEvenement },
+      seance: {
+        id: d.seance.toString(),
+        titre: d.seanceTitre,
+        typeEvenement: d.typeEvenement,
+        ...meta,
+      },
       utilisateur: users.get(d.utilisateur.toString()) ?? null,
     };
   });
@@ -83,6 +105,26 @@ export async function listReservations(filter: ReservationFilter = {}): Promise<
 export async function countReservationsActives(): Promise<number> {
   await connectDB();
   return ReservationMateriel.countDocuments({ statut: { $in: ["CONFIRMEE", "EN_COURS"] } });
+}
+
+export async function getReservationStats(): Promise<ReservationStats> {
+  await connectDB();
+  const now = new Date();
+  const sevenDays = new Date(now.getTime() + 7 * 86_400_000);
+  const [activeNow, upcoming, pending, overdue] = await Promise.all([
+    ReservationMateriel.countDocuments({
+      statut: "EN_COURS",
+      dateDebut: { $lte: now },
+      dateFin: { $gt: now },
+    }),
+    ReservationMateriel.countDocuments({
+      statut: { $in: STATUTS_BLOQUANTS },
+      dateDebut: { $gt: now, $lte: sevenDays },
+    }),
+    ReservationMateriel.countDocuments({ statut: "EN_ATTENTE" }),
+    ReservationMateriel.countDocuments({ statut: "EN_COURS", dateFin: { $lte: now } }),
+  ]);
+  return { activeNow, upcoming, pending, overdue };
 }
 
 /** Reservations that still hold the item (blocking status, not over yet). */
@@ -256,6 +298,114 @@ export async function demarrerReservation(id: string, actor: Actor): Promise<voi
 export async function annulerReservation(id: string, actor: Actor): Promise<void> {
   await connectDB();
   await transition(await findOwned(id, actor), "ANNULEE");
+}
+
+export async function appliquerTransitionGroupe(
+  ids: string[],
+  vers: "CONFIRMEE" | "ANNULEE" | "RETOURNEE",
+  actor: Actor,
+  retour?: RetourInput,
+): Promise<BulkReservationResult[]> {
+  const results: BulkReservationResult[] = [];
+  for (const id of [...new Set(ids)]) {
+    try {
+      if (vers === "CONFIRMEE") await confirmerReservation(id, actor);
+      else if (vers === "ANNULEE") await annulerReservation(id, actor);
+      else await enregistrerRetour(id, retour ?? { etat: "BON", remarque: "" }, actor);
+      results.push({ id, ok: true });
+    } catch (error) {
+      results.push({
+        id,
+        ok: false,
+        error:
+          error instanceof ServiceError ? error.message : "This reservation could not be changed.",
+      });
+    }
+  }
+  return results;
+}
+
+export async function envoyerRappel(
+  id: string,
+  actor: Actor,
+): Promise<{ sent: boolean; reason?: string }> {
+  await connectDB();
+  const reservation = await findOwned(id, actor);
+  if (reservation.statut !== "EN_COURS" || reservation.dateFin > new Date()) {
+    throw new ServiceError("A reminder is only available for an overdue reservation.");
+  }
+  if (
+    reservation.dernierRappelAt &&
+    Date.now() - reservation.dernierRappelAt.getTime() < 86_400_000
+  ) {
+    return { sent: false, reason: "A reminder was already sent in the last 24 hours." };
+  }
+  await ReservationMateriel.updateOne(
+    { _id: reservation._id },
+    { $set: { dernierRappelAt: new Date() } },
+  );
+  await createNotification({
+    utilisateurId: reservation.utilisateur.toString(),
+    type: "SYSTEME",
+    titre: "Equipment return reminder",
+    message: `Equipment reserved for “${reservation.seanceTitre}” is overdue. Please return it as soon as possible.`,
+    lienCible: "/dashboard/materiel/reservations",
+  });
+  return { sent: true };
+}
+
+export async function genererPackingList(id: string, actor: Actor): Promise<string> {
+  await connectDB();
+  const reservation = await findOwned(id, actor);
+  const docs = await ReservationMateriel.find({
+    seance: reservation.seance,
+    ...(actor.role === "ADMIN" ? {} : { utilisateur: new Types.ObjectId(actor.id) }),
+  }).lean<ReservationLean[]>();
+  const materiels = await MaterielModel.find({ _id: { $in: docs.map((doc) => doc.materiel) } })
+    .select("nom numeroSerie")
+    .lean<MaterielLean[]>();
+  const names = new Map(materiels.map((materiel) => [materiel._id.toString(), materiel]));
+  const doc = await PDFDocument.create();
+  const page = doc.addPage();
+  const font = await doc.embedFont(StandardFonts.Helvetica);
+  let y = page.getHeight() - 54;
+  page.drawText(`Packing list — ${reservation.seanceTitre}`, {
+    x: 42,
+    y,
+    size: 18,
+    font,
+    color: rgb(0.1, 0.1, 0.1),
+  });
+  y -= 28;
+  page.drawText(`${formatDateTime(reservation.dateDebut)} · ${reservation.typeEvenement}`, {
+    x: 42,
+    y,
+    size: 10,
+    font,
+  });
+  y -= 18;
+  page.drawText("Check each item before departure and after return.", { x: 42, y, size: 10, font });
+  y -= 30;
+  for (const item of docs) {
+    const materiel = names.get(item.materiel.toString());
+    page.drawRectangle({
+      x: 44,
+      y: y - 2,
+      width: 10,
+      height: 10,
+      borderWidth: 1,
+      borderColor: rgb(0.2, 0.2, 0.2),
+    });
+    page.drawText(`${materiel?.nom ?? "Deleted equipment"} · S/N ${materiel?.numeroSerie ?? "—"}`, {
+      x: 64,
+      y,
+      size: 11,
+      font,
+    });
+    y -= 24;
+    if (y < 50) break;
+  }
+  return Buffer.from(await doc.save()).toString("base64");
 }
 
 /** Return after use (cahier: Reservation.enregistrerRetour(remarque)) + condition on return. */

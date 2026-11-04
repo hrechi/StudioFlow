@@ -2,17 +2,28 @@
 
 /* Module : Gestion du Matériel · Responsable : Amel Mediouni */
 import { revalidatePath } from "next/cache";
-import { success, toFailure, validationFailure, type ActionResult } from "@/lib/action-result";
+import {
+  ServiceError,
+  success,
+  toFailure,
+  validationFailure,
+  type ActionResult,
+} from "@/lib/action-result";
 import { requireArea, requireRole } from "@/lib/guards";
 import { objectIdSchema } from "./materiel.schemas";
+import { getMaterielById } from "./materiel.service";
+import { analyserPanne, type AnalysePanne } from "./panne.analyse";
 import type { ResultatReservation } from "./materiel.types";
 import { panneSchema, reservationsSchema, retourSchema } from "./reservation-materiel.schemas";
 import {
   annulerReservation,
+  appliquerTransitionGroupe,
   confirmerReservation,
   createReservations,
   demarrerReservation,
   enregistrerRetour,
+  envoyerRappel,
+  genererPackingList,
   signalerPanne,
 } from "./reservation-materiel.service";
 
@@ -92,4 +103,60 @@ export async function signalerPanneAction(
   const parsed = panneSchema.safeParse(input);
   if (!parsed.success) return validationFailure(parsed.error);
   return runWith(() => signalerPanne(parsedId.data, parsed.data, user));
+}
+
+/** Read-only AI triage. The existing breakdown action remains the only state-changing step. */
+export async function analyserPanneAction(
+  materielId: string,
+  input: unknown,
+): Promise<ActionResult<AnalysePanne>> {
+  await requireArea("materiel");
+  const parsedId = objectIdSchema("Equipment").safeParse(materielId);
+  if (!parsedId.success) return validationFailure(parsedId.error);
+  const parsed = panneSchema.safeParse(input);
+  if (!parsed.success) return validationFailure(parsed.error);
+
+  try {
+    const materiel = await getMaterielById(parsedId.data);
+    if (!materiel) throw new ServiceError("Equipment not found.");
+    return success(await analyserPanne(materiel, parsed.data.description));
+  } catch (error) {
+    return toFailure(error);
+  }
+}
+
+export async function appliquerTransitionGroupeAction(
+  ids: string[],
+  vers: "CONFIRMEE" | "ANNULEE" | "RETOURNEE",
+  retour?: unknown,
+): Promise<ActionResult<Awaited<ReturnType<typeof appliquerTransitionGroupe>>>> {
+  const user = await requireArea("materiel");
+  if (!Array.isArray(ids) || ids.length === 0) {
+    return validationFailure(
+      reservationsSchema.pick({ materielIds: true }).safeParse({ materielIds: [] }).error!,
+    );
+  }
+  const parsed = retourSchema.safeParse(retour ?? { etat: "BON", remarque: "" });
+  if (vers === "RETOURNEE" && !parsed.success) return validationFailure(parsed.error);
+  return runWith(() =>
+    appliquerTransitionGroupe(ids, vers, user, parsed.success ? parsed.data : undefined),
+  );
+}
+
+export async function envoyerRappelAction(
+  id: string,
+): Promise<ActionResult<{ sent: boolean; reason?: string }>> {
+  const user = await requireArea("materiel");
+  const parsedId = reservationId.safeParse(id);
+  if (!parsedId.success) return validationFailure(parsedId.error);
+  return runWith(() => envoyerRappel(parsedId.data, user));
+}
+
+export async function genererPackingListAction(
+  id: string,
+): Promise<ActionResult<{ base64: string }>> {
+  const user = await requireArea("materiel");
+  const parsedId = reservationId.safeParse(id);
+  if (!parsedId.success) return validationFailure(parsedId.error);
+  return runWith(async () => ({ base64: await genererPackingList(parsedId.data, user) }));
 }

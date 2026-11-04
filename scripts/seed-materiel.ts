@@ -2,17 +2,18 @@
  * npm run seed:materiel
  * Docker: docker compose run --rm seed npx tsx scripts/seed-materiel.ts
  *
- * Test data for the Matériel module: 14 pieces of equipment (upserted by serial number),
- * demo sessions in `seances_demo` (stand-in for the Séances module) and equipment
- * reservations with a history of returned items for the future AI kit suggestion.
+ * Test data for the Matériel module: 14 pieces of equipment (upserted by serial number) and
+ * equipment reservations, with a history of returned items for the AI kit suggestion.
  *
- * Idempotent: every run deletes ONLY the documents marked `seed: true` in `seances_demo` and
- * `reservations_materiel`, then recreates them; equipment is updated by serial number.
- * All dates are relative to today. Never runs in production.
+ * Reservations are made for the REAL demo sessions of the Séances module (`seances`), created by
+ * scripts/seed-demo.ts and tagged "[seed:demo] <key>" in their notes: run `npm run seed:demo`
+ * first (it runs this seed at the end). Sessions are only read, never created or changed; each
+ * reservation copies its session's title, event type and period.
  *
- * One studio, two accounts, both only READ by e-mail (never created or changed):
- * - the ADMIN (ADMIN_EMAIL): photographer / team of every session and author of every reservation;
- * - the studio's client amel.mediouni@gmail.com (Amoulette): client of every demo session.
+ * Idempotent: every run deletes ONLY the reservations marked `seed: true`, then recreates them;
+ * equipment is updated by serial number. Never runs in production.
+ *
+ * The ADMIN (ADMIN_EMAIL) is only READ by e-mail: author of every reservation.
  */
 import mongoose, { type Types } from "mongoose";
 import { connectDB } from "../src/lib/db";
@@ -25,12 +26,10 @@ import type {
 } from "../src/modules/materiel/materiel.types";
 import { ReservationMateriel } from "../src/modules/materiel/reservation-materiel.model";
 import { seChevauchent } from "../src/modules/materiel/reservation-materiel.rules";
-import { SeanceDemo } from "../src/modules/materiel/seance-demo.model";
+import { Seance } from "../src/modules/seances/seance.model";
+import { TypeEvenement } from "../src/modules/seances/type-evenement.model";
 import { Utilisateur } from "../src/modules/utilisateurs/utilisateur.model";
-import { DAY, DEMO_CLIENT_EMAIL, DEMO_CLIENT_NOM, DEMO_SEANCES, HOUR } from "./demo-seances";
-
-const CLIENT_EMAIL = DEMO_CLIENT_EMAIL;
-const CLIENT_NOM = DEMO_CLIENT_NOM;
+import { DAY, DEMO_SEANCES } from "./demo-seances";
 
 // ── Equipment ───────────────────────────────────────────────────────────────
 
@@ -234,11 +233,11 @@ const MATERIELS: MaterielSeed[] = [
   },
 ];
 
-// ── Demo sessions (seances_demo) ────────────────────────────────────────────
+// ── Demo sessions (real `seances`, created by scripts/seed-demo.ts) ──────────
 
-// Shared with scripts/seed-demo.ts (real `seances`): same titles, types and dates.
+/** Same tag as scripts/seed-demo.ts: its sessions' notes are "[seed:demo] <key>". */
+const SEED_DEMO_TAG = "[seed:demo]";
 const now = new Date();
-const SEANCES = DEMO_SEANCES;
 
 // ── Equipment reservations ──────────────────────────────────────────────────
 
@@ -296,6 +295,14 @@ const RESERVATIONS: ReservationSeed[] = [
 ];
 
 type UserLean = { _id: Types.ObjectId; nom: string; prenom: string };
+type SeanceLean = {
+  _id: Types.ObjectId;
+  titre: string;
+  typeEvenement: Types.ObjectId;
+  dateDebut: Date;
+  dateFin: Date;
+  notes?: string;
+};
 
 async function main() {
   if (process.env.NODE_ENV === "production") {
@@ -303,23 +310,46 @@ async function main() {
   }
   await connectDB();
 
-  // The studio's two accounts: read only, by e-mail.
+  // The studio's admin: read only, by e-mail.
   const adminEmail = process.env.ADMIN_EMAIL?.trim().toLowerCase();
   if (!adminEmail) throw new Error("ADMIN_EMAIL is not set.");
-  const [admin, client] = await Promise.all([
-    Utilisateur.findOne({ email: adminEmail, role: "ADMIN" }).select("nom prenom").lean<UserLean>(),
-    Utilisateur.findOne({ email: CLIENT_EMAIL, role: "CLIENT" })
-      .select("nom prenom")
-      .lean<UserLean>(),
-  ]);
+  const admin = await Utilisateur.findOne({ email: adminEmail, role: "ADMIN" })
+    .select("nom prenom")
+    .lean<UserLean>();
   if (!admin) {
     throw new Error(
       `No ADMIN account for ADMIN_EMAIL: create it first (seed-admin), then run this seed again.`,
     );
   }
-  if (!client) {
+
+  // The real demo sessions, found by their seed-demo key (read only).
+  const seanceDocs = await Seance.find({ notes: { $regex: `^\\${SEED_DEMO_TAG} ` } })
+    .select("titre typeEvenement dateDebut dateFin notes")
+    .lean<SeanceLean[]>();
+  const types = await TypeEvenement.find({
+    _id: { $in: seanceDocs.map((s) => s.typeEvenement) },
+  })
+    .select("nom")
+    .lean<{ _id: Types.ObjectId; nom: string }[]>();
+  const typeName = new Map(types.map((t) => [t._id.toString(), t.nom]));
+  const seanceByKey = new Map(
+    seanceDocs.map((s) => [
+      s.notes!.slice(SEED_DEMO_TAG.length).trim(),
+      {
+        _id: s._id,
+        titre: s.titre,
+        typeEvenement: typeName.get(s.typeEvenement.toString()) ?? "Unknown type",
+        dateDebut: s.dateDebut,
+        dateFin: s.dateFin,
+      },
+    ]),
+  );
+  const missing = [...new Set(RESERVATIONS.map((r) => r.seance))].filter(
+    (key) => !seanceByKey.has(key),
+  );
+  if (missing.length > 0) {
     throw new Error(
-      `No CLIENT account for ${CLIENT_EMAIL}: sign up with it first, then run this seed again.`,
+      `Demo sessions missing in \`seances\` (${missing.join(", ")}): run \`npm run seed:demo\` first.`,
     );
   }
 
@@ -347,24 +377,8 @@ async function main() {
     MATERIELS.map((m) => [m.key, materielBySerial.get(m.numeroSerie)!]),
   );
 
-  // 2. Demo sessions: only the seeded ones are replaced.
+  // 2. Only the seeded reservations are replaced.
   const removedReservations = await ReservationMateriel.deleteMany({ seed: true });
-  const removedSeances = await SeanceDemo.deleteMany({ seed: true });
-  const seanceDocs = await SeanceDemo.insertMany(
-    SEANCES.map((s) => ({
-      titre: s.titre,
-      typeEvenement: s.type,
-      lieu: s.lieu,
-      dateDebut: s.debut,
-      dateFin: new Date(s.debut.getTime() + s.heures * HOUR),
-      statut: s.statut,
-      client: client._id,
-      clientNom: CLIENT_NOM,
-      photographe: admin._id,
-      seed: true,
-    })),
-  );
-  const seanceByKey = new Map(SEANCES.map((s, i) => [s.key, seanceDocs[i]]));
 
   // 3. Reservations over each session's own period, all made by the admin for the studio.
   const reservations = RESERVATIONS.flatMap((r) => {
@@ -414,7 +428,7 @@ async function main() {
       .join(", ");
   console.log(`Equipment: ${MATERIELS.length} upserted by serial number.`);
   console.log(
-    `Demo sessions: ${seanceDocs.length} created (${removedSeances.deletedCount} seeded ones replaced) — ${count(SEANCES, (s) => s.type)}.`,
+    `Demo sessions used (from seances): ${seanceByKey.size} — ${count(DEMO_SEANCES, (s) => s.type)}.`,
   );
   console.log(
     `Reservations: ${reservations.length} created (${removedReservations.deletedCount} seeded ones replaced) — ${count(reservations, (r) => r.statut)}.`,
@@ -425,9 +439,7 @@ async function main() {
       (r) => r.typeEvenement,
     )}.`,
   );
-  console.log(
-    `Client: ${CLIENT_NOM} · team and reservations: ${admin.prenom} ${admin.nom} (ADMIN).`,
-  );
+  console.log(`Reservations made by: ${admin.prenom} ${admin.nom} (ADMIN).`);
 }
 
 main()
