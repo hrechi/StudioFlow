@@ -1,6 +1,9 @@
 /* Module : Gestion des Avis & Réclamations · Responsable : Mohamed Yessine Nahdi */
+import { MessagesSquare } from "lucide-react";
 import type { Metadata } from "next";
+import Link from "next/link";
 import { PageHeader } from "@/components/shared/page-header";
+import { Button } from "@/components/ui/button";
 import { requireArea } from "@/lib/guards";
 import { ClientFeedback } from "@/modules/avis-reclamations/components/client-feedback";
 import { listAvis } from "@/modules/avis-reclamations/avis.service";
@@ -20,6 +23,16 @@ export default async function MesAvisPage() {
       <PageHeader
         title="Reviews & complaints"
         description="Rate your sessions, report a problem and follow the studio's reply."
+        actions={
+          mesReclamations.length > 0 && (
+            <Button asChild variant="outline">
+              <Link href="/espace-client/avis/reclamations">
+                <MessagesSquare aria-hidden />
+                Messages
+              </Link>
+            </Button>
+          )
+        }
       />
       <ClientFeedback
         seancesANoter={SEANCES_A_NOTER}

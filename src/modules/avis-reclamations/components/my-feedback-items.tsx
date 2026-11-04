@@ -1,6 +1,7 @@
 "use client";
 
-import { Loader2, MessagesSquare, Pencil, Save, Trash2, X } from "lucide-react";
+import { ChevronRight, Loader2, MessagesSquare, Pencil, Save, Trash2, X } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition, type ReactNode } from "react";
 import { toast } from "sonner";
@@ -32,8 +33,8 @@ import {
   type Avis,
   type CategorieReclamation,
   type Reclamation,
+  reclamationHref,
 } from "../avis.types";
-import { ReclamationThread } from "./reclamation-thread";
 
 /** Edit / Delete buttons shared by both item types. */
 function ItemActions({
@@ -223,6 +224,41 @@ export function MyReviewItem({ avis }: { avis: Avis }) {
 
 // ── Complaints ──────────────────────────────────────────────────────────────
 
+/** Entry point to the conversation page: last message preview + count. */
+function ConversationLink({ reclamation: r }: { reclamation: Reclamation }) {
+  const thread = r.messages.filter((m) => !m.evenement);
+  const last = thread.at(-1);
+  return (
+    <Link
+      href={reclamationHref(r.id, "client")}
+      className="group mt-3 flex items-center gap-3 rounded-xl border bg-surface/60 px-3 py-2.5 transition-colors hover:border-primary/40 hover:bg-accent"
+    >
+      <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
+        <MessagesSquare className="size-4" aria-hidden />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-sm font-semibold text-foreground">
+          {thread.length ? "Open conversation" : "Message the studio"}
+          {thread.length > 0 && (
+            <span className="ml-1.5 font-normal text-muted-foreground">
+              · {thread.length} message{thread.length > 1 ? "s" : ""}
+            </span>
+          )}
+        </span>
+        <span className="block truncate text-xs text-muted-foreground">
+          {last
+            ? `${last.auteurRole === "CLIENT" ? "You" : "Studio"}: ${last.contenu}`
+            : "Start a conversation about this complaint."}
+        </span>
+      </span>
+      <ChevronRight
+        className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5"
+        aria-hidden
+      />
+    </Link>
+  );
+}
+
 export function MyComplaintItem({
   reclamation: r,
   progress,
@@ -233,7 +269,6 @@ export function MyComplaintItem({
 }) {
   const [editing, setEditing] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const [threadOpen, setThreadOpen] = useState(false);
   const [objet, setObjet] = useState(r.objet);
   const [description, setDescription] = useState(r.description);
   const [categorie, setCategorie] = useState<CategorieReclamation>(r.categorie);
@@ -260,18 +295,7 @@ export function MyComplaintItem({
             {formatDate(r.dateCreation)}
           </p>
           {!editing && <p className="mt-2 text-sm text-slate">{r.description}</p>}
-          {!editing && (
-            <button
-              type="button"
-              onClick={() => setThreadOpen((open) => !open)}
-              aria-expanded={threadOpen}
-              className="mt-2 inline-flex items-center gap-1.5 text-sm font-medium text-primary-text hover:underline"
-            >
-              <MessagesSquare className="size-4" aria-hidden />
-              {threadOpen ? "Hide conversation" : "Conversation"}
-              {r.messages.length > 0 && ` (${r.messages.length})`}
-            </button>
-          )}
+          {!editing && <ConversationLink reclamation={r} />}
         </div>
         {!editing && (
           <ItemActions
@@ -283,11 +307,6 @@ export function MyComplaintItem({
           />
         )}
       </div>
-
-      {threadOpen && !editing && (
-        // The action revalidates this page, so new bubbles arrive via props.
-        <ReclamationThread reclamation={r} viewer="client" />
-      )}
 
       {editing && (
         <form

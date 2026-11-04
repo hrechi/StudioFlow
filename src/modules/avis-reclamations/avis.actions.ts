@@ -59,9 +59,10 @@ function revalidateReviews() {
   revalidatePath("/", "page");
 }
 
+/** Lists and every conversation page under them. */
 function revalidateComplaints() {
-  revalidatePath(CLIENT_PATH);
-  revalidatePath(RECLAMATIONS_PATH);
+  revalidatePath(CLIENT_PATH, "layout");
+  revalidatePath(RECLAMATIONS_PATH, "layout");
 }
 
 // ── The author's own reviews and complaints (edit / delete) ─────────────────
@@ -181,8 +182,7 @@ export async function updateReclamationAction(input: unknown): Promise<ActionRes
   if (!parsed.success) return validationFailure(parsed.error);
   try {
     await updateReclamation(parsed.data.id, parsed.data.statut, parsed.data.reponse, admin.id);
-    revalidatePath(RECLAMATIONS_PATH);
-    revalidatePath("/espace-client/avis");
+    revalidateComplaints();
     return success();
   } catch (error) {
     return toFailure(error);

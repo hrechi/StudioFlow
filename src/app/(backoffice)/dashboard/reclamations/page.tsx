@@ -1,8 +1,10 @@
 /* Module : Gestion des Avis & Réclamations · Responsable : Mohamed Yessine Nahdi */
-import { CircleCheck, Inbox, LoaderCircle, Siren, ThumbsUp } from "lucide-react";
+import { CircleCheck, Inbox, LoaderCircle, MessagesSquare, Siren, ThumbsUp } from "lucide-react";
 import type { Metadata } from "next";
+import Link from "next/link";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatCard } from "@/components/shared/stat-card";
+import { Button } from "@/components/ui/button";
 import { requireArea } from "@/lib/guards";
 import { ReclamationsBoard } from "@/modules/avis-reclamations/components/reclamations-board";
 import { getReclamationStats } from "@/modules/avis-reclamations/analytics.service";
@@ -22,6 +24,14 @@ export default async function ReclamationsPage() {
       <PageHeader
         title="Complaints"
         description="The AI categorizes and prioritizes each complaint; the staff take charge, chat with the client, then resolve or reject it; clients rate the resolution."
+        actions={
+          <Button asChild>
+            <Link href="/dashboard/reclamations/inbox">
+              <MessagesSquare aria-hidden />
+              Open messages
+            </Link>
+          </Button>
+        }
       />
       <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3 xl:grid-cols-5">
         <StatCard label="Open" value={count("OUVERTE")} icon={Inbox} tone="amber" />

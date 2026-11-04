@@ -64,6 +64,13 @@ export type Avis = {
   seance: { id: string; titre: string; type: string };
 };
 
+/** Conversation page of a complaint, per side. */
+export function reclamationHref(id: string, viewer: "client" | "staff"): string {
+  return viewer === "client"
+    ? `/espace-client/avis/reclamations/${id}`
+    : `/dashboard/reclamations/${id}`;
+}
+
 /** Days during which the client may reopen a resolved complaint. */
 export const REOPEN_DAYS = 7;
 
@@ -109,6 +116,8 @@ export type Reclamation = {
   reponse?: string;
   dateCreation: string;
   dateResolution?: string;
+  /** Last change (message, status…) — orders the inbox. */
+  derniereActivite: string;
   client: UtilisateurRef;
   seance: { id: string; titre: string };
   traitePar?: UtilisateurRef;
