@@ -1,4 +1,5 @@
 import {
+  Blocks,
   BookImage,
   BarChart3,
   CalendarClock,
@@ -99,6 +100,12 @@ export const BACKOFFICE_NAV: NavGroup[] = [
         icon: CalendarClock,
         area: "materiel",
       },
+      {
+        label: "Blockchain allocation",
+        href: "/dashboard/allocation",
+        icon: Blocks,
+        area: "dashboard",
+      },
     ],
   },
   {
@@ -194,6 +201,7 @@ export const SEGMENT_LABELS: Record<string, string> = {
   galeries: "Galleries",
   materiel: "Equipment",
   reservations: "Reservations",
+  allocation: "Blockchain allocation",
   facturation: "Billing",
   devis: "Quotes",
   factures: "Invoices",
