@@ -43,6 +43,17 @@ export const BACKOFFICE_NAV: NavGroup[] = [
     items: [{ label: "Dashboard", href: "/dashboard", icon: LayoutDashboard, area: "dashboard" }],
   },
   {
+    label: "Blockchain",
+    items: [
+      {
+        label: "Equipment allocation",
+        href: "/dashboard/allocation",
+        icon: Blocks,
+        area: "dashboard",
+      },
+    ],
+  },
+  {
     label: "Sessions",
     items: [
       { label: "Sessions", href: "/dashboard/seances", icon: CalendarDays, area: "seances" },
@@ -99,12 +110,6 @@ export const BACKOFFICE_NAV: NavGroup[] = [
         href: "/dashboard/materiel/reservations",
         icon: CalendarClock,
         area: "materiel",
-      },
-      {
-        label: "Blockchain allocation",
-        href: "/dashboard/allocation",
-        icon: Blocks,
-        area: "dashboard",
       },
     ],
   },
