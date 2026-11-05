@@ -7,7 +7,7 @@ local Ethereum blockchain** (Ganache) through the `EquipmentAllocation` smart co
 in the browser with **MetaMask**. Result: a tamper-proof history of who used which equipment,
 when, and in what condition it came back.
 
-Page: **`/dashboard/allocation`** (sidebar → Equipment → *Blockchain allocation*), detail page
+Page: **`/dashboard/allocation`** (sidebar → Blockchain → *Equipment allocation*), detail page
 `/dashboard/allocation/<id>`. Staff only (ADMIN + PHOTOGRAPHE).
 
 The contract, its tests and the Ganache setup live in the sibling project
