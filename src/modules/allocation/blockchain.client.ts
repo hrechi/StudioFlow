@@ -95,7 +95,11 @@ export function walletErrorMessage(error: unknown): WalletError {
       "offline",
     );
   }
-  return new WalletError(e?.message?.split("(")[0]?.trim() || "The blockchain request failed.");
+  // ethers appends technical details in parentheses; our own messages are kept whole.
+  const message = e?.message ?? "";
+  return new WalletError(
+    (e?.code ? message.split(" (")[0] : message).trim() || "The blockchain request failed.",
+  );
 }
 
 // ── Connection ───────────────────────────────────────────────────────────────
