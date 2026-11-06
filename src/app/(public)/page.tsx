@@ -15,6 +15,7 @@ import { listAvis } from "@/modules/avis-reclamations/avis.service";
 import { getPublicReviewSummary } from "@/modules/avis-reclamations/summary.service";
 import { listPublicPortfolios } from "@/modules/portfolio/portfolio.service";
 import { PortfolioCardTransition } from "@/modules/portfolio/components/transitions";
+import { getFeaturedPacks } from "@/modules/seances/pack.service";
 import { ContactForm } from "./_components/contact-form";
 import { Testimonials } from "./_components/testimonials";
 
@@ -46,45 +47,6 @@ const CATEGORIES = [
     slug: "evenements",
     image: mockImage("evenement", 1),
     texte: "Launches, conferences and parties, captured live by a discreet crew.",
-  },
-];
-
-const PACKAGES = [
-  {
-    nom: "Essential",
-    pour: "Portraits · Products",
-    prix: "250",
-    featured: false,
-    points: [
-      "2-hour session in the studio or outdoors",
-      "20 retouched photos",
-      "Private online gallery for 3 months",
-      "Delivery within 72 hours",
-    ],
-  },
-  {
-    nom: "Signature",
-    pour: "Weddings · Events",
-    prix: "1,900",
-    featured: true,
-    points: [
-      "8 hours of coverage, two photographers",
-      "300+ photos, AI-assisted culling",
-      "Private gallery with favourites and selection",
-      "Downloads in full resolution",
-    ],
-  },
-  {
-    nom: "Prestige",
-    pour: "The full story",
-    prix: "3,500",
-    featured: false,
-    points: [
-      "Engagement session + full wedding day",
-      "Fine-art printed album (30 × 30 cm)",
-      "Highlight film, 3 minutes",
-      "Private gallery for 12 months",
-    ],
   },
 ];
 
@@ -126,8 +88,11 @@ export default async function HomePage() {
     })
   ).items;
   const publicSlugs = new Set(publishedPortfolios.map((portfolio) => portfolio.slug));
-  const { items: publicReviews } = await listAvis({ publicOnly: true });
-  const reviewSummary = await getPublicReviewSummary();
+  const [{ items: publicReviews }, reviewSummary, featuredPacks] = await Promise.all([
+    listAvis({ publicOnly: true }),
+    getPublicReviewSummary(),
+    getFeaturedPacks(),
+  ]);
   const testimonials = publicReviews.map((avis) => ({
     id: avis.id,
     quote: avis.commentaire,
@@ -312,58 +277,85 @@ export default async function HomePage() {
               Prices from, VAT included; a detailed quote follows your request.
             </p>
           </Reveal>
-          <ul className="mt-16 grid gap-px bg-foreground/[0.07] lg:grid-cols-3">
-            {PACKAGES.map((pack, index) => (
-              <Reveal
-                key={pack.nom}
-                as="li"
-                delay={index * 120}
-                className={cn(
-                  "relative flex flex-col p-8 sm:p-10",
-                  pack.featured ? "bg-card" : "bg-surface",
-                )}
-              >
-                {pack.featured && (
-                  <>
-                    <span aria-hidden className="viewfinder pointer-events-none absolute inset-3" />
-                    <span className="absolute top-3 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-card px-3 font-heading text-[0.6rem] tracking-[0.3em] whitespace-nowrap text-gold uppercase">
-                      Most booked
-                    </span>
-                  </>
-                )}
-                <p className="text-[0.65rem] tracking-[0.3em] text-foreground/50 uppercase">
-                  {pack.pour}
-                </p>
-                <h3 className="display-md mt-3 text-foreground">{pack.nom}</h3>
-                <p className="mt-8 flex items-baseline gap-2 text-foreground">
-                  <span className="text-xs tracking-[0.2em] text-foreground/50 uppercase">
-                    From
-                  </span>
-                  <span className="font-heading text-5xl font-light">{pack.prix}</span>
-                  <span className="text-sm text-foreground/60">TND</span>
-                </p>
-                <ul className="mt-8 flex-1 space-y-3 border-t border-foreground/10 pt-8 text-sm text-foreground/75">
-                  {pack.points.map((point) => (
-                    <li key={point} className="flex gap-3">
-                      <Check className="mt-0.5 size-4 shrink-0 text-gold" aria-hidden />
-                      {point}
-                    </li>
-                  ))}
-                </ul>
-                <Button
-                  asChild
-                  variant={pack.featured ? "cinematic" : "cinematic-outline"}
-                  size="cta"
-                  className="mt-10 w-full"
-                >
-                  <Link href={reserveHref}>
-                    Book {pack.nom}
-                    <ArrowUpRight aria-hidden />
-                  </Link>
-                </Button>
-              </Reveal>
-            ))}
-          </ul>
+
+          {featuredPacks.length === 0 ? (
+            <p className="mt-16 text-center text-sm text-foreground/50">
+              No package available at the moment — contact us for a custom quote.
+            </p>
+          ) : (
+            <ul className="mt-16 grid gap-px bg-foreground/[0.07] lg:grid-cols-3">
+              {featuredPacks.map((pack, index) => {
+                const isFeatured = pack.miseEnAvant;
+                return (
+                  <Reveal
+                    key={pack.id}
+                    as="li"
+                    delay={index * 120}
+                    className={cn(
+                      "relative flex flex-col p-8 sm:p-10",
+                      isFeatured ? "bg-card" : "bg-surface",
+                    )}
+                  >
+                    {isFeatured && (
+                      <>
+                        <span aria-hidden className="viewfinder pointer-events-none absolute inset-3" />
+                        <span className="absolute top-3 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-card px-3 font-heading text-[0.6rem] tracking-[0.3em] whitespace-nowrap text-gold uppercase">
+                          Most booked
+                        </span>
+                      </>
+                    )}
+                    <p className="text-[0.65rem] tracking-[0.3em] text-foreground/50 uppercase">
+                      {pack.typeEvenement.nom}
+                    </p>
+                    <h3 className="display-md mt-3 text-foreground">{pack.nom}</h3>
+                    <p className="mt-8 flex items-baseline gap-2 text-foreground">
+                      {pack.afficherPrix && pack.prix > 0 ? (
+                        <>
+                          <span className="text-xs tracking-[0.2em] text-foreground/50 uppercase">From</span>
+                          <span className="font-heading text-5xl font-light">
+                            {(pack.prix / 1000).toLocaleString("fr-TN", { minimumFractionDigits: 0 })}
+                          </span>
+                          <span className="text-sm text-foreground/60">TND</span>
+                        </>
+                      ) : (
+                        <span className="text-sm text-foreground/50">Price on request</span>
+                      )}
+                    </p>
+                    <ul className="mt-8 flex-1 space-y-3 border-t border-foreground/10 pt-8 text-sm text-foreground/75">
+                      {pack.prestations.slice(0, 5).map((p) => (
+                        <li key={p.nom} className="flex gap-3">
+                          <Check className="mt-0.5 size-4 shrink-0 text-gold" aria-hidden />
+                          {p.quantite > 1
+                            ? `${p.quantite} ${p.unite ? `${p.unite} · ` : "× "}${p.nom}`
+                            : p.nom}
+                        </li>
+                      ))}
+                    </ul>
+                    <Button
+                      asChild
+                      variant={isFeatured ? "cinematic" : "cinematic-outline"}
+                      size="cta"
+                      className="mt-10 w-full"
+                    >
+                      <Link href={`${reserveHref}?pack=${pack.id}`}>
+                        Book {pack.nom}
+                        <ArrowUpRight aria-hidden />
+                      </Link>
+                    </Button>
+                  </Reveal>
+                );
+              })}
+            </ul>
+          )}
+
+          <Reveal className="mt-10 text-center">
+            <Link
+              href="/packs"
+              className="text-sm tracking-[0.2em] text-foreground/50 uppercase transition-colors hover:text-foreground"
+            >
+              See all packages →
+            </Link>
+          </Reveal>
         </div>
       </section>
 

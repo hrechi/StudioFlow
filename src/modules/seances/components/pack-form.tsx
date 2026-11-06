@@ -55,6 +55,7 @@ export function PackForm({
       description: pack?.description ?? "",
       prix: pack?.prix ?? 0,
       afficherPrix: pack?.afficherPrix ?? true,
+      miseEnAvant: pack?.miseEnAvant ?? false,
       dureeEstimeeMinutes: pack?.dureeEstimeeMinutes ?? 0,
       statut: pack?.statut ?? "BROUILLON",
       prestations:
@@ -203,6 +204,21 @@ export function PackForm({
                 <span className="font-medium text-foreground">Show the price on the site</span>
                 <span className="block text-xs text-muted-foreground">
                   When off, visitors see "on quote" and the chatbot will not quote a price.
+                </span>
+              </span>
+              <Switch checked={field.value} onCheckedChange={field.onChange} />
+            </label>
+          )}
+        />
+        <Controller
+          control={form.control}
+          name="miseEnAvant"
+          render={({ field }) => (
+            <label className="flex items-center justify-between gap-4 rounded-lg border border-gold/30 bg-gold/5 p-3 text-sm">
+              <span>
+                <span className="font-medium text-foreground">⭐ Feature on homepage</span>
+                <span className="block text-xs text-muted-foreground">
+                  Up to 3 featured packs appear on the landing page. If more than 3 are featured, the cheapest ones are picked automatically.
                 </span>
               </span>
               <Switch checked={field.value} onCheckedChange={field.onChange} />

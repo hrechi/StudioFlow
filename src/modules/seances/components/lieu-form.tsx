@@ -40,7 +40,15 @@ const MapPicker = dynamic(
   },
 );
 
-export function LieuForm({ lieu, autres }: { lieu?: LieuDTO; autres: LieuRef[] }) {
+export function LieuForm({
+  lieu,
+  autres,
+  prefill,
+}: {
+  lieu?: LieuDTO;
+  autres: LieuRef[];
+  prefill?: { nom: string; adresse: string; latitude: string; longitude: string };
+}) {
   const editing = !!lieu;
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -49,15 +57,15 @@ export function LieuForm({ lieu, autres }: { lieu?: LieuDTO; autres: LieuRef[] }
   const form = useForm<LieuInput>({
     resolver: zodResolver(lieuSchema) as unknown as Resolver<LieuInput>,
     defaultValues: {
-      nom: lieu?.nom ?? "",
-      adresse: lieu?.adresse ?? "",
+      nom: lieu?.nom ?? prefill?.nom ?? "",
+      adresse: lieu?.adresse ?? prefill?.adresse ?? "",
       description: lieu?.description ?? "",
       type: lieu?.type ?? "STUDIO",
       exterieur: lieu?.exterieur ?? false,
       capacite: lieu?.capacite ?? 0,
       disponible: lieu?.disponible ?? true,
-      latitude: lieu?.coordonnees ? String(lieu.coordonnees.latitude) : "",
-      longitude: lieu?.coordonnees ? String(lieu.coordonnees.longitude) : "",
+      latitude: lieu?.coordonnees ? String(lieu.coordonnees.latitude) : prefill?.latitude ?? "",
+      longitude: lieu?.coordonnees ? String(lieu.coordonnees.longitude) : prefill?.longitude ?? "",
       coutSupplementaire: lieu?.coutSupplementaire ?? 0,
       lieuxAlternatifsIds: lieu?.lieuxAlternatifs.map((a) => a.id) ?? [],
     },
@@ -139,8 +147,9 @@ export function LieuForm({ lieu, autres }: { lieu?: LieuDTO; autres: LieuRef[] }
             />
           </FormField>
         </div>
-        <FormField id="adresse" label="Address" required error={err("adresse")}>
-          <IconInput id="adresse" placeholder="Carthage, Tunis" {...form.register("adresse")} />
+        <FormField id="adresse" label="Address" required error={err("adresse")}
+          hint="Search on the map below to fill automatically, or type manually">
+          <IconInput id="adresse" placeholder="Ex: Sidi Bou Saïd, Tunis" {...form.register("adresse")} />
         </FormField>
         <FormField id="description" label="Description" error={err("description")}>
           <Textarea id="description" rows={3} {...form.register("description")} />
@@ -219,6 +228,12 @@ export function LieuForm({ lieu, autres }: { lieu?: LieuDTO; autres: LieuRef[] }
             onChange={(lat, lng) => {
               form.setValue("latitude", lat, { shouldDirty: true, shouldValidate: true });
               form.setValue("longitude", lng, { shouldDirty: true, shouldValidate: true });
+            }}
+            onAddressFound={(address) => {
+              // Rempli automatiquement le champ adresse seulement s'il est vide
+              if (!form.getValues("adresse").trim()) {
+                form.setValue("adresse", address, { shouldDirty: true, shouldValidate: true });
+              }
             }}
           />
           {/* Hidden inputs keep RHF registration alive for Zod validation */}

@@ -56,6 +56,7 @@ export const packSchema = z.object({
   description: z.string().trim().max(1000, "1000 characters maximum"),
   prix: z.number({ error: "Enter a price" }).min(0, "Price cannot be negative").max(1_000_000),
   afficherPrix: z.boolean(),
+  miseEnAvant: z.boolean(),
   dureeEstimeeMinutes: z
     .number({ error: "Enter a number (0 = not specified)" })
     .int("Whole number required")

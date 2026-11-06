@@ -14,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { fullName } from "@/lib/mock-data-helpers";
 import type { UtilisateurRef } from "@/modules/utilisateurs/utilisateur.types";
+import type { LieuDTO } from "../lieu.types";
 import { createSeanceAction, updateSeanceAction } from "../seance.actions";
 import {
   ROLES_EQUIPE,
@@ -23,10 +24,9 @@ import {
   type SeanceDTO,
 } from "../seance.dto";
 import { seanceSchema, type SeanceInput } from "../seance.schemas";
-import type { LieuRef } from "../lieu.types";
+import { LocationPicker, type LocationValue } from "./location-picker";
 
 const NO_PACK = "__custom__";
-const OTHER_LIEU = "__other__";
 
 const toLocal = (iso?: string) => {
   if (!iso) return "";
@@ -35,7 +35,10 @@ const toLocal = (iso?: string) => {
 };
 const toIso = (local: string) => (local ? new Date(local).toISOString() : "");
 
-type FormValues = Omit<SeanceInput, "dateDebut" | "dateFin"> & { dateDebut: string; dateFin: string };
+type FormValues = Omit<SeanceInput, "dateDebut" | "dateFin"> & {
+  dateDebut: string;
+  dateFin: string;
+};
 
 export function SeanceForm({
   seance,
@@ -48,7 +51,7 @@ export function SeanceForm({
   seance?: SeanceDTO;
   clients: UtilisateurRef[];
   photographes: UtilisateurRef[];
-  lieux: LieuRef[];
+  lieux: LieuDTO[];
   types: { id: string; nom: string }[];
   packs: { id: string; nom: string; typeId: string; disabled: boolean }[];
 }) {
@@ -56,6 +59,27 @@ export function SeanceForm({
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [walkIn, setWalkIn] = useState(!!seance?.clientExterne);
+
+  // Valeur initiale du LocationPicker si on édite une séance
+  const initialLocation: LocationValue | null =
+    seance?.lieuId
+      ? (() => {
+          const l = lieux.find((x) => x.id === seance.lieuId);
+          return l
+            ? {
+                lieuId: l.id,
+                nom: l.nom,
+                adresse: l.adresse,
+                latitude: l.coordonnees ? String(l.coordonnees.latitude) : "",
+                longitude: l.coordonnees ? String(l.coordonnees.longitude) : "",
+              }
+            : null;
+        })()
+      : seance?.lieu
+        ? { lieuId: "", nom: seance.lieu, adresse: seance.lieu, latitude: "", longitude: "" }
+        : null;
+
+  const [locationValue, setLocationValue] = useState<LocationValue | null>(initialLocation);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(seanceSchema) as unknown as Resolver<FormValues>,
@@ -77,6 +101,7 @@ export function SeanceForm({
       notes: seance?.notes ?? "",
     },
   });
+
   const { errors } = form.formState;
   const team = useFieldArray({ control: form.control, name: "equipe" });
   const typeId = form.watch("typeEvenementId");
@@ -84,8 +109,19 @@ export function SeanceForm({
   const typePacks = packs.filter((p) => p.typeId === typeId);
   const err = (n: keyof FormValues) => errors[n]?.message as string | undefined;
 
+  // Sync LocationPicker → React Hook Form
+  const handleLocationChange = (val: LocationValue | null) => {
+    setLocationValue(val);
+    form.setValue("lieuId", val?.lieuId ?? "", { shouldDirty: true, shouldValidate: true });
+    form.setValue("lieu", val?.nom ?? "", { shouldDirty: true, shouldValidate: true });
+  };
+
   const onSubmit = form.handleSubmit((values) => {
-    const payload = { ...values, dateDebut: toIso(values.dateDebut), dateFin: toIso(values.dateFin) };
+    const payload = {
+      ...values,
+      dateDebut: toIso(values.dateDebut),
+      dateFin: toIso(values.dateFin),
+    };
     startTransition(async () => {
       const result = editing
         ? await updateSeanceAction(seance.id, payload)
@@ -103,24 +139,32 @@ export function SeanceForm({
 
   return (
     <form onSubmit={onSubmit} noValidate className="space-y-6">
+      {/* ── Session ─────────────────────────────────────────────── */}
       <Card className="space-y-4 p-5">
         <h2 className="font-semibold text-foreground">Session</h2>
         <FormField id="titre" label="Title" required error={err("titre")}>
-          <IconInput id="titre" placeholder="Wedding — Sarra & Omar" invalid={!!errors.titre}
-            aria-describedby={describedBy("titre", err("titre"))} {...form.register("titre")} />
+          <IconInput
+            id="titre"
+            placeholder="Wedding — Sarra & Omar"
+            invalid={!!errors.titre}
+            aria-describedby={describedBy("titre", err("titre"))}
+            {...form.register("titre")}
+          />
         </FormField>
+
+        {/* Client */}
         <div className="space-y-3 rounded-lg border p-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <p className="text-sm font-medium text-foreground">Client</p>
             <div className="inline-flex rounded-lg border p-0.5" role="group" aria-label="Client type">
-              <Button type="button" size="sm" variant={walkIn ? "ghost" : "default"} aria-pressed={!walkIn}
-                onClick={() => { setWalkIn(false); form.setValue("clientNom", ""); form.setValue("clientTelephone", ""); form.setValue("clientEmail", ""); }}>
-                Has an account
-              </Button>
-              <Button type="button" size="sm" variant={walkIn ? "default" : "ghost"} aria-pressed={walkIn}
-                onClick={() => { setWalkIn(true); form.setValue("clientId", ""); }}>
-                No account (phone / walk-in)
-              </Button>
+              <Button
+                type="button" size="sm" variant={walkIn ? "ghost" : "default"} aria-pressed={!walkIn}
+                onClick={() => { setWalkIn(false); form.setValue("clientNom", ""); form.setValue("clientTelephone", ""); form.setValue("clientEmail", ""); }}
+              >Has an account</Button>
+              <Button
+                type="button" size="sm" variant={walkIn ? "default" : "ghost"} aria-pressed={walkIn}
+                onClick={() => { setWalkIn(true); form.setValue("clientId", ""); }}
+              >No account (phone / walk-in)</Button>
             </div>
           </div>
           {walkIn ? (
@@ -152,6 +196,8 @@ export function SeanceForm({
             </FormField>
           )}
         </div>
+
+        {/* Type + Pack */}
         <div className="grid gap-4 sm:grid-cols-2">
           <FormField id="typeEvenementId" label="Event type" required error={err("typeEvenementId")}>
             <Controller control={form.control} name="typeEvenementId" render={({ field }) => (
@@ -166,6 +212,7 @@ export function SeanceForm({
             )} />
           </FormField>
         </div>
+
         <FormField id="packId" label="Pack" error={err("packId")} hint="Packs of the chosen event type, or a custom service.">
           <Select
             value={packId || NO_PACK}
@@ -185,6 +232,7 @@ export function SeanceForm({
             </SelectContent>
           </Select>
         </FormField>
+
         {!packId && (
           <FormField id="prestationPersonnalisee" label="Custom service" required error={err("prestationPersonnalisee")}>
             <Textarea id="prestationPersonnalisee" rows={3} {...form.register("prestationPersonnalisee")} />
@@ -192,6 +240,7 @@ export function SeanceForm({
         )}
       </Card>
 
+      {/* ── Schedule & location ─────────────────────────────────── */}
       <Card className="space-y-4 p-5">
         <h2 className="font-semibold text-foreground">Schedule & location</h2>
         <div className="grid gap-4 sm:grid-cols-2">
@@ -202,50 +251,25 @@ export function SeanceForm({
             <IconInput id="dateFin" type="datetime-local" {...form.register("dateFin")} />
           </FormField>
         </div>
-        {/* Configured location picker — optional, falls back to free text */}
-        {lieux.length > 0 && (
-          <FormField id="lieuId" label="Configured location" error={err("lieuId")} hint="Choosing a location links availability, weather checks and alternatives.">
-            <Controller
-              control={form.control}
-              name="lieuId"
-              render={({ field }) => (
-                <Select
-                  value={field.value || OTHER_LIEU}
-                  onValueChange={(v) => {
-                    const selected = v === OTHER_LIEU ? "" : v;
-                    field.onChange(selected);
-                    // When a configured location is selected, sync the free-text field with its name.
-                    if (selected) {
-                      const found = lieux.find((l) => l.id === selected);
-                      if (found) form.setValue("lieu", found.nom, { shouldDirty: true });
-                    }
-                  }}
-                >
-                  <SelectTrigger id="lieuId" className="h-10 w-full bg-card">
-                    <SelectValue>
-                      {field.value
-                        ? lieux.find((l) => l.id === field.value)?.nom ?? "Unknown location"
-                        : "Free text (see below)"}
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={OTHER_LIEU}>Free text (see below)</SelectItem>
-                    {lieux.map((l) => (
-                      <SelectItem key={l.id} value={l.id} disabled={!l.disponible}>
-                        {l.nom}
-                        {l.exterieur ? " · Outdoor" : ""}
-                        {!l.disponible ? " (disabled)" : ""}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-            />
-          </FormField>
-        )}
-        <FormField id="lieu" label={lieux.length > 0 ? "Location name (free text)" : "Location"} required error={err("lieu")}>
-          <IconInput id="lieu" placeholder="Studio, venue address…" {...form.register("lieu")} />
+
+        {/* LocationPicker : OpenStreetMap + lieux DB */}
+        <FormField
+          id="lieu"
+          label="Location"
+          required
+          error={err("lieu")}
+          hint="Search on the map — saved locations appear first with a ✓ badge."
+        >
+          <LocationPicker
+            lieux={lieux}
+            value={locationValue}
+            onChange={handleLocationChange}
+          />
+          {/* Champs cachés pour RHF / Zod */}
+          <input type="hidden" {...form.register("lieu")} />
+          <input type="hidden" {...form.register("lieuId")} />
         </FormField>
+
         {!editing && (
           <FormField id="statut" label="Initial status" error={err("statut")}>
             <Controller control={form.control} name="statut" render={({ field }) => (
@@ -262,6 +286,7 @@ export function SeanceForm({
         )}
       </Card>
 
+      {/* ── Team ────────────────────────────────────────────────── */}
       <Card className="space-y-4 p-5">
         <div className="flex items-center justify-between">
           <h2 className="font-semibold text-foreground">Team</h2>
@@ -275,14 +300,18 @@ export function SeanceForm({
             {err("equipe") ?? (errors.equipe as { root: { message: string } }).root.message}
           </p>
         )}
-        {team.fields.length === 0 && <p className="text-sm text-muted-foreground">No one assigned yet. Conflicts are checked on save.</p>}
+        {team.fields.length === 0 && (
+          <p className="text-sm text-muted-foreground">No one assigned yet. Conflicts are checked on save.</p>
+        )}
         {team.fields.map((field, index) => (
           <div key={field.id} className="grid items-start gap-3 sm:grid-cols-[2fr_2fr_auto]">
             <FormField id={`equipe.${index}.employeId`} label="Employee" error={errors.equipe?.[index]?.employeId?.message}>
               <Controller control={form.control} name={`equipe.${index}.employeId`} render={({ field: f }) => (
                 <Select value={f.value} onValueChange={f.onChange}>
                   <SelectTrigger className="h-10 w-full bg-card">
-                    <SelectValue placeholder="Choose…">{(() => { const p = photographes.find((x) => x.id === f.value); return p ? fullName(p) : undefined; })()}</SelectValue>
+                    <SelectValue placeholder="Choose…">
+                      {(() => { const p = photographes.find((x) => x.id === f.value); return p ? fullName(p) : undefined; })()}
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     {photographes.map((p) => <SelectItem key={p.id} value={p.id}>{fullName(p)}</SelectItem>)}
@@ -293,7 +322,9 @@ export function SeanceForm({
             <FormField id={`equipe.${index}.role`} label="Role" error={errors.equipe?.[index]?.role?.message}>
               <Controller control={form.control} name={`equipe.${index}.role`} render={({ field: f }) => (
                 <Select value={f.value} onValueChange={f.onChange}>
-                  <SelectTrigger className="h-10 w-full bg-card"><SelectValue>{roleEquipeLabels[f.value]}</SelectValue></SelectTrigger>
+                  <SelectTrigger className="h-10 w-full bg-card">
+                    <SelectValue>{roleEquipeLabels[f.value]}</SelectValue>
+                  </SelectTrigger>
                   <SelectContent>
                     {ROLES_EQUIPE.map((r) => <SelectItem key={r} value={r}>{roleEquipeLabels[r]}</SelectItem>)}
                   </SelectContent>
@@ -307,6 +338,7 @@ export function SeanceForm({
         ))}
       </Card>
 
+      {/* ── Notes ───────────────────────────────────────────────── */}
       <Card className="space-y-4 p-5">
         <FormField id="notes" label="Internal notes" error={err("notes")}>
           <Textarea id="notes" rows={3} {...form.register("notes")} />
@@ -314,7 +346,9 @@ export function SeanceForm({
       </Card>
 
       <div className="flex justify-end gap-2">
-        <Button type="button" variant="outline" onClick={() => router.back()} disabled={pending}>Cancel</Button>
+        <Button type="button" variant="outline" onClick={() => router.back()} disabled={pending}>
+          Cancel
+        </Button>
         <Button type="submit" disabled={pending}>
           {pending && <Loader2 className="animate-spin" aria-hidden />}
           {editing ? "Save changes" : "Create session"}

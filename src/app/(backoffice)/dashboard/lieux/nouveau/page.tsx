@@ -9,9 +9,30 @@ import { listLieuxRefs } from "@/modules/seances/lieu.service";
 
 export const metadata: Metadata = { title: "New location" };
 
-export default async function NouveauLieuPage() {
+export default async function NouveauLieuPage({
+  searchParams,
+}: {
+  searchParams: Promise<{
+    nom?: string;
+    adresse?: string;
+    latitude?: string;
+    longitude?: string;
+  }>;
+}) {
   await requireRole("ADMIN");
   const autres = await listLieuxRefs();
+  const params = await searchParams;
+
+  // Valeurs pré-remplies depuis le LocationPicker (bouton "Save as location")
+  const prefill = params.nom
+    ? {
+        nom: params.nom,
+        adresse: params.adresse ?? "",
+        latitude: params.latitude ?? "",
+        longitude: params.longitude ?? "",
+      }
+    : undefined;
+
   return (
     <div className="mx-auto max-w-4xl space-y-6">
       <PageHeader
@@ -25,9 +46,13 @@ export default async function NouveauLieuPage() {
           </Link>
         }
         title="New location"
-        description="Outdoor locations need coordinates so the weather can be checked."
+        description={
+          prefill
+            ? `Pre-filled from OpenStreetMap — "${prefill.nom}"`
+            : "Outdoor locations need coordinates so the weather can be checked."
+        }
       />
-      <LieuForm autres={autres} />
+      <LieuForm autres={autres} prefill={prefill} />
     </div>
   );
 }

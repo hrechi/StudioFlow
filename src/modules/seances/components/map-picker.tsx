@@ -119,6 +119,8 @@ export type MapPickerProps = {
   latitude: string;
   longitude: string;
   onChange: (lat: string, lng: string) => void;
+  /** Called when a search result is selected — passes the display_name back to the form. */
+  onAddressFound?: (address: string) => void;
 };
 
 const DEFAULT_LAT = 36.8529;
@@ -126,7 +128,7 @@ const DEFAULT_LNG = 10.3231;
 const DEFAULT_ZOOM = 9;
 const PINNED_ZOOM = 14;
 
-export function MapPicker({ latitude, longitude, onChange }: MapPickerProps) {
+export function MapPicker({ latitude, longitude, onChange, onAddressFound }: MapPickerProps) {
   const lat = parseFloat(latitude);
   const lng = parseFloat(longitude);
   const hasPinned = Number.isFinite(lat) && Number.isFinite(lng);
@@ -181,6 +183,9 @@ export function MapPicker({ latitude, longitude, onChange }: MapPickerProps) {
     setFlyTarget({ lat: rlat, lng: rlng, zoom: PINNED_ZOOM });
     setQuery(r.display_name);
     setOpen(false);
+    // Extraire une adresse courte depuis display_name (garder les 2-3 premiers segments)
+    const shortAddress = r.display_name.split(",").slice(0, 3).map((s) => s.trim()).join(", ");
+    onAddressFound?.(shortAddress);
   };
 
   // Close dropdown on outside click
@@ -290,7 +295,9 @@ export function MapPicker({ latitude, longitude, onChange }: MapPickerProps) {
       <p className="bg-muted/50 px-3 py-1.5 text-[0.7rem] text-muted-foreground">
         {hasPinned
           ? `📍 ${lat.toFixed(5)}, ${lng.toFixed(5)} — drag the pin or click to move it`
-          : "Search a place above or click directly on the map to place a pin"}
+          : query.trim().length >= 2 && !searching && results.length === 0
+            ? "⚠ Location not found — click directly on the map to place a pin manually"
+            : "Search a place above or click directly on the map to place a pin"}
       </p>
     </div>
   );

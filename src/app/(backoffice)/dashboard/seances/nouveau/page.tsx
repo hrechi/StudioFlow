@@ -8,7 +8,7 @@ import { SeanceForm } from "@/modules/seances/components/seance-form";
 import { listPacks } from "@/modules/seances/pack.service";
 import { listTypesEvenement } from "@/modules/seances/type-evenement.service";
 import { listClientRefs, listPhotographeRefs } from "@/modules/utilisateurs/utilisateur.service";
-import { listLieuxRefs } from "@/modules/seances/lieu.service";
+import { listLieux } from "@/modules/seances/lieu.service";
 
 export const metadata: Metadata = { title: "New session" };
 
@@ -19,7 +19,7 @@ export default async function NouvelleSeancePage() {
     listPhotographeRefs(),
     listTypesEvenement(),
     listPacks(),
-    listLieuxRefs(),
+    listLieux(),
   ]);
   return (
     <div className="mx-auto max-w-4xl space-y-6">

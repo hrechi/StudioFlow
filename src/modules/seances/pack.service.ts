@@ -153,6 +153,32 @@ export async function listPublicCatalogue(): Promise<CataloguePublicDTO> {
 /** Alias used by the chatbot service. */
 export const getPublicCatalogue = listPublicCatalogue;
 
+/**
+ * Returns exactly 3 packs for the landing page.
+ * Priority: 1) packs marked "miseEnAvant" (max 3), 2) cheapest published packs to fill up to 3.
+ * The middle pack (index 1) is always the most "featured" one.
+ */
+export async function getFeaturedPacks(): Promise<PackDTO[]> {
+  await connectDB();
+  const docs = await Pack.find({ statut: "PUBLIE" })
+    .sort({ miseEnAvant: -1, prix: 1 })
+    .lean<PackLean[]>();
+  if (docs.length === 0) return [];
+  const all = await hydrate(docs);
+
+  // Take up to 3: featured first, then by price
+  const featured = all.filter((p) => p.miseEnAvant).slice(0, 3);
+  const others = all.filter((p) => !p.miseEnAvant);
+  const selected = [...featured, ...others].slice(0, 3);
+
+  // Ensure the middle pack is the most featured (best for the UI layout)
+  if (selected.length === 3 && !selected[1]?.miseEnAvant && selected[0]?.miseEnAvant) {
+    [selected[0], selected[1]] = [selected[1]!, selected[0]!];
+  }
+
+  return selected;
+}
+
 // ── Validation ──────────────────────────────────────────────────────────────
 
 async function assertPublishable(input: PackInput, type: TypeLean): Promise<void> {
@@ -190,6 +216,7 @@ function toWrite(input: PackInput) {
     description: input.description,
     prix: input.prix,
     afficherPrix: input.afficherPrix,
+    miseEnAvant: input.miseEnAvant,
     dureeEstimeeMinutes: input.dureeEstimeeMinutes,
     statut: input.statut,
     prestations: input.prestations.map((l) => ({
@@ -270,6 +297,7 @@ export async function setPackStatut(id: string, statut: StatutPack): Promise<voi
         description: pack.description,
         prix: pack.prix,
         afficherPrix: pack.afficherPrix,
+        miseEnAvant: pack.miseEnAvant,
         dureeEstimeeMinutes: pack.dureeEstimeeMinutes,
         statut,
         prestations: pack.prestations.map((l) => ({
