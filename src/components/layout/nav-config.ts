@@ -6,6 +6,7 @@ import {
   Camera,
   CloudSun,
   FileText,
+  FileLock2,
   GalleryHorizontalEnd,
   Images,
   Layers,
@@ -143,6 +144,17 @@ export const BACKOFFICE_NAV: NavGroup[] = [
     ],
   },
   {
+    label: "Contracts",
+    items: [
+      {
+        label: "Contracts",
+        href: "/dashboard/contrats",
+        icon: FileLock2,
+        area: "contrats",
+      },
+    ],
+  },
+  {
     label: "Administration",
     items: [
       { label: "Statistics", href: "/dashboard/statistiques", icon: BarChart3, area: "facturation" },
@@ -201,6 +213,7 @@ export const SEGMENT_LABELS: Record<string, string> = {
   portfolio: "Portfolio",
   avis: "Reviews",
   reclamations: "Complaints",
+  contrats: "Contracts",
   utilisateurs: "Users",
   profil: "My profile",
   notifications: "Notifications",

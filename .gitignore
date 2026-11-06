@@ -43,3 +43,11 @@ next-env.d.ts
 
 # local editor/agent settings
 .claude/
+
+# reframe-blockchain — generated files (Hardhat)
+reframe-blockchain/.env
+reframe-blockchain/artifacts/
+reframe-blockchain/cache/
+reframe-blockchain/typechain-types/
+reframe-blockchain/node_modules/
+reframe-blockchain/package-lock.json

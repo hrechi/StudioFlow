@@ -25,6 +25,7 @@ export const PERMISSIONS = {
   portfolio: STAFF,
   "avis-reclamations": ["ADMIN"],
   utilisateurs: ["ADMIN"],
+  contrats: ["ADMIN"],
   profil: ROLES,
   "espace-client": ["CLIENT"],
 } as const satisfies Record<string, readonly Role[]>;
@@ -57,6 +58,7 @@ const ROUTE_AREAS: ReadonlyArray<readonly [prefix: string, area: Area]> = [
   ["/dashboard/portfolio", "portfolio"],
   ["/dashboard/avis", "avis-reclamations"],
   ["/dashboard/reclamations", "avis-reclamations"],
+  ["/dashboard/contrats", "contrats"],
   ["/dashboard", "dashboard"],
   ["/espace-client", "espace-client"],
 ];

@@ -1,10 +1,10 @@
-/* Client area — overview (front office). Each block reads another module's MOCK data;
- * replace it with that module's service (filtered by the client id) when it exists. */
+/* Client area — overview (front office). */
 import {
   ArrowRight,
   CalendarDays,
   CalendarPlus,
   Clock,
+  FileLock2,
   Images,
   Mail,
   MapPin,
@@ -20,10 +20,11 @@ import { requireArea } from "@/lib/guards";
 import { fullName } from "@/lib/mock-data-helpers";
 import { FRONT_IMAGES } from "@/lib/mock-images";
 import { formatCurrency, formatDate, formatTime } from "@/lib/utils";
-import { statutFactureConfig } from "@/modules/facturation/facturation.types";
+import { listContrats } from "@/modules/contrats/contrat.service";
 import { listFactures } from "@/modules/facturation/devis.service";
-import { statutGalerieConfig } from "@/modules/photos-galeries/galerie.types";
+import { statutFactureConfig } from "@/modules/facturation/facturation.types";
 import { listGaleriesOfClient } from "@/modules/photos-galeries/galerie.service";
+import { statutGalerieConfig } from "@/modules/photos-galeries/galerie.types";
 import { MES_SEANCES } from "@/modules/seances/mock-data";
 import { typeSeanceLabels } from "@/modules/seances/seance.types";
 
@@ -33,6 +34,7 @@ const LINKS = [
   { label: "Book a session", href: "/espace-client/seances/reserver", icon: CalendarPlus },
   { label: "My galleries", href: "/espace-client/galeries", icon: Images },
   { label: "Quotes & invoices", href: "/espace-client/factures", icon: Receipt },
+  { label: "Contracts", href: "/espace-client/contrats", icon: FileLock2 },
   { label: "Invitations", href: "/espace-client/invitations", icon: Mail },
   { label: "Leave a review", href: "/espace-client/avis", icon: MessageSquareHeart },
 ];
@@ -40,17 +42,21 @@ const LINKS = [
 export default async function EspaceClientPage() {
   const user = await requireArea("espace-client");
   const now = new Date().toISOString();
-  const prochaine = MES_SEANCES.filter((s) => s.dateDebut >= now && s.statut !== "ANNULEE").sort(
-    (a, b) => a.dateDebut.localeCompare(b.dateDebut),
-  )[0];
-  const [galerie, factures] = await Promise.all([
+  const prochaine = MES_SEANCES.filter(
+    (s) => s.dateDebut >= now && s.statut !== "ANNULEE",
+  ).sort((a, b) => a.dateDebut.localeCompare(b.dateDebut))[0];
+
+  const [galerie, factures, contrats] = await Promise.all([
     listGaleriesOfClient(user.id).then(([first]) => first),
     listFactures(user),
+    listContrats(user),
   ]);
   const facture = factures.find((f) => f.statut !== "PAYEE");
+  const contratEnAttente = contrats.find((c) => c.statut === "ENVOYE");
 
   return (
     <div className="space-y-8">
+      {/* ── Hero ──────────────────────────────────────────────── */}
       <section className="relative overflow-hidden rounded-3xl bg-charcoal text-white">
         <SafeImage
           src={FRONT_IMAGES.hero}
@@ -80,7 +86,29 @@ export default async function EspaceClientPage() {
         </div>
       </section>
 
+      {/* ── Pending contract alert ────────────────────────────── */}
+      {contratEnAttente && (
+        <Link href={`/espace-client/contrats/${contratEnAttente.id}`}>
+          <article className="flex items-center gap-4 rounded-2xl border border-warning/40 bg-warning/5 px-5 py-4 transition-colors hover:bg-warning/10">
+            <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-warning/15 text-warning-text">
+              <FileLock2 className="size-5" aria-hidden />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-semibold text-foreground">
+                A contract is waiting for your signature
+              </p>
+              <p className="truncate text-xs text-muted-foreground">
+                {contratEnAttente.titre} · {contratEnAttente.reference}
+              </p>
+            </div>
+            <ArrowRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+          </article>
+        </Link>
+      )}
+
+      {/* ── 3-column overview ─────────────────────────────────── */}
       <div className="grid gap-6 lg:grid-cols-3">
+        {/* Next session */}
         <article className="overflow-hidden rounded-2xl bg-card shadow-soft ring-1 ring-border">
           <header className="flex items-center justify-between px-5 pt-5">
             <h2 className="font-semibold text-foreground">Next session</h2>
@@ -127,6 +155,7 @@ export default async function EspaceClientPage() {
           )}
         </article>
 
+        {/* Latest gallery */}
         <article className="overflow-hidden rounded-2xl bg-card shadow-soft ring-1 ring-border">
           {galerie ? (
             <Link href={`/espace-client/galeries/${galerie.id}`} className="group block h-full">
@@ -140,11 +169,7 @@ export default async function EspaceClientPage() {
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-charcoal/75 to-transparent" />
                 <div className="absolute top-3 left-3">
-                  <StatusBadge
-                    value={galerie.statut}
-                    config={statutGalerieConfig}
-                    className="bg-card"
-                  />
+                  <StatusBadge value={galerie.statut} config={statutGalerieConfig} className="bg-card" />
                 </div>
                 <div className="absolute inset-x-0 bottom-0 p-5 text-white">
                   <p className="text-xs font-semibold tracking-wide text-white/70 uppercase">
@@ -153,10 +178,7 @@ export default async function EspaceClientPage() {
                   <p className="text-lg font-semibold">{galerie.titre}</p>
                   <p className="mt-1 flex items-center gap-1 text-sm text-white/85">
                     Discover my photos{" "}
-                    <ArrowRight
-                      className="size-4 transition-transform group-hover:translate-x-1"
-                      aria-hidden
-                    />
+                    <ArrowRight className="size-4 transition-transform group-hover:translate-x-1" aria-hidden />
                   </p>
                 </div>
               </div>
@@ -168,6 +190,7 @@ export default async function EspaceClientPage() {
           )}
         </article>
 
+        {/* Invoice to pay */}
         <article className="flex flex-col rounded-2xl bg-card p-5 shadow-soft ring-1 ring-border">
           <header className="flex items-center justify-between">
             <h2 className="font-semibold text-foreground">Invoice to pay</h2>
@@ -175,11 +198,7 @@ export default async function EspaceClientPage() {
           </header>
           {facture ? (
             <div className="mt-4 flex flex-1 flex-col gap-3">
-              <StatusBadge
-                value={facture.statut}
-                config={statutFactureConfig}
-                className="self-start"
-              />
+              <StatusBadge value={facture.statut} config={statutFactureConfig} className="self-start" />
               <p className="text-3xl font-bold text-foreground">
                 {formatCurrency(facture.montantTTC - facture.montantPaye)}
               </p>
@@ -198,9 +217,10 @@ export default async function EspaceClientPage() {
         </article>
       </div>
 
+      {/* ── Quick links ───────────────────────────────────────── */}
       <section>
         <h2 className="mb-3 text-lg font-semibold text-foreground">Quick links</h2>
-        <ul className="grid grid-cols-2 gap-3 md:grid-cols-4">
+        <ul className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
           {LINKS.map(({ label, href, icon: Icon }) => (
             <li key={href}>
               <Link

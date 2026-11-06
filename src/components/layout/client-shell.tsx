@@ -3,6 +3,7 @@
 import {
   CalendarDays,
   ExternalLink,
+  FileLock2,
   Home,
   Images,
   Mail,
@@ -29,6 +30,7 @@ const CLIENT_NAV = [
   { label: "My sessions", href: "/espace-client/seances", icon: CalendarDays },
   { label: "My galleries", href: "/espace-client/galeries", icon: Images },
   { label: "Quotes & invoices", href: "/espace-client/factures", icon: Receipt },
+  { label: "Contracts", href: "/espace-client/contrats", icon: FileLock2 },
   { label: "Invitations", href: "/espace-client/invitations", icon: Mail },
   { label: "Reviews & complaints", href: "/espace-client/avis", icon: MessageSquareHeart },
   { label: "Profile", href: "/espace-client/profil", icon: UserRound },
