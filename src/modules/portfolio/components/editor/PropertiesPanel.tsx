@@ -14,6 +14,7 @@ import {
   Sparkles,
   Check,
   Star,
+  SlidersHorizontal,
 } from "lucide-react";
 import { SafeImage } from "@/components/shared/safe-image";
 import { toast } from "sonner";
@@ -77,6 +78,9 @@ type PropertiesPanelProps = {
   portfolioSlug?: string;
   onDeletePortfolio?: () => void;
   onResetPortfolio?: () => void;
+  sidebarWidth?: number;
+  onSidebarWidthChange?: (width: number) => void;
+  onResetSidebarWidth?: () => void;
   className?: string;
 };
 
@@ -119,6 +123,9 @@ export function PropertiesPanel({
   portfolioSlug = "portfolio",
   onDeletePortfolio,
   onResetPortfolio,
+  sidebarWidth,
+  onSidebarWidthChange,
+  onResetSidebarWidth,
   className = "",
 }: PropertiesPanelProps) {
   const conf = selectedBlock?.configuration || {};
@@ -180,41 +187,69 @@ export function PropertiesPanel({
   return (
     <aside
       aria-label="Panneau des propriétés"
-      className={`flex h-full w-[330px] flex-col border-l border-white/[0.08] bg-[#1c1410] select-none max-[1240px]:w-[300px] ${className}`}
+      style={sidebarWidth ? { width: `${sidebarWidth}px` } : undefined}
+      className={`flex h-full flex-col border-l border-white/[0.08] bg-[#1c1410] select-none ${
+        sidebarWidth ? "" : "w-[330px] max-[1240px]:w-[300px]"
+      } ${className}`}
     >
-      {/* Sticky Tabs on Top */}
-      <div className="sticky top-0 z-10 flex border-b border-white/[0.08] bg-[#1c1410]/95 px-3 py-2.5 backdrop-blur-md">
-        <div
-          role="tablist"
-          aria-label="Onglets d'inspection"
-          className="grid w-full grid-cols-2 gap-1 rounded-[8px] bg-black/40 p-1"
-        >
-          <button
-            type="button"
-            role="tab"
-            aria-selected={activeTab === "block"}
-            onClick={() => onTabChange("block")}
-            className={`rounded-[6px] py-1.5 font-sans text-xs font-medium transition-all ${
-              activeTab === "block"
-                ? "border border-white/10 bg-white/15 text-white shadow-xs"
-                : "text-white/40 hover:text-white/75"
-            }`}
+      {/* Sticky Tabs & Width Slide Control on Top */}
+      <div className="sticky top-0 z-10 flex flex-col gap-2 border-b border-white/[0.08] bg-[#1c1410]/95 px-3 py-2.5 backdrop-blur-md">
+        <div className="flex items-center gap-2">
+          <div
+            role="tablist"
+            aria-label="Onglets d'inspection"
+            className="grid flex-1 grid-cols-2 gap-1 rounded-[8px] bg-black/40 p-1"
           >
-            {editorFr.block}
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={activeTab === "page"}
-            onClick={() => onTabChange("page")}
-            className={`rounded-[6px] py-1.5 font-sans text-xs font-medium transition-all ${
-              activeTab === "page"
-                ? "border border-white/10 bg-white/15 text-white shadow-xs"
-                : "text-white/40 hover:text-white/75"
-            }`}
-          >
-            {editorFr.page}
-          </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeTab === "block"}
+              onClick={() => onTabChange("block")}
+              className={`rounded-[6px] py-1.5 font-sans text-xs font-medium transition-all ${
+                activeTab === "block"
+                  ? "border border-white/10 bg-white/15 text-white shadow-xs"
+                  : "text-white/40 hover:text-white/75"
+              }`}
+            >
+              {editorFr.block}
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeTab === "page"}
+              onClick={() => onTabChange("page")}
+              className={`rounded-[6px] py-1.5 font-sans text-xs font-medium transition-all ${
+                activeTab === "page"
+                  ? "border border-white/10 bg-white/15 text-white shadow-xs"
+                  : "text-white/40 hover:text-white/75"
+              }`}
+            >
+              {editorFr.page}
+            </button>
+          </div>
+
+          {onSidebarWidthChange && sidebarWidth !== undefined && (
+            <div
+              className="flex items-center gap-1.5 rounded-[8px] border border-white/10 bg-black/40 px-2 py-1"
+              title="Faire glisser pour agrandir ou réduire le panneau latéral (Double-clic pour réinitialiser)"
+              onDoubleClick={onResetSidebarWidth}
+            >
+              <SlidersHorizontal className="size-3 text-[#e8a34a]" aria-hidden="true" />
+              <input
+                type="range"
+                min={300}
+                max={680}
+                step={10}
+                value={sidebarWidth}
+                onChange={(e) => onSidebarWidthChange(Number(e.target.value))}
+                className="h-1.5 w-14 cursor-ew-resize accent-[#e8a34a]"
+                aria-label="Largeur du panneau latéral"
+              />
+              <span className="font-mono text-[9px] text-white/60">
+                {sidebarWidth}px
+              </span>
+            </div>
+          )}
         </div>
       </div>
 
