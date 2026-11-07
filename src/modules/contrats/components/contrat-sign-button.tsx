@@ -3,8 +3,8 @@
  * Module : Contrats & Blockchain · Responsable : Yosser Rafrafi
  * Bouton de signature client : accepter/refuser + co-signature MetaMask (optionnelle).
  */
-import { Wallet } from "lucide-react";
-import { useState, useTransition } from "react";
+import { ExternalLink, Wallet, X } from "lucide-react";
+import { useEffect, useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -32,16 +32,23 @@ export function ContratSignButton({ contratId }: { contratId: string }) {
   const [motif, setMotif] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
+  const [metaMaskAvailable, setMetaMaskAvailable] = useState<boolean | null>(null);
 
-  async function connectMetaMask(): Promise<string | null> {
-    if (!window.ethereum) return null;
+  // Détection MetaMask après le montage (window n'existe pas côté serveur)
+  useEffect(() => {
+    setMetaMaskAvailable(typeof window !== "undefined" && !!window.ethereum);
+  }, []);
+
+  async function connectMetaMask() {
+    if (!window.ethereum) return;
     try {
       const accounts = (await window.ethereum.request({
         method: "eth_requestAccounts",
       })) as string[];
-      return accounts[0] ?? null;
+      const addr = accounts[0] ?? null;
+      if (addr) setWalletAddress(addr);
     } catch {
-      return null;
+      setError("MetaMask connection was refused. You can still sign without it.");
     }
   }
 
@@ -52,8 +59,8 @@ export function ContratSignButton({ contratId }: { contratId: string }) {
         accepter: true,
         clientWallet: walletAddress ?? undefined,
       });
-      if (!res.ok) { setError(res.error); return; }
-      // revalidatePath dans l'action rafraîchit la page automatiquement
+      if (!res.ok) setError(res.error);
+      // revalidatePath dans l'action rafraîchit la page côté serveur
     });
   }
 
@@ -66,41 +73,65 @@ export function ContratSignButton({ contratId }: { contratId: string }) {
       });
       if (!res.ok) { setError(res.error); return; }
       setRefusOpen(false);
-      onSuccess?.();
     });
   }
 
   return (
     <div className="space-y-4">
+
       {/* MetaMask co-signature (optional) */}
-      <div className="rounded-xl border bg-muted/40 p-4">
-        <p className="text-sm font-medium text-foreground">
-          Co-sign with MetaMask{" "}
-          <span className="font-normal text-muted-foreground">(optional)</span>
-        </p>
-        <p className="mt-1 text-xs text-muted-foreground">
-          Connect your Ethereum wallet to add your address to the blockchain record.
-          This is not required to sign the contract.
-        </p>
+      <div className="rounded-xl border bg-muted/40 p-4 space-y-2">
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-sm font-medium text-foreground">
+            Co-sign with MetaMask
+            <span className="ml-2 rounded-full bg-muted px-2 py-0.5 text-[0.65rem] font-normal text-muted-foreground">
+              optional
+            </span>
+          </p>
+          {walletAddress && (
+            <button
+              type="button"
+              onClick={() => setWalletAddress(null)}
+              className="text-muted-foreground hover:text-foreground"
+              aria-label="Disconnect wallet"
+            >
+              <X className="size-3.5" />
+            </button>
+          )}
+        </div>
+
         {walletAddress ? (
-          <p className="mt-2 rounded-md bg-success/10 px-3 py-1.5 text-xs font-mono text-success-text">
+          <p className="rounded-md bg-success/10 px-3 py-1.5 text-xs font-mono text-success-text break-all">
             ✓ {walletAddress}
           </p>
-        ) : (
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            className="mt-3"
-            onClick={async () => {
-              const addr = await connectMetaMask();
-              if (addr) setWalletAddress(addr);
-              else setError("MetaMask not available or connection refused.");
-            }}
-          >
+        ) : metaMaskAvailable === true ? (
+          /* MetaMask est installée */
+          <Button type="button" size="sm" variant="outline" onClick={connectMetaMask}>
             <Wallet className="size-4" aria-hidden />
             Connect MetaMask
           </Button>
+        ) : metaMaskAvailable === false ? (
+          /* MetaMask n'est pas installée — message informatif, pas d'erreur */
+          <p className="text-xs text-muted-foreground">
+            MetaMask is not installed.{" "}
+            <a
+              href="https://metamask.io/download/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 text-primary-text underline underline-offset-2"
+            >
+              Install it
+              <ExternalLink className="size-3" aria-hidden />
+            </a>{" "}
+            to add your wallet address to the blockchain record — or sign without it below.
+          </p>
+        ) : null /* null = détection en cours, on n'affiche rien */ }
+
+        {!walletAddress && (
+          <p className="text-xs text-muted-foreground">
+            Your signature is valid without MetaMask. The wallet address is only an
+            additional proof of identity on the blockchain.
+          </p>
         )}
       </div>
 
@@ -110,12 +141,9 @@ export function ContratSignButton({ contratId }: { contratId: string }) {
         </p>
       )}
 
+      {/* Boutons principaux */}
       <div className="flex gap-3">
-        <Button
-          className="flex-1"
-          onClick={accept}
-          disabled={isPending}
-        >
+        <Button className="flex-1" onClick={accept} disabled={isPending}>
           {isPending ? "Processing…" : "✓ Accept & sign"}
         </Button>
         <Button
@@ -138,7 +166,9 @@ export function ContratSignButton({ contratId }: { contratId: string }) {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-2">
-            <Label htmlFor="motif-refus">Reason <span className="text-muted-foreground">(optional)</span></Label>
+            <Label htmlFor="motif-refus">
+              Reason <span className="text-muted-foreground">(optional)</span>
+            </Label>
             <Textarea
               id="motif-refus"
               value={motif}
@@ -148,12 +178,10 @@ export function ContratSignButton({ contratId }: { contratId: string }) {
             />
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setRefusOpen(false)}>Cancel</Button>
-            <Button
-              variant="destructive"
-              disabled={isPending}
-              onClick={decline}
-            >
+            <Button variant="outline" onClick={() => setRefusOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" disabled={isPending} onClick={decline}>
               Confirm decline
             </Button>
           </DialogFooter>
