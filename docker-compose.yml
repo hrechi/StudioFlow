@@ -6,7 +6,7 @@ x-mongo-uri: &mongo-uri mongodb://mongo:27017/reframe
 
 services:
   mongo:
-    image: mongo:7.0.45 # existing data has FCV 7.0; upgrade it through 8.0 before using MongoDB 8.x
+    image: mongo:8.3.13 # the mongo-data volume has FCV 8.3: MongoDB cannot downgrade, so never pin an older version
     attach: false # keep `docker compose up` readable; see its logs with `docker compose logs mongo`
     restart: unless-stopped
     ports:
@@ -14,18 +14,27 @@ services:
     volumes:
       - mongo-data:/data/db
     healthcheck:
-      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      test:
+        [
+          "CMD",
+          "mongosh",
+          "--host",
+          "127.0.0.1",
+          "--quiet",
+          "--eval",
+          "try { if (db.adminCommand({ ping: 1 }).ok !== 1) quit(1); } catch (error) { quit(1); }",
+        ]
       interval: 5s
       timeout: 5s
-      retries: 12
-      start_period: 10s
+      retries: 30
+      start_period: 30s
 
-  # Creates the first ADMIN if none exists, then exits (safe to run on every `up`).
+  # Reconciles the ADMIN and fills every module with repeatable demo data.
   seed:
     build:
       context: .
-      target: builder
-    command: ["npx", "tsx", "scripts/seed-admin.ts"]
+      target: tools # no `next build` here: only the app image builds Next (saves memory and time)
+    command: ["npm", "run", "seed:all"]
     environment:
       MONGODB_URI: *mongo-uri
       ADMIN_EMAIL: ${ADMIN_EMAIL:?Set ADMIN_EMAIL in .env}

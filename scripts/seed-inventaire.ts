@@ -8,7 +8,9 @@
  * reservations are needed or created (scripts/seed-materiel.ts covers reservation test data).
  *
  * Idempotent: items are upserted by serial number, so running it again updates them and
- * never duplicates. Items added by hand in the app are never touched. Never runs in production.
+ * never duplicates. Items added by hand in the app are never touched. Run before
+ * scripts/seed-reservations.ts because reservation fixtures reference these serial numbers.
+ * Never runs in production.
  *
  * Photos: real product photos from Wikimedia Commons (free licenses, see each file page:
  * https://commons.wikimedia.org/wiki/File:<file name>). Items without a photo of the exact

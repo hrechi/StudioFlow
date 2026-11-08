@@ -11,7 +11,13 @@ RUN apk add --no-cache libc6-compat
 COPY package.json package-lock.json ./
 RUN npm ci
 
-# 2. Build. Also used by the `seed` service (it needs tsx and the full node_modules).
+# 2a. Tools: source + full node_modules, no Next build. Used by the `seed` service (tsx scripts),
+#     so `docker compose up --build` runs only ONE `next build` (two in parallel run out of memory).
+FROM base AS tools
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
+
+# 2b. Build
 FROM base AS builder
 ARG NEXT_DEPLOYMENT_ID
 ENV NEXT_OUTPUT_STANDALONE=1

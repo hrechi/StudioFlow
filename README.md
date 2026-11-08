@@ -31,7 +31,7 @@ This starts three services:
 
 | Service | What it does |
 | --- | --- |
-| `mongo` | MongoDB 7.0.45 with a persistent volume. Compass: `mongodb://127.0.0.1:27018` |
+| `mongo` | MongoDB 8.3.13 with a persistent volume (its data has FCV 8.3, so never pin an older image). Compass: `mongodb://127.0.0.1:27018` |
 | `seed` | Creates the first ADMIN from `.env` if none exists, then exits |
 | `app` | The production build of ReFrame on <http://localhost:3000> |
 
@@ -43,6 +43,8 @@ Useful commands:
 | `docker compose logs -f app` | Follow the app logs |
 | `docker compose down` | Stop (data is kept) |
 | `docker compose down -v` | Stop and **delete** the Docker database (the admin is re-seeded on the next `up`) |
+| `docker compose run --rm seed npx tsx scripts/verify-admin-auth.ts` | Verify the seeded admin password and role |
+| `docker compose run --rm seed npx tsx scripts/reset-admin-password.ts` | Replace the existing admin password from `.env` |
 
 **"ports are not available … 3000"** means something else (usually `npm run dev`) already uses port 3000: stop it, or add `APP_PORT=3001` to `.env` and open <http://localhost:3001>.
 
@@ -58,7 +60,7 @@ The Docker database is separate from a local MongoDB on port 27017. For day-to-d
   - Windows: install with the *"Install MongoDB as a Service"* option, then check it runs:
     `Get-Service MongoDB` (PowerShell) → `Running`. Start it with `net start MongoDB` (admin terminal).
   - macOS: `brew services start mongodb-community`.
-  - Docker alternative: `docker run -d --name reframe-mongo -p 27017:27017 mongo:7.0.45`.
+  - Docker alternative: `docker run -d --name reframe-mongo -p 27017:27017 mongo:8.3.13`.
 
 ## 2. Setup
 
@@ -87,7 +89,44 @@ Then open `.env.local`, paste `AUTH_SECRET` and choose `ADMIN_PASSWORD` (at leas
 npm run seed:admin
 ```
 
-It creates the `ADMIN` account if no admin exists (running it again does nothing). Staff accounts (photographers, other admins) are then created by the admin in **Backoffice → Users → New user**. Public sign-up always creates a `CLIENT`.
+It creates or reconciles the `ADMIN` account from `ADMIN_EMAIL` / `ADMIN_PASSWORD`. Staff accounts (photographers, other admins) are then created by the admin in **Backoffice → Users → New user**. Public sign-up always creates a `CLIENT`.
+
+For a complete local demo dataset, including invitations:
+
+```bash
+npm run seed:all
+```
+
+Demo client logins: `client.amira@reframe.test`, `client.youssef@reframe.test`,
+and `client.sarra@reframe.test`, all with `SeedClient2026` (or
+`SEED_CLIENT_PASSWORD` if set). Amira has five invitations; the first three have
+sharing enabled. The seeded staff logins are `photographer@reframe.test` and
+`manager@reframe.test`, both with `SeedStaff2026`. The primary admin login is
+the `ADMIN_EMAIL` / `ADMIN_PASSWORD` configured in `.env`.
+
+To verify the credentials against MongoDB:
+
+```bash
+npm run test:admin-auth
+```
+
+If the browser still says "Incorrect email or password" after this check passes,
+restart the development server (`Ctrl+C`, then `npm run dev`). The app and seed
+must use the same `MONGODB_URI`; local development uses port `27017`, while the
+Docker stack uses its separate database exposed on port `27018`.
+
+For Docker, start the stack first and run the same check in the seed image:
+
+```bash
+docker compose run --rm seed npx tsx scripts/verify-admin-auth.ts
+```
+
+If the admin already exists and `ADMIN_PASSWORD` has changed, reset its hash before
+verifying:
+
+```bash
+docker compose run --rm seed npx tsx scripts/reset-admin-password.ts
+```
 
 ## 4. Run
 

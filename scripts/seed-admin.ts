@@ -1,6 +1,6 @@
 /**
  * npm run seed:admin
- * Creates the first ADMIN from ADMIN_EMAIL / ADMIN_PASSWORD (.env or .env.local) if no admin exists.
+ * Creates or reconciles the ADMIN from ADMIN_EMAIL / ADMIN_PASSWORD (.env or .env.local).
  * Staff accounts are then created by the admin in /dashboard/utilisateurs/nouveau.
  */
 import mongoose from "mongoose";
@@ -23,9 +23,22 @@ async function main() {
   await connectDB();
   await Promise.all([Utilisateur.init(), Notification.init()]); // builds indexes (unique email)
 
-  const existingAdmin = await Utilisateur.findOne({ role: "ADMIN" }).lean();
+  const existingAdmin = await Utilisateur.findOne({ role: "ADMIN" }).select("+motDePasse").lean();
   if (existingAdmin) {
-    console.log(`✔ An admin already exists (${existingAdmin.email}). Nothing to do.`);
+    const sameEmail = existingAdmin.email === email.data;
+    await Utilisateur.updateOne(
+      { _id: existingAdmin._id },
+      {
+        $set: {
+          email: email.data,
+          motDePasse: await hashPassword(password.data),
+          statut: "ACTIF",
+        },
+      },
+    );
+    console.log(
+      `✔ Admin reconciled: ${email.data}${sameEmail ? "" : ` (email updated from ${existingAdmin.email})`} (database "${mongoose.connection.name}")`,
+    );
     return;
   }
 
