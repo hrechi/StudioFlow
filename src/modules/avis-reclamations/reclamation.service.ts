@@ -23,6 +23,7 @@ import {
   type ReclamationListResult,
   type ReclamationMessage,
   type ResumeReclamation,
+  reclamationHref,
   type StatutReclamation,
 } from "./avis.types";
 
@@ -96,6 +97,7 @@ async function toDTOs(
     reponse: doc.reponse,
     dateCreation: doc.createdAt.toISOString(),
     dateResolution: doc.dateResolution?.toISOString(),
+    derniereActivite: doc.updatedAt.toISOString(),
     client: refs.get(doc.auteur.toString()) ?? { id: doc.auteur.toString(), ...DELETED_USER },
     seance: { id: doc.seance?.toString() ?? "", titre: doc.seanceTitre ?? "Studio session" },
     traitePar: doc.traitePar ? refs.get(doc.traitePar.toString()) : undefined,
@@ -187,7 +189,7 @@ export async function createReclamation(
   await notifyAdmins(
     "New complaint received",
     `A new complaint requires attention: ${doc.objet}`,
-    "/dashboard/reclamations",
+    reclamationHref(doc._id.toString(), "staff"),
   );
   const fresh = await Reclamation.findById(doc._id).lean<ReclamationLean>();
   if (!fresh) throw new ServiceError("Complaint could not be saved.");
@@ -291,6 +293,33 @@ export async function listReclamations({
   };
 }
 
+const INBOX_LIMIT = 100;
+
+/** Conversations of the inbox, most recent activity first (a client only sees their own). */
+export async function listReclamationThreads(auteurId?: string): Promise<ReclamationDTO[]> {
+  await connectDB();
+  const docs = await Reclamation.find(auteurId ? { auteur: objectId(auteurId) } : {})
+    .sort({ updatedAt: -1 })
+    .limit(INBOX_LIMIT)
+    .lean<ReclamationLean[]>();
+  return toDTOs(docs, { staff: !auteurId });
+}
+
+/** One complaint for its conversation page; null when missing or not the client's own. */
+export async function getReclamationForViewer(
+  id: string,
+  viewer: { id: string; role: Role },
+): Promise<ReclamationDTO | null> {
+  if (!Types.ObjectId.isValid(id)) return null;
+  await connectDB();
+  const isClient = viewer.role === "CLIENT";
+  const doc = await Reclamation.findOne({
+    _id: new Types.ObjectId(id),
+    ...(isClient ? { auteur: objectId(viewer.id) } : {}),
+  }).lean<ReclamationLean>();
+  return doc ? (await toDTOs([doc], { staff: !isClient }))[0] : null;
+}
+
 export async function updateReclamation(
   id: string,
   statut: StatutReclamation,
@@ -332,7 +361,7 @@ export async function updateReclamation(
       ? "Open your client area to read the studio's response."
       : `Your complaint is now marked "${statut}".`,
     type: "RECLAMATION",
-    lienCible: "/espace-client/avis",
+    lienCible: reclamationHref(complaint._id.toString(), "client"),
   });
 }
 
@@ -400,9 +429,9 @@ export async function addReclamationMessage(
     await createNotification({
       utilisateurId: complaint.auteur.toString(),
       titre: "The studio replied to your complaint",
-      message: "Open your client area to continue the conversation.",
+      message: "Open the conversation to read and answer it.",
       type: "RECLAMATION",
-      lienCible: "/espace-client/avis",
+      lienCible: reclamationHref(complaint._id.toString(), "client"),
     });
   }
 
@@ -630,13 +659,14 @@ export async function reopenReclamation(
 /** Notifies whoever handles the complaint, or every admin while nobody has taken it. */
 async function notifyHandler(doc: ReclamationLean, titre: string, message: string): Promise<void> {
   const handler = doc.traitePar?.toString();
-  if (!handler) return notifyAdmins(titre, message, "/dashboard/reclamations");
+  const lienCible = reclamationHref(doc._id.toString(), "staff");
+  if (!handler) return notifyAdmins(titre, message, lienCible);
   await createNotification({
     utilisateurId: handler,
     titre,
     message,
     type: "RECLAMATION",
-    lienCible: "/dashboard/reclamations",
+    lienCible,
   });
 }
 
