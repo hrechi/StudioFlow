@@ -540,49 +540,56 @@ function InteractiveBeforeAfter({ beforeUrl, afterUrl }: { beforeUrl: string; af
   const [sliderPos, setSliderPos] = useState(50);
 
   return (
-    <div className="mt-6 space-y-3">
-      <div className="relative aspect-[4/3] w-full overflow-hidden rounded-xl border border-black/10 bg-neutral-100 shadow-md">
-        {/* Before Image (underneath) */}
-        <SafeImage src={beforeUrl} alt="Avant retouche" fill unoptimized className="object-cover" />
+    <div className="relative mt-6 aspect-[4/3] w-full select-none overflow-hidden rounded-xl border border-black/10 bg-neutral-100 shadow-md">
+      {/* Before Image (underneath) */}
+      <SafeImage
+        src={beforeUrl}
+        alt="Avant retouche"
+        fill
+        unoptimized
+        className="pointer-events-none object-cover"
+      />
 
-        {/* After Image (clipped) */}
-        <div className="absolute inset-0" style={{ clipPath: `inset(0 0 0 ${sliderPos}%)` }}>
-          <SafeImage
-            src={afterUrl}
-            alt="Après retouche"
-            fill
-            unoptimized
-            className="object-cover"
-          />
-        </div>
+      {/* After Image (clipped) */}
+      <div
+        className="pointer-events-none absolute inset-0"
+        style={{ clipPath: `inset(0 0 0 ${sliderPos}%)` }}
+      >
+        <SafeImage
+          src={afterUrl}
+          alt="Après retouche"
+          fill
+          unoptimized
+          className="pointer-events-none object-cover"
+        />
+      </div>
 
-        {/* Badges */}
-        <span className="absolute top-3 left-3 rounded-md bg-black/60 px-2.5 py-1 font-mono text-[10px] font-semibold text-white uppercase backdrop-blur-xs">
-          Before
-        </span>
-        <span className="absolute top-3 right-3 rounded-md bg-black/60 px-2.5 py-1 font-mono text-[10px] font-semibold text-white uppercase backdrop-blur-xs">
-          After
-        </span>
+      {/* Badges */}
+      <span className="pointer-events-none absolute top-3 left-3 z-10 rounded-md bg-black/60 px-2.5 py-1 font-mono text-[10px] font-semibold text-white uppercase backdrop-blur-xs">
+        Before
+      </span>
+      <span className="pointer-events-none absolute top-3 right-3 z-10 rounded-md bg-black/60 px-2.5 py-1 font-mono text-[10px] font-semibold text-white uppercase backdrop-blur-xs">
+        After
+      </span>
 
-        {/* Divider bar */}
-        <div
-          className="pointer-events-none absolute inset-y-0 w-0.5 bg-white shadow-[0_0_8px_rgba(0,0,0,0.5)]"
-          style={{ left: `${sliderPos}%` }}
-        >
-          <div className="absolute top-1/2 left-1/2 flex size-6 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-black/20 bg-white text-[8px] font-bold text-black shadow-md">
-            ↔
-          </div>
+      {/* Divider bar & handle inside the photo */}
+      <div
+        className="pointer-events-none absolute inset-y-0 z-10 w-0.5 bg-white shadow-[0_0_8px_rgba(0,0,0,0.5)]"
+        style={{ left: `${sliderPos}%` }}
+      >
+        <div className="absolute top-1/2 left-1/2 flex size-6 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-black/20 bg-white text-[8px] font-bold text-black shadow-md">
+          ↔
         </div>
       </div>
 
+      {/* Slide control overlaid directly inside the photo */}
       <input
         type="range"
         min={0}
         max={100}
         value={sliderPos}
         onChange={(e) => setSliderPos(Number(e.target.value))}
-        className="w-full cursor-pointer"
-        style={{ accentColor: "var(--portfolio-accent)" }}
+        className="absolute inset-0 z-20 h-full w-full cursor-ew-resize opacity-0"
         aria-label="Comparer avant et après"
       />
     </div>

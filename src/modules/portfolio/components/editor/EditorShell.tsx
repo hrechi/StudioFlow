@@ -219,6 +219,60 @@ export function EditorShell({
   // Inspector tab
   const [activeTab, setActiveTab] = useState<InspectorTab>("block");
 
+  // Resizable Right Sidebar width (slide to resize)
+  const DEFAULT_SIDEBAR_WIDTH = 340;
+  const MIN_SIDEBAR_WIDTH = 290;
+  const MAX_SIDEBAR_WIDTH = 680;
+  const [sidebarWidth, setSidebarWidth] = useState<number>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("studioflow_editor_sidebar_width");
+      if (saved) {
+        const parsed = parseInt(saved, 10);
+        if (!isNaN(parsed) && parsed >= MIN_SIDEBAR_WIDTH && parsed <= MAX_SIDEBAR_WIDTH) {
+          return parsed;
+        }
+      }
+    }
+    return DEFAULT_SIDEBAR_WIDTH;
+  });
+  const [isResizingSidebar, setIsResizingSidebar] = useState(false);
+
+  const handleSidebarWidthChange = useCallback((newWidth: number) => {
+    const clamped = Math.max(MIN_SIDEBAR_WIDTH, Math.min(MAX_SIDEBAR_WIDTH, newWidth));
+    setSidebarWidth(clamped);
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.setItem("studioflow_editor_sidebar_width", String(clamped));
+      } catch {
+        // ignore storage errors
+      }
+    }
+  }, []);
+
+  const handleStartSidebarResize = useCallback(
+    (e: React.PointerEvent) => {
+      e.preventDefault();
+      setIsResizingSidebar(true);
+      const startX = e.clientX;
+      const startWidth = sidebarWidth;
+
+      const handlePointerMove = (moveEvent: PointerEvent) => {
+        const delta = startX - moveEvent.clientX;
+        handleSidebarWidthChange(startWidth + delta);
+      };
+
+      const handlePointerUp = () => {
+        setIsResizingSidebar(false);
+        window.removeEventListener("pointermove", handlePointerMove);
+        window.removeEventListener("pointerup", handlePointerUp);
+      };
+
+      window.addEventListener("pointermove", handlePointerMove);
+      window.addEventListener("pointerup", handlePointerUp);
+    },
+    [sidebarWidth, handleSidebarWidthChange],
+  );
+
   // Photo picker state
   const [photoPickerBlocId, setPhotoPickerBlocId] = useState<string | null>(null);
 
@@ -1266,37 +1320,66 @@ export function EditorShell({
             onDropAreaClick={() => handleAddBlock("GALERIE")}
           />
 
-          {/* Right: Properties Inspector (Desktop: fixed 330px / 300px) */}
-          <div className="hidden h-full min-[1100px]:block">
-            <PropertiesPanel
-              activeTab={activeTab}
-              onTabChange={setActiveTab}
-              selectedBlock={selectedBlock}
-              onUpdateBlock={handleUpdateBlock}
-              onUpdateConfiguration={handleUpdateConfiguration}
-              onDuplicateBlock={handleDuplicateBlock}
-              onDeleteBlock={handleDeleteBlock}
-              onOpenPhotoPicker={handleOpenPhotoPicker}
-              onRemoveElement={handleRemoveElement}
-              onGeneratePhotoText={(elementId, kind) =>
-                void handleGeneratePhotoText(elementId, kind)
-              }
-              onGenerateBio={() => void handleGenerateBio()}
-              onGenerateSeo={() => void handleGenerateSeo()}
-              seoSuggestion={seoSuggestion}
-              onApplySeoSuggestion={handleApplySeoSuggestion}
-              onDismissSeoSuggestion={() => setSeoSuggestion(null)}
-              onGenerateStory={(blockId) => void handleGenerateStory(blockId)}
-              storySuggestion={storySuggestion}
-              onApplyStorySuggestion={handleApplyStorySuggestion}
-              onDismissStorySuggestion={() => setStorySuggestion(null)}
-              aiPending={isAiPending}
-              portfolioData={portfolioData}
-              onUpdatePortfolioData={handleUpdatePortfolioData}
-              portfolioSlug={portfolioSlug}
-              onDeletePortfolio={handleDeletePortfolio}
-              onResetPortfolio={handleResetPortfolio}
-            />
+          {/* Right: Properties Inspector (Resizable with slide / drag) */}
+          <div
+            className="group/resizer relative hidden h-full shrink-0 min-[1100px]:flex"
+            style={{ width: `${sidebarWidth}px` }}
+          >
+            {/* Draggable Divider Handle on the left border */}
+            <div
+              role="separator"
+              aria-orientation="vertical"
+              aria-label="Redimensionner le panneau d'outils"
+              title="Glisser pour agrandir ou réduire (Double-clic pour réinitialiser)"
+              onPointerDown={handleStartSidebarResize}
+              onDoubleClick={() => handleSidebarWidthChange(DEFAULT_SIDEBAR_WIDTH)}
+              className={`absolute -left-1.5 top-0 bottom-0 z-30 flex w-3 cursor-col-resize items-center justify-center select-none transition-colors ${
+                isResizingSidebar
+                  ? "bg-amber-500/30"
+                  : "hover:bg-amber-500/20 active:bg-amber-500/40"
+              }`}
+            >
+              <div
+                className={`h-12 w-1 rounded-full transition-colors ${
+                  isResizingSidebar ? "bg-amber-400" : "bg-white/20 group-hover/resizer:bg-amber-400"
+                }`}
+              />
+            </div>
+
+            <div className="h-full w-full overflow-hidden">
+              <PropertiesPanel
+                sidebarWidth={sidebarWidth}
+                onSidebarWidthChange={handleSidebarWidthChange}
+                onResetSidebarWidth={() => handleSidebarWidthChange(DEFAULT_SIDEBAR_WIDTH)}
+                activeTab={activeTab}
+                onTabChange={setActiveTab}
+                selectedBlock={selectedBlock}
+                onUpdateBlock={handleUpdateBlock}
+                onUpdateConfiguration={handleUpdateConfiguration}
+                onDuplicateBlock={handleDuplicateBlock}
+                onDeleteBlock={handleDeleteBlock}
+                onOpenPhotoPicker={handleOpenPhotoPicker}
+                onRemoveElement={handleRemoveElement}
+                onGeneratePhotoText={(elementId, kind) =>
+                  void handleGeneratePhotoText(elementId, kind)
+                }
+                onGenerateBio={() => void handleGenerateBio()}
+                onGenerateSeo={() => void handleGenerateSeo()}
+                seoSuggestion={seoSuggestion}
+                onApplySeoSuggestion={handleApplySeoSuggestion}
+                onDismissSeoSuggestion={() => setSeoSuggestion(null)}
+                onGenerateStory={(blockId) => void handleGenerateStory(blockId)}
+                storySuggestion={storySuggestion}
+                onApplyStorySuggestion={handleApplyStorySuggestion}
+                onDismissStorySuggestion={() => setStorySuggestion(null)}
+                aiPending={isAiPending}
+                portfolioData={portfolioData}
+                onUpdatePortfolioData={handleUpdatePortfolioData}
+                portfolioSlug={portfolioSlug}
+                onDeletePortfolio={handleDeletePortfolio}
+                onResetPortfolio={handleResetPortfolio}
+              />
+            </div>
           </div>
 
           {/* Mobile/Tablet Drawer: Inspector */}

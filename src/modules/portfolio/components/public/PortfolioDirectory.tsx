@@ -65,7 +65,7 @@ export function PortfolioDirectory({ initialResult }: { initialResult: SearchRes
         setLoading(false);
       }).catch(() => {
         if (currentRequest !== requestId.current) return;
-        setError("Impossible d’actualiser les portfolios. Veuillez réessayer.");
+        setError("Unable to refresh portfolios. Please try again.");
         setLoading(false);
       });
     }, 250);

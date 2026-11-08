@@ -39,6 +39,11 @@ import { portfolioIntegrations } from "./integrations";
 import { analyserPhotoAvecGemini, type GeminiPhotoAnalysis } from "./ia.service";
 import { photoLibraryFilter } from "./photo-library";
 import { INITIAL_DEMO_BLOCKS } from "./components/editor/demoData";
+import {
+  searchPortfoliosWithElasticsearch,
+  syncPortfolioById,
+  removePortfolioFromElasticsearch,
+} from "./portfolio.elasticsearch";
 
 type PortfolioLean = PortfolioDocument & { _id: Types.ObjectId };
 
@@ -1007,6 +1012,62 @@ export async function listPublicPortfolios(
 ): Promise<{ items: PortfolioPublic[]; total: number; page: number; pageCount: number }> {
   await connectDB();
   const page = Math.max(1, query.page ?? 1);
+
+  // 1. Try search & filtering through Elasticsearch if available
+  const esResult = await searchPortfoliosWithElasticsearch(query);
+  if (esResult) {
+    const { ids, total, page: esPage, pageCount } = esResult;
+    if (ids.length === 0) {
+      return { items: [], total: 0, page: esPage, pageCount: 1 };
+    }
+
+    const docs = await Portfolio.find({
+      _id: { $in: ids },
+      statut: "PUBLIE",
+      visibilite: "PUBLIC",
+    }).lean<PortfolioLean[]>();
+
+    const docMap = new Map(docs.map((doc) => [doc._id.toString(), doc]));
+    const orderedDocs = ids
+      .map((id) => docMap.get(id))
+      .filter((doc): doc is PortfolioLean => Boolean(doc));
+
+    const items = await Promise.all(
+      orderedDocs.map(async (doc) => {
+        const realUser = await findUtilisateurById(doc.proprietaire.toString());
+        const photographe = realUser
+          ? {
+              id: realUser.id,
+              nom: realUser.nom,
+              prenom: realUser.prenom,
+              photoProfil: realUser.photoProfil,
+              role: realUser.role as "PHOTOGRAPHE" | "RETOUCHEUR" | "ADMIN",
+              statut: (realUser.statut === "ACTIF" ? "ACTIF" : "BLOQUE") as "ACTIF" | "BLOQUE",
+            }
+          : await portfolioIntegrations.utilisateursService.getUtilisateur(
+              doc.proprietaire.toString(),
+            );
+
+        const photoName = photographe
+          ? {
+              nom: photographe.nom,
+              prenom: photographe.prenom,
+              photoProfil: photographe.photoProfil,
+            }
+          : { nom: "", prenom: doc.titre };
+        return toPublic(doc, photoName);
+      }),
+    );
+
+    return {
+      items: items.filter((item): item is PortfolioPublic => item !== null),
+      total,
+      page: esPage,
+      pageCount,
+    };
+  }
+
+  // 2. Fallback to MongoDB query when Elasticsearch is not running or unreachable
   const filter: Record<string, unknown> = { statut: "PUBLIE", visibilite: "PUBLIC" };
   if (query.categories.length) filter.specialites = { $all: query.categories };
   if (query.styles.length) filter.styles = { $all: query.styles };
@@ -1269,6 +1330,11 @@ export async function publishPortfolio(
       }),
     ),
   ]);
+  // Sync published portfolio into Elasticsearch in the background
+  void syncPortfolioById(String(_id)).catch((err) =>
+    console.warn("Elasticsearch sync error on publish:", err),
+  );
+
   return {
     slug,
     url: `${process.env.PORTFOLIO_BASE_URL ?? "http://localhost:3000"}/portfolio/${slug}`,
@@ -1288,6 +1354,11 @@ export async function unpublishPortfolio(
     { timestamps: false },
   );
   if (!result.matchedCount) throw new ServiceError("Portfolio introuvable.");
+
+  // Remove from Elasticsearch
+  void removePortfolioFromElasticsearch(portfolioObjectId.toString()).catch((err) =>
+    console.warn("Elasticsearch remove error on unpublish:", err),
+  );
 }
 
 export async function deletePortfolio(
@@ -1303,6 +1374,11 @@ export async function deletePortfolio(
     PortfolioStats.deleteMany({ portfolioId: portfolioObjectId }),
     DemandeContact.deleteMany({ portfolioId: portfolioObjectId }),
   ]);
+
+  // Remove from Elasticsearch
+  void removePortfolioFromElasticsearch(portfolioObjectId.toString()).catch((err) =>
+    console.warn("Elasticsearch remove error on delete:", err),
+  );
 }
 
 function dayStart(): Date {
