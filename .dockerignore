@@ -21,3 +21,5 @@ src_updated
 
 # SnapSeal contracts: local tooling only, the app uses src/modules/snapseal/abi
 contracts
+# Contract notary: separate Hardhat project
+reframe-blockchain

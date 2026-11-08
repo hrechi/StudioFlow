@@ -16,7 +16,7 @@ import { statutSeanceReelConfig } from "@/modules/seances/seance.dto";
 import { findSeanceById } from "@/modules/seances/seance.service";
 import { listTypesEvenement } from "@/modules/seances/type-evenement.service";
 import { listClientRefs, listPhotographeRefs } from "@/modules/utilisateurs/utilisateur.service";
-import { listLieuxRefs } from "@/modules/seances/lieu.service";
+import { listLieux } from "@/modules/seances/lieu.service";
 
 export const metadata: Metadata = { title: "Edit session" };
 
@@ -30,7 +30,7 @@ export default async function ModifierSeancePage({ params }: { params: Promise<{
     listPhotographeRefs(),
     listTypesEvenement(),
     listPacks(),
-    listLieuxRefs(),
+    listLieux(),
   ]);
   const locked = seance.statut === "TERMINEE" || seance.statut === "ANNULEE";
 
