@@ -6,6 +6,18 @@ import { useEffect } from "react";
 // Reaching these means the signed-in user changes (sign-out lands on /?deconnecte=1).
 const SESSION_CHANGE_PATHS = ["/login", "/register", "/deconnexion"];
 
+/** Per-user copies kept for offline use (e.g. Equipment "My day") and the app icon badge. */
+const OFFLINE_DATA_PREFIX = "reframe:hors-ligne:";
+function forgetOfflineData() {
+  try {
+    Object.keys(localStorage).filter((k) => k.startsWith(OFFLINE_DATA_PREFIX)).forEach((k) => localStorage.removeItem(k));
+  } catch {
+    // Storage blocked: nothing was saved.
+  }
+  const nav = navigator as Navigator & { clearAppBadge?: () => Promise<void> };
+  nav.clearAppBadge?.().catch(() => undefined);
+}
+
 /**
  * Registers the service worker (public/sw.js) that gives ReFrame its offline mode.
  * Production only: in `next dev` the build files change on every save and a cache
@@ -27,10 +39,10 @@ export function PwaRegister() {
 
   // Saved pages show the user's name in the header: forget them when the session changes.
   useEffect(() => {
+    if (!(signedOut || SESSION_CHANGE_PATHS.includes(pathname))) return;
+    forgetOfflineData();
     if (!("serviceWorker" in navigator)) return;
-    if (signedOut || SESSION_CHANGE_PATHS.includes(pathname)) {
-      navigator.serviceWorker.ready.then((r) => r.active?.postMessage("CLEAR_PAGES"));
-    }
+    navigator.serviceWorker.ready.then((r) => r.active?.postMessage("CLEAR_PAGES"));
   }, [pathname, signedOut]);
 
   return null;

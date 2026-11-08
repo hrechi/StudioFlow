@@ -1,10 +1,10 @@
 /** Browser helpers shared by the stage and the export: loading fonts and images before drawing. */
 import type Konva from "konva";
 import { estArabe } from "./invitation.linked";
-import type { ContenuInvitation, ElementTexte, Police } from "./invitation.schema";
+import { POLICES_ARABES, type ContenuInvitation, type ElementTexte, type Police } from "./invitation.schema";
 
 /** Amiri comes second: the Latin fonts have no Arabic letters and must not fall back to a system font. */
-export const fontePolice = (police: Police) => (police === "Amiri" ? "Amiri" : `${police}, Amiri`);
+export const fontePolice = (police: Police) => (POLICES_ARABES.includes(police) ? police : `${police}, Amiri`);
 
 export function styleTexte(style: ElementTexte["style"]) {
   return {
@@ -22,7 +22,10 @@ export async function chargerPolices(contenu: ContenuInvitation): Promise<void> 
   for (const { style, text } of textes) {
     const variante = `${style.italic ? "italic " : ""}${style.bold ? "700 " : ""}24px`;
     demandes.add(`${variante}|${style.fontFamily}|${text}`);
-    if (estArabe(text)) demandes.add(`${variante}|Amiri|${text}`);
+    if (estArabe(text) && !POLICES_ARABES.includes(style.fontFamily)) demandes.add(`${variante}|Amiri|${text}`);
+  }
+  for (const e of contenu.elements) {
+    if (e.type === "countdown") demandes.add(`700 24px|${e.style.fontFamily}|0123456789`);
   }
   await Promise.all(
     [...demandes].map((demande) => {
@@ -76,13 +79,19 @@ const DPI_EXPORT = 300;
  * hidden, so the file holds the card only. Everything drawn is local, so the canvas is never
  * tainted. The card is drawn at 300 dpi; size units are PDF points (A5 = 420 × 595).
  */
-export async function exportInvitation(stage: Konva.Stage, contenu: ContenuInvitation, titre: string, format: "png" | "pdf") {
+async function preparer(contenu: ContenuInvitation) {
   const sources = [contenu.background.image, ...contenu.elements.map((e) => (e.type === "image" ? e.src : undefined))];
   await Promise.all([
     chargerPolices(contenu),
     ...sources.filter((s): s is string => !!s).map(chargerImage),
   ]);
+  // Two frames: masked and filtered images redraw once their file is in.
   await new Promise((resolve) => requestAnimationFrame(resolve));
+  await new Promise((resolve) => requestAnimationFrame(resolve));
+}
+
+export async function exportInvitation(stage: Konva.Stage, contenu: ContenuInvitation, titre: string, format: "png" | "pdf") {
+  await preparer(contenu);
 
   const ui = stage.find(".ui");
   ui.forEach((n) => n.hide());
@@ -108,4 +117,25 @@ export async function exportInvitation(stage: Konva.Stage, contenu: ContenuInvit
   page.drawImage(png, { x: 0, y: 0, width: contenu.size.width, height: contenu.size.height });
   const fichier = await pdf.save();
   telecharger(new Blob([fichier.slice()], { type: "application/pdf" }), nomFichier(titre, "pdf"));
+}
+
+const LARGEUR_APERCU = 600;
+
+/**
+ * Small picture of the card for link previews (WhatsApp, Messenger…): sent to the server when the
+ * card is shared, which frames it for Open Graph. Same rules as the export: guides hidden.
+ */
+export async function imageApercu(stage: Konva.Stage, contenu: ContenuInvitation): Promise<Blob> {
+  await preparer(contenu);
+  const ui = stage.find(".ui");
+  ui.forEach((n) => n.hide());
+  try {
+    const canvas = stage.toCanvas({ pixelRatio: LARGEUR_APERCU / stage.width() });
+    return await new Promise<Blob>((resolve, reject) =>
+      canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error("Preview not available"))), "image/png"),
+    );
+  } finally {
+    ui.forEach((n) => n.show());
+    stage.batchDraw();
+  }
 }

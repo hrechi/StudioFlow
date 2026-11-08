@@ -17,8 +17,8 @@ export default async function MesInvitationsPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Wedding invitations"
-        description={debloque ? "Create, change and share your invitation cards." : "Design your own invitation cards with our online editor."}
+        title="Invitations"
+        description={debloque ? "Create, animate and share your invitation cards, for every celebration." : "Design your own invitation cards with our online editor: weddings, birthdays, graduations and more."}
       />
       {debloque ? <InvitationsList invitations={await listInvitations(user)} /> : <InvitationLock acces={acces} />}
     </div>

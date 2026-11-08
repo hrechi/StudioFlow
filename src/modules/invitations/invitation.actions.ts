@@ -107,7 +107,7 @@ export async function suggererPaletteAction(input: unknown): Promise<ActionResul
   if (!parsed.success) return validationFailure(parsed.error);
   try {
     await assertDebloque(actor);
-    return success(await suggererPalette(parsed.data.ambiance));
+    return success(await suggererPalette(parsed.data.ambiance, parsed.data.typeEvenement));
   } catch (error) { return toFailure(error); }
 }
 

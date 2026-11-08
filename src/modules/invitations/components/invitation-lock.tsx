@@ -15,10 +15,11 @@ import { etatAccesConfig, type AccesInvitation } from "../invitation.types";
 import { InvitationApercu } from "./invitation-apercu";
 
 const INCLUS = [
-  "Ready-made templates you can fully change",
-  "Move, resize and rotate text, flowers, hearts, frames and your photos",
+  "Cards for 11 kinds of events, from weddings to birthdays and corporate events",
+  "Move, resize and rotate text, decorations, shapes and your photos, with layers",
   "Names, date and venue update the card by themselves",
   "AI writes the message in French, English or Arabic",
+  "Animated link with an opening, music and a QR code to the venue",
   "Download in PDF and PNG, or share a private link",
 ];
 

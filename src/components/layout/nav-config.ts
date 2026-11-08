@@ -1,6 +1,7 @@
 import {
   BookImage,
   BarChart3,
+  CalendarCheck,
   CalendarClock,
   CalendarDays,
   Camera,
@@ -92,6 +93,7 @@ export const BACKOFFICE_NAV: NavGroup[] = [
   {
     label: "Equipment",
     items: [
+      { label: "Today", href: "/dashboard/materiel/today", icon: CalendarCheck, area: "materiel" },
       { label: "Inventory", href: "/dashboard/materiel", icon: Camera, area: "materiel" },
       {
         label: "Reservations",

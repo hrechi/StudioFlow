@@ -4,6 +4,7 @@ import dynamic from "next/dynamic";
 import { useEffect, useRef, useState } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { ContenuInvitation } from "../invitation.schema";
+import type { LectureStage } from "./invitation-stage";
 
 /** Konva needs the browser: the stage is never rendered on the server. */
 export const InvitationStage = dynamic(() => import("./invitation-stage"), {
@@ -12,7 +13,7 @@ export const InvitationStage = dynamic(() => import("./invitation-stage"), {
 });
 
 /** Read-only card that fits the width of its container (thumbnails, public page). */
-export function InvitationApercu({ contenu, className }: { contenu: ContenuInvitation; className?: string }) {
+export function InvitationApercu({ contenu, className, lecture }: { contenu: ContenuInvitation; className?: string; lecture?: LectureStage }) {
   const ref = useRef<HTMLDivElement>(null);
   const [largeur, setLargeur] = useState(0);
 
@@ -26,7 +27,7 @@ export function InvitationApercu({ contenu, className }: { contenu: ContenuInvit
 
   return (
     <div ref={ref} className={className} style={{ aspectRatio: `${contenu.size.width} / ${contenu.size.height}` }}>
-      {largeur > 0 && <InvitationStage contenu={contenu} scale={largeur / contenu.size.width} />}
+      {largeur > 0 && <InvitationStage contenu={contenu} scale={largeur / contenu.size.width} lecture={lecture} />}
     </div>
   );
 }
