@@ -1,5 +1,5 @@
 /* Module : Gestion des Photos & Galeries · Responsable : Louay Herichi */
-import { ArrowLeft, CalendarDays, Check, ShieldCheck } from "lucide-react";
+import { ArrowLeft, CalendarDays, Check } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -18,6 +18,7 @@ import {
   statutGalerieConfig,
 } from "@/modules/photos-galeries/galerie.types";
 import { listPhotosOfGalerie } from "@/modules/photos-galeries/photo.service";
+import { BlockchainProofButton } from "@/modules/snapseal/components/blockchain-proof-button";
 import { loadProofContext } from "@/modules/snapseal/snapseal.guards";
 import { listClientRefs } from "@/modules/utilisateurs/utilisateur.service";
 
@@ -108,19 +109,13 @@ export default async function GalerieDetailPage({
                 View session
               </Link>
             )}
-            <Link
-              href={`/dashboard/galeries/${galerie.id}/snapseal`}
-              className="text-primary-text hover:underline"
-            >
-              Blockchain proof
-            </Link>
-            {proofStage && (
-              <span className="flex items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary-text">
-                <ShieldCheck className="size-3.5" aria-hidden />
-                Proof required · {proofStage}
-              </span>
-            )}
           </div>
+          <BlockchainProofButton
+            href={`/dashboard/galeries/${galerie.id}/snapseal`}
+            required={galerie.preuveBlockchainRequise}
+            stage={proofStage ? `Proof required · ${proofStage}` : undefined}
+            className="mt-1"
+          />
         </div>
         <ol className="flex flex-wrap items-center gap-1.5" aria-label="Gallery steps">
           {GALERIE_PIPELINE.map((step, index) => (

@@ -1,7 +1,11 @@
 import "server-only";
 import { getCurrentUser } from "@/lib/guards";
 import { can } from "@/lib/rbac";
-import { clientMaySeePhoto, clientOriginalsGate } from "@/modules/snapseal/snapseal.guards";
+import {
+  clientMayDownloadDelivered,
+  clientMaySeePhoto,
+  clientOriginalsGate,
+} from "@/modules/snapseal/snapseal.guards";
 import { getPhotoFileAccess } from "./photo.service";
 
 export function attachmentHeader(filename: string): string {
@@ -56,7 +60,12 @@ export async function photoFileResponse(
     }
   }
 
-  if (download && !(can(user.role, "photos-galeries") || access.telechargementAutorise)) {
+  if (
+    download &&
+    !(can(user.role, "photos-galeries") || access.telechargementAutorise) &&
+    // SnapSeal: the photos of a verified delivery are always downloadable by their client.
+    !(await clientMayDownloadDelivered(access.galerieId, photoId))
+  ) {
     return new Response("Downloads are not allowed for this gallery.", { status: 403 });
   }
   const file = await access.open();

@@ -323,14 +323,34 @@ export async function clientOriginalsGate(galerieId: string | Types.ObjectId): P
   }
 }
 
-/** True when the client may see this photo: on required galleries, only the sealed ones. */
+/**
+ * True when the client may see this photo: on required galleries, only the sealed ones —
+ * plus, once the delivery is verified on-chain, the photos inside it (the retouched copies).
+ */
 export async function clientMaySeePhoto(
   galerieId: string | Types.ObjectId,
   photoId: string,
 ): Promise<boolean> {
   const ctx = await loadProofContext(galerieId);
   if (!ctx?.required) return true;
-  return !!ctx.seal?.photos.some((p) => p.photo.toString() === photoId);
+  if (ctx.seal?.photos.some((p) => p.photo.toString() === photoId)) return true;
+  return !!ctx.seal && isInVerifiedDelivery(ctx.seal, photoId);
+}
+
+function isInVerifiedDelivery(seal: SealLean, photoId: string): boolean {
+  return deliveryVerified(seal) && !!seal.livraison?.photos.some((id) => id.toString() === photoId);
+}
+
+/**
+ * A photo of the verified delivery may be downloaded one by one by the client, even when the
+ * gallery's "downloads allowed" switch is off: it is the final product, like the delivery ZIP.
+ */
+export async function clientMayDownloadDelivered(
+  galerieId: string | Types.ObjectId,
+  photoId: string,
+): Promise<boolean> {
+  const ctx = await loadProofContext(galerieId);
+  return !!ctx?.seal && isInVerifiedDelivery(ctx.seal, photoId);
 }
 
 /** The delivery package, for the gallery's client: only once its on-chain hash is verified. */

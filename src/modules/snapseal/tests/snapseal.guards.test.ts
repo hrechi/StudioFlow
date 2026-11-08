@@ -165,6 +165,23 @@ describe("on a sealed required gallery", () => {
     expect(await g.clientDeliveryGate(galerieId)).toBe("refused"); // no package stored at all
   });
 
+  it("delivered retouched copies: hidden until the delivery is verified, then viewable and downloadable", async () => {
+    const hash = `0x${"aa".repeat(32)}`;
+    const livraison = { hash, fichier: new Types.ObjectId(), photos: [editedCopy] };
+    m.seal.mockResolvedValue(seal({ selectionAt: new Date(), livraison }));
+    expect(await g.clientMaySeePhoto(galerieId, editedCopy.toString())).toBe(false);
+    expect(await g.clientMayDownloadDelivered(galerieId, editedCopy.toString())).toBe(false);
+
+    m.seal.mockResolvedValue(
+      seal({ selectionAt: new Date(), livraison, deliveredAt: new Date(), deliveryHash: hash }),
+    );
+    expect(await g.clientMaySeePhoto(galerieId, editedCopy.toString())).toBe(true);
+    expect(await g.clientMayDownloadDelivered(galerieId, editedCopy.toString())).toBe(true);
+    const outside = new Types.ObjectId().toString();
+    expect(await g.clientMaySeePhoto(galerieId, outside)).toBe(false);
+    expect(await g.clientMayDownloadDelivered(galerieId, outside)).toBe(false);
+  });
+
   it("delivery: refused until the on-chain hash matches the stored package", async () => {
     const livraison = { hash: `0x${"aa".repeat(32)}`, fichier: new Types.ObjectId() };
     m.seal.mockResolvedValue(seal({ selectionAt: new Date(), livraison }));

@@ -16,7 +16,10 @@ import {
   categorieGalerieLabels,
   statutGalerieConfig,
 } from "@/modules/photos-galeries/galerie.types";
+import type { Photo } from "@/modules/photos-galeries/galerie.types";
 import { listPhotosOfGalerie } from "@/modules/photos-galeries/photo.service";
+import { BlockchainProofButton } from "@/modules/snapseal/components/blockchain-proof-button";
+import { DeliveryDownloads } from "@/modules/snapseal/components/delivery-downloads";
 import { syncGalerieProof } from "@/modules/snapseal/snapseal.guards";
 import { getGalerieSeal, getSnapSealConfig } from "@/modules/snapseal/snapseal.service";
 
@@ -30,24 +33,38 @@ export default async function ClientGaleriePage({
   // A client only opens their own, shared galleries.
   const galerie = await getGalerieOfClient(user.id, id);
   if (!galerie) notFound();
+  const allPhotos = await listPhotosOfGalerie(galerie.id);
   // Rejected photos are never shown to the client.
-  let photos = (await listPhotosOfGalerie(galerie.id)).filter((p) => p.statutCulling !== "REJETEE");
+  let photos = allPhotos.filter((p) => p.statutCulling !== "REJETEE");
 
-  // SnapSeal, galleries that require a blockchain proof: only the sealed photos are shown (the
+  // SnapSeal. Galleries that require a blockchain proof: only the sealed photos are shown (the
   // retouched copies reach the client in the delivery), and the selection is signed on-chain.
+  // Any sealed gallery: once its delivery is verified on-chain, the final photos are offered.
   let proof: ClientGalleryProof | undefined;
-  const config = galerie.preuveBlockchainRequise ? getSnapSealConfig() : null;
-  if (config) {
-    let seal = await getGalerieSeal(galerie.id, config.registryAddress);
-    if (seal && !seal.selectionAt) {
-      // A selection signed earlier but not checked yet (e.g. the tab was closed): look again.
+  let delivered: { photos: Photo[]; zipSize: number } | null = null;
+  const config = getSnapSealConfig();
+  let seal = config ? await getGalerieSeal(galerie.id, config.registryAddress) : null;
+  if (config && seal) {
+    const unchecked =
+      (galerie.preuveBlockchainRequise && !seal.selectionAt) || (seal.livraison && !seal.deliveredAt);
+    if (unchecked) {
+      // A step signed earlier but not checked yet (e.g. the tab was closed): look again.
       try {
         await syncGalerieProof(galerie.id);
         seal = await getGalerieSeal(galerie.id, config.registryAddress);
       } catch {
-        // Chain unreachable: the page still works, the originals simply stay locked.
+        // Chain unreachable: the page still works, what isn't verified simply stays locked.
       }
     }
+  }
+  if (seal?.livraison && seal.deliveredAt && seal.deliveryHash === seal.livraison.hash) {
+    const byId = new Map(allPhotos.map((p) => [p.id, p]));
+    delivered = {
+      photos: seal.livraison.photoIds.flatMap((photoId) => byId.get(photoId) ?? []),
+      zipSize: seal.livraison.taille,
+    };
+  }
+  if (config && galerie.preuveBlockchainRequise) {
     if (seal) {
       const sealedIds = new Set(seal.photos.map((p) => p.photoId));
       photos = photos.filter((p) => sealedIds.has(p.id));
@@ -91,16 +108,31 @@ export default async function ClientGaleriePage({
               Private gallery
             </span>
           )}
-          <Link
-            href={`/espace-client/galeries/${galerie.id}/snapseal`}
-            className="text-primary-text hover:underline"
-          >
-            Blockchain proof
-          </Link>
         </p>
+        {config && (
+          <BlockchainProofButton
+            href={`/espace-client/galeries/${galerie.id}/snapseal`}
+            stage={
+              delivered
+                ? "Delivered"
+                : proof?.selectedHashes.length
+                  ? "Selection recorded"
+                  : seal
+                    ? "Sealed"
+                    : undefined
+            }
+          />
+        )}
       </header>
+      {delivered && delivered.photos.length > 0 && (
+        <DeliveryDownloads
+          galerieId={galerie.id}
+          photos={delivered.photos}
+          zipSize={delivered.zipSize}
+        />
+      )}
       <GuestLinkBox path={galerie.lienAcces} protegee={galerie.protegeeParMotDePasse} />
-      {proof && (
+      {proof && !delivered && (
         <p className="rounded-lg bg-primary/10 p-3 text-sm text-slate">
           {proof.selectedHashes.length
             ? "Your selection is recorded on the blockchain. Follow the delivery on the Blockchain proof page."
