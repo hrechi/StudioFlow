@@ -4,7 +4,8 @@
   "scripts": {
     "compile": "hardhat compile",
     "test": "hardhat test",
-    "deploy:ganache": "hardhat run scripts/deploy.ts --network ganache"
+    "deploy:ganache": "hardhat run scripts/deploy.ts --network ganache",
+    "deploy:sepolia": "hardhat run scripts/deploy.ts --network sepolia"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox": "^5.0.0",
