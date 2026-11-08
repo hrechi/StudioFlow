@@ -52,6 +52,8 @@ services:
       args:
         NEXT_DEPLOYMENT_ID: ${NEXT_DEPLOYMENT_ID:-}
     restart: unless-stopped
+    extra_hosts:
+      - "host.docker.internal:host-gateway" # reach Ganache on the host (built in on Docker Desktop)
     ports:
       - "${APP_PORT:-3000}:3000" # APP_PORT in .env if 3000 is taken (e.g. by npm run dev)
     environment:
@@ -62,6 +64,10 @@ services:
       SNAPSEAL_REGISTRY_ADDRESS: ${SNAPSEAL_REGISTRY_ADDRESS:-}
       SNAPSEAL_DELIVERY_ADDRESS: ${SNAPSEAL_DELIVERY_ADDRESS:-}
       SNAPSEAL_RPC_URL: ${SNAPSEAL_RPC_URL:-}
+      # Contract notary (contrats): the server calls Ganache running on your machine, so not 127.0.0.1.
+      BLOCKCHAIN_RPC_URL: ${DOCKER_BLOCKCHAIN_RPC_URL:-http://host.docker.internal:7545}
+      STUDIO_PRIVATE_KEY: ${STUDIO_PRIVATE_KEY:-}
+      NOTARY_ADDRESS: ${NOTARY_ADDRESS:-}
       # Online payments (Konnect sandbox/production); without keys the test checkout is used if enabled.
       APP_URL: ${APP_URL:-http://localhost:3000}
       KONNECT_API_KEY: ${KONNECT_API_KEY:-}
@@ -73,6 +79,7 @@ services:
       GEMINI_API_KEYS: ${GEMINI_API_KEYS:-} # spare keys, tried on quota errors
       GEMINI_MODEL: ${GEMINI_MODEL:-}
       GROQ_API_KEY: ${GROQ_API_KEY:-} # chatbot, pack suggestions
+      GROQ_MODEL: ${GROQ_MODEL:-}
       STUDIO_CONTACT_EMAIL: ${STUDIO_CONTACT_EMAIL:-} # given by the chatbot
       STUDIO_CONTACT_PHONE: ${STUDIO_CONTACT_PHONE:-}
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
@@ -101,6 +108,7 @@ services:
 
   elasticsearch:
     image: elasticsearch:8.17.0
+    attach: false # keep `docker compose up` readable; see its logs with `docker compose logs elasticsearch`
     restart: unless-stopped
     ports:
       - "9200:9200"
@@ -109,6 +117,9 @@ services:
       - xpack.security.enabled=false
       - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
       - "cluster.routing.allocation.disk.threshold_enabled=false"
+      # Log only warnings and errors; hide the "clock went backwards" warnings caused by WSL2 clock drift.
+      - logger.level=WARN
+      - logger.org.elasticsearch.threadpool=ERROR # the image only reads lowercase setting names
     volumes:
       - es-data:/usr/share/elasticsearch/data
 

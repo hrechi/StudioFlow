@@ -365,6 +365,37 @@ export async function syncAllPortfoliosToElasticsearch(): Promise<{
   return { success, failed };
 }
 
+let initialSync: Promise<boolean> | null = null;
+
+/**
+ * Makes sure the index exists before searching. A fresh Elasticsearch (e.g. a new Docker
+ * volume) has no index yet, so it is built once from MongoDB; concurrent requests share that sync.
+ */
+async function ensureSearchableIndex(client: Client): Promise<boolean> {
+  if (indexEnsured) return true;
+  if (await client.indices.exists({ index: PORTFOLIO_INDEX })) {
+    indexEnsured = true;
+    return true;
+  }
+  initialSync ??= syncAllPortfoliosToElasticsearch()
+    .then(({ success, failed }) => {
+      console.info(`Elasticsearch: built "${PORTFOLIO_INDEX}" from MongoDB (${success} indexed, ${failed} failed).`);
+      return true;
+    })
+    .catch((error: unknown) => {
+      console.warn("Elasticsearch: could not build the portfolio index:", errorMessage(error));
+      return false;
+    })
+    .finally(() => {
+      initialSync = null;
+    });
+  return initialSync;
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
 /**
  * Executes full-text search and facet filtering on portfolios via Elasticsearch.
  */
@@ -382,6 +413,7 @@ export async function searchPortfoliosWithElasticsearch(
   try {
     const isReady = await isElasticsearchAvailable();
     if (!isReady) return null;
+    if (!(await ensureSearchableIndex(client))) return null;
 
     const page = Math.max(1, query.page ?? 1);
     const pageSize = 12;
@@ -482,7 +514,9 @@ export async function searchPortfoliosWithElasticsearch(
       pageCount,
     };
   } catch (error) {
-    console.warn("Elasticsearch query error, falling back to MongoDB:", error);
+    // The index was deleted while the app was running: rebuild it on the next search.
+    if (errorMessage(error).includes("index_not_found_exception")) indexEnsured = false;
+    console.warn("Elasticsearch query error, falling back to MongoDB:", errorMessage(error));
     return null;
   }
 }
