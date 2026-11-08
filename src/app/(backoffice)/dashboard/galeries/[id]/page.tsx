@@ -82,6 +82,12 @@ export default async function GalerieDetailPage({
                 View session
               </Link>
             )}
+            <Link
+              href={`/dashboard/galeries/${galerie.id}/snapseal`}
+              className="text-primary-text hover:underline"
+            >
+              Blockchain proof
+            </Link>
           </div>
         </div>
         <ol className="flex flex-wrap items-center gap-1.5" aria-label="Gallery steps">

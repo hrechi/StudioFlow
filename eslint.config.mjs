@@ -22,6 +22,8 @@ const eslintConfig = defineConfig([
     "build/**",
     "next-env.d.ts",
     "docs/**",
+    // SnapSeal contracts: separate Hardhat project (CommonJS tooling).
+    "contracts/**",
   ]),
 ]);
 

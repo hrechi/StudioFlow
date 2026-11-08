@@ -60,6 +60,12 @@ export default async function ClientGaleriePage({
               Private gallery
             </span>
           )}
+          <Link
+            href={`/espace-client/galeries/${galerie.id}/snapseal`}
+            className="text-primary-text hover:underline"
+          >
+            Blockchain proof
+          </Link>
         </p>
       </header>
       <GuestLinkBox path={galerie.lienAcces} protegee={galerie.protegeeParMotDePasse} />
