@@ -1,0 +1,726 @@
+{
+  "address": "0x5FbDB2315678afecb367f032d93F642f64180aa3",
+  "chainId": 1337,
+  "abi": [
+    {
+      "inputs": [],
+      "stateMutability": "nonpayable",
+      "type": "constructor"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "allocationId",
+          "type": "bytes32"
+        }
+      ],
+      "name": "AllocationAlreadyExists",
+      "type": "error"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "allocationId",
+          "type": "bytes32"
+        }
+      ],
+      "name": "AllocationNotFound",
+      "type": "error"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "equipmentId",
+          "type": "bytes32"
+        }
+      ],
+      "name": "EquipmentAlreadyRegistered",
+      "type": "error"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "equipmentId",
+          "type": "bytes32"
+        }
+      ],
+      "name": "EquipmentInactive",
+      "type": "error"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "equipmentId",
+          "type": "bytes32"
+        }
+      ],
+      "name": "EquipmentNotFound",
+      "type": "error"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "equipmentId",
+          "type": "bytes32"
+        }
+      ],
+      "name": "EquipmentOutOfOrder",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "InvalidPeriod",
+      "type": "error"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "enum EquipmentAllocation.Condition",
+          "name": "condition",
+          "type": "uint8"
+        }
+      ],
+      "name": "InvalidReturnCondition",
+      "type": "error"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "enum EquipmentAllocation.Status",
+          "name": "from",
+          "type": "uint8"
+        },
+        {
+          "internalType": "enum EquipmentAllocation.Status",
+          "name": "to",
+          "type": "uint8"
+        }
+      ],
+      "name": "InvalidTransition",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "NotOwner",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "NotOwnerOrBooker",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "NotStaff",
+      "type": "error"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "conflictingAllocationId",
+          "type": "bytes32"
+        }
+      ],
+      "name": "Overlap",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "ZeroAddress",
+      "type": "error"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "bytes32",
+          "name": "allocationId",
+          "type": "bytes32"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "by",
+          "type": "address"
+        }
+      ],
+      "name": "AllocationCancelled",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "bytes32",
+          "name": "allocationId",
+          "type": "bytes32"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "by",
+          "type": "address"
+        }
+      ],
+      "name": "AllocationConfirmed",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "bytes32",
+          "name": "allocationId",
+          "type": "bytes32"
+        },
+        {
+          "indexed": true,
+          "internalType": "bytes32",
+          "name": "equipmentId",
+          "type": "bytes32"
+        },
+        {
+          "indexed": false,
+          "internalType": "bytes32",
+          "name": "seanceId",
+          "type": "bytes32"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "bookedBy",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint64",
+          "name": "start",
+          "type": "uint64"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint64",
+          "name": "end",
+          "type": "uint64"
+        }
+      ],
+      "name": "AllocationRequested",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "bytes32",
+          "name": "equipmentId",
+          "type": "bytes32"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "by",
+          "type": "address"
+        }
+      ],
+      "name": "BreakdownReported",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "bytes32",
+          "name": "equipmentId",
+          "type": "bytes32"
+        },
+        {
+          "indexed": false,
+          "internalType": "bool",
+          "name": "active",
+          "type": "bool"
+        }
+      ],
+      "name": "EquipmentActiveChanged",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "bytes32",
+          "name": "allocationId",
+          "type": "bytes32"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "by",
+          "type": "address"
+        }
+      ],
+      "name": "EquipmentCheckedOut",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "bytes32",
+          "name": "equipmentId",
+          "type": "bytes32"
+        },
+        {
+          "indexed": false,
+          "internalType": "enum EquipmentAllocation.Condition",
+          "name": "condition",
+          "type": "uint8"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "by",
+          "type": "address"
+        }
+      ],
+      "name": "EquipmentConditionChanged",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "bytes32",
+          "name": "equipmentId",
+          "type": "bytes32"
+        },
+        {
+          "indexed": false,
+          "internalType": "enum EquipmentAllocation.Condition",
+          "name": "condition",
+          "type": "uint8"
+        }
+      ],
+      "name": "EquipmentRegistered",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "bytes32",
+          "name": "allocationId",
+          "type": "bytes32"
+        },
+        {
+          "indexed": false,
+          "internalType": "enum EquipmentAllocation.Condition",
+          "name": "condition",
+          "type": "uint8"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "by",
+          "type": "address"
+        }
+      ],
+      "name": "EquipmentReturned",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "account",
+          "type": "address"
+        }
+      ],
+      "name": "StaffAdded",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "account",
+          "type": "address"
+        }
+      ],
+      "name": "StaffRemoved",
+      "type": "event"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "account",
+          "type": "address"
+        }
+      ],
+      "name": "addStaff",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "allocationId",
+          "type": "bytes32"
+        }
+      ],
+      "name": "cancelAllocation",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "allocationId",
+          "type": "bytes32"
+        }
+      ],
+      "name": "checkout",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "allocationId",
+          "type": "bytes32"
+        }
+      ],
+      "name": "confirmAllocation",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "name": "equipments",
+      "outputs": [
+        {
+          "internalType": "enum EquipmentAllocation.Condition",
+          "name": "condition",
+          "type": "uint8"
+        },
+        {
+          "internalType": "bool",
+          "name": "active",
+          "type": "bool"
+        },
+        {
+          "internalType": "bool",
+          "name": "exists",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "allocationId",
+          "type": "bytes32"
+        }
+      ],
+      "name": "getAllocation",
+      "outputs": [
+        {
+          "components": [
+            {
+              "internalType": "bytes32",
+              "name": "equipmentId",
+              "type": "bytes32"
+            },
+            {
+              "internalType": "bytes32",
+              "name": "seanceId",
+              "type": "bytes32"
+            },
+            {
+              "internalType": "address",
+              "name": "bookedBy",
+              "type": "address"
+            },
+            {
+              "internalType": "uint64",
+              "name": "start",
+              "type": "uint64"
+            },
+            {
+              "internalType": "uint64",
+              "name": "end",
+              "type": "uint64"
+            },
+            {
+              "internalType": "enum EquipmentAllocation.Status",
+              "name": "status",
+              "type": "uint8"
+            },
+            {
+              "internalType": "enum EquipmentAllocation.Condition",
+              "name": "returnCondition",
+              "type": "uint8"
+            },
+            {
+              "internalType": "uint64",
+              "name": "createdAt",
+              "type": "uint64"
+            }
+          ],
+          "internalType": "struct EquipmentAllocation.Allocation",
+          "name": "",
+          "type": "tuple"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "equipmentId",
+          "type": "bytes32"
+        }
+      ],
+      "name": "getEquipmentHistory",
+      "outputs": [
+        {
+          "internalType": "bytes32[]",
+          "name": "",
+          "type": "bytes32[]"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "equipmentId",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "uint64",
+          "name": "start",
+          "type": "uint64"
+        },
+        {
+          "internalType": "uint64",
+          "name": "end",
+          "type": "uint64"
+        }
+      ],
+      "name": "isAvailable",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "owner",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "equipmentId",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "enum EquipmentAllocation.Condition",
+          "name": "condition",
+          "type": "uint8"
+        }
+      ],
+      "name": "registerEquipment",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "account",
+          "type": "address"
+        }
+      ],
+      "name": "removeStaff",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "equipmentId",
+          "type": "bytes32"
+        }
+      ],
+      "name": "reportBreakdown",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "allocationId",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "equipmentId",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "seanceId",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "uint64",
+          "name": "start",
+          "type": "uint64"
+        },
+        {
+          "internalType": "uint64",
+          "name": "end",
+          "type": "uint64"
+        }
+      ],
+      "name": "requestAllocation",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "allocationId",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "enum EquipmentAllocation.Condition",
+          "name": "condition",
+          "type": "uint8"
+        }
+      ],
+      "name": "returnEquipment",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "equipmentId",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "bool",
+          "name": "active",
+          "type": "bool"
+        }
+      ],
+      "name": "setEquipmentActive",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "equipmentId",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "enum EquipmentAllocation.Condition",
+          "name": "condition",
+          "type": "uint8"
+        }
+      ],
+      "name": "setEquipmentCondition",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "name": "staff",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    }
+  ]
+}
