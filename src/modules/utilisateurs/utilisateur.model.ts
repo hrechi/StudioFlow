@@ -23,6 +23,8 @@ export interface IUtilisateur {
   specialite?: string;
   statut: StatutCompte;
   derniereConnexion?: Date;
+  /** SnapSeal: wallet proven by a signature (never set by profile or admin forms). */
+  walletAddress?: string;
   createdAt: Date; // = dateCreation
   updatedAt: Date;
 }
@@ -51,11 +53,14 @@ const utilisateurSchema = new Schema<IUtilisateur>(
     specialite: { type: String, trim: true, maxlength: 120 },
     statut: { type: String, enum: STATUTS_COMPTE, default: "ACTIF", required: true },
     derniereConnexion: { type: Date },
+    walletAddress: { type: String, lowercase: true, trim: true },
   },
   { timestamps: true, collection: "utilisateurs" },
 );
 
 utilisateurSchema.index({ role: 1, statut: 1 });
+// One wallet per account; accounts without a wallet are not indexed.
+utilisateurSchema.index({ walletAddress: 1 }, { unique: true, sparse: true });
 utilisateurSchema.index({ createdAt: -1 });
 
 export const Utilisateur: Model<IUtilisateur> =

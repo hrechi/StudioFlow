@@ -33,6 +33,37 @@ export async function saveFile(
   return upload.id;
 }
 
+/**
+ * Streams bytes into GridFS without holding the whole file in memory, calling `onChunk` on each
+ * chunk (e.g. to hash it on the way). A failed upload leaves no partial file behind.
+ */
+export async function saveStream(
+  source: AsyncIterable<Uint8Array>,
+  filename: string,
+  contentType: string,
+  onChunk?: (chunk: Uint8Array) => void,
+): Promise<{ id: Types.ObjectId; length: number }> {
+  const bucket = await getBucket();
+  const upload = bucket.openUploadStream(filename, { metadata: { contentType } });
+  let length = 0;
+  try {
+    for await (const chunk of source) {
+      onChunk?.(chunk);
+      length += chunk.length;
+      if (!upload.write(chunk)) await new Promise((resolve) => upload.once("drain", resolve));
+    }
+    await new Promise<void>((resolve, reject) => {
+      upload.once("finish", resolve).once("error", reject);
+      upload.end();
+    });
+    return { id: upload.id, length };
+  } catch (error) {
+    await upload.abort().catch(() => undefined);
+    await deleteFiles([upload.id]);
+    throw error;
+  }
+}
+
 export type StoredFile = {
   stream: ReadableStream<Uint8Array>;
   contentType: string;

@@ -1,6 +1,7 @@
 import "server-only";
 import { getCurrentUser } from "@/lib/guards";
 import { can } from "@/lib/rbac";
+import { clientMaySeePhoto, clientOriginalsGate } from "@/modules/snapseal/snapseal.guards";
 import { getPhotoFileAccess } from "./photo.service";
 
 export function attachmentHeader(filename: string): string {
@@ -32,6 +33,29 @@ export async function photoFileResponse(
         access.statutGalerie !== "EN_TRI" &&
         access.statutCulling !== "REJETEE"));
   if (!allowed) return new Response("Not found", { status: 404 });
+
+  // SnapSeal (galleries with the option only): the client sees only the sealed photos, and
+  // their originals once the selection is verified on-chain. Previews (miniature) stay open.
+  if (!can(user.role, "photos-galeries")) {
+    if (!(await clientMaySeePhoto(access.galerieId, photoId))) {
+      return new Response("Not found", { status: 404 });
+    }
+    if (variant === "file") {
+      const gate = await clientOriginalsGate(access.galerieId);
+      if (gate === "unavailable") {
+        return new Response("The blockchain can't be reached right now. Please try again later.", {
+          status: 503,
+        });
+      }
+      if (gate === "refused") {
+        return new Response(
+          "Originals are available once your selection is validated on the blockchain.",
+          { status: 403 },
+        );
+      }
+    }
+  }
+
   if (download && !(can(user.role, "photos-galeries") || access.telechargementAutorise)) {
     return new Response("Downloads are not allowed for this gallery.", { status: 403 });
   }

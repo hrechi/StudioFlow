@@ -118,12 +118,15 @@ export function shorten(value: string): string {
 
 /** Turns wallet and contract errors into a sentence for the toast. */
 export function explainChainError(error: unknown): string {
+  // The raw error, for whoever opens the console: the toast below is only a summary.
+  console.error("[SnapSeal]", error);
   const e = error as {
     code?: string | number;
     reason?: string | null;
     shortMessage?: string;
     message?: string;
     info?: unknown;
+    error?: { message?: string; data?: { message?: string } };
   };
   if (e.code === "ACTION_REJECTED" || e.code === 4001) return "Cancelled in MetaMask.";
   if (e.code === "INSUFFICIENT_FUNDS") {
@@ -131,10 +134,16 @@ export function explainChainError(error: unknown): string {
   }
   if (e.reason) return `Refused by the contract: ${e.reason}.`;
   // Ganache puts the reason in the node's error text, where Ethers doesn't decode it.
-  const nodeReason = JSON.stringify(e.info ?? "").match(
-    /VM Exception while processing transaction: revert ([^"\\]+)/,
-  )?.[1];
+  const raw = JSON.stringify(e.info ?? "") + JSON.stringify(e.error ?? "");
+  const nodeReason = raw.match(/VM Exception while processing transaction: revert ([^"\\]+)/)?.[1];
   if (nodeReason) return `Refused by the contract: ${nodeReason}.`;
+  // A stale MetaMask after a Ganache restart: it counts transactions the chain never saw.
+  if (/nonce/i.test(raw)) {
+    return "MetaMask's transaction count doesn't match the chain (Ganache was probably restarted). In MetaMask, clear this account's activity, then try again.";
+  }
   if (e.code === "CALL_EXCEPTION") return "Refused by the contract.";
+  // "could not coalesce error" hides the wallet's own message one level down.
+  const nested = e.error?.data?.message ?? e.error?.message;
+  if (nested) return nested;
   return e.shortMessage ?? e.message ?? "The blockchain request failed. Please try again.";
 }

@@ -4,6 +4,11 @@ import { Types } from "mongoose";
 import { ServiceError } from "@/lib/action-result";
 import { connectDB } from "@/lib/db";
 import { PLACEHOLDER_IMAGE } from "@/lib/mock-images";
+import {
+  assertGalerieEditAllowed,
+  assertMayShare,
+  deleteSealsOfGalerie,
+} from "@/modules/snapseal/snapseal.guards";
 import { createNotification } from "@/modules/utilisateurs/notification.service";
 import { hashPassword, verifyPassword } from "@/modules/utilisateurs/password";
 import {
@@ -77,6 +82,7 @@ function toGalerieDTO(
     statut: doc.statut,
     dateCreation: doc.createdAt.toISOString(),
     seance: doc.seance ? { id: doc.seance.toString() } : undefined,
+    preuveBlockchainRequise: doc.preuveBlockchainRequise === true,
     client: clients.get(clientId) ?? { id: clientId, ...UNKNOWN_CLIENT },
     nombrePhotos: count.total,
     nombreSelection: count.favoris,
@@ -216,6 +222,7 @@ export async function createGalerie(input: GalerieCreateInput): Promise<GalerieD
     client: new Types.ObjectId(input.clientId),
     dateExpiration: toExpiryDate(input.dateExpiration),
     telechargementAutorise: input.telechargementAutorise,
+    preuveBlockchainRequise: input.preuveBlockchainRequise === true,
     lienAcces: randomBytes(12).toString("base64url"),
     ...(input.motDePasse ? { motDePasse: await hashPassword(input.motDePasse) } : {}),
   });
@@ -225,7 +232,14 @@ export async function createGalerie(input: GalerieCreateInput): Promise<GalerieD
 
 export async function updateGalerie(id: string, input: GalerieUpdateInput): Promise<GalerieDTO> {
   const before = await getDocOrThrow(id);
-  if (input.clientId !== before.client.toString()) await assertClient(input.clientId);
+  const clientChanges = input.clientId !== before.client.toString();
+  // SnapSeal (required galleries only): sealed → client and step locked; sharing needs the seal.
+  await assertGalerieEditAllowed(before._id, {
+    client: clientChanges,
+    statut: input.statut !== before.statut,
+  });
+  if (before.statut === "EN_TRI" && input.statut !== "EN_TRI") await assertMayShare(before._id);
+  if (clientChanges) await assertClient(input.clientId);
 
   const doc = await Galerie.findByIdAndUpdate(
     before._id,
@@ -258,6 +272,7 @@ export async function updateGalerieSharing(
 ): Promise<GalerieDTO> {
   const before = await getDocOrThrow(id);
   const sharing = partager && before.statut === "EN_TRI";
+  if (sharing) await assertMayShare(before._id); // SnapSeal: required galleries are sealed first
 
   const $set: Record<string, unknown> = {
     dateExpiration: toExpiryDate(input.dateExpiration),
@@ -291,9 +306,10 @@ export async function setCouverture(galerieId: string, photoId: string): Promise
   );
 }
 
-/** Deletes the gallery with its photos and their files (composition). */
+/** Deletes the gallery with its photos and their files (composition), and its SnapSeal seal. */
 export async function deleteGalerie(id: string): Promise<void> {
   const doc = await getDocOrThrow(id);
+  await deleteSealsOfGalerie(doc._id); // the on-chain record itself stays forever
   await deletePhotosOfGalerie(doc._id);
   await Galerie.deleteOne({ _id: doc._id });
 }

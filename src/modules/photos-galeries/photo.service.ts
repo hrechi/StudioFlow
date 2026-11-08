@@ -2,6 +2,10 @@ import "server-only";
 import { Types } from "mongoose";
 import { ServiceError } from "@/lib/action-result";
 import { connectDB } from "@/lib/db";
+import {
+  assertPhotosChangeAllowed,
+  assertUploadAllowed,
+} from "@/modules/snapseal/snapseal.guards";
 import { Galerie } from "./galerie.model";
 import {
   PHOTO_MAX_BYTES,
@@ -172,11 +176,21 @@ export async function getPhotoFileAccess(
 export type DownloadablePhoto = { nomFichier: string; read: () => Promise<AsyncIterable<Buffer>> };
 
 /** Originals of a gallery's non-rejected photos, for the "Download all" ZIP. */
-export async function listDownloadablePhotos(galerieId: string): Promise<DownloadablePhoto[]> {
+export async function listDownloadablePhotos(
+  galerieId: string,
+  {
+    includeRejected = false,
+    onlyIds,
+  }: { includeRejected?: boolean; onlyIds?: string[] } = {},
+): Promise<DownloadablePhoto[]> {
   const galerie = toObjectId(galerieId);
   if (!galerie) return [];
   await connectDB();
-  const docs = await Photo.find({ galerie, statutCulling: { $ne: "REJETEE" } })
+  const filter: Record<string, unknown> = includeRejected
+    ? { galerie }
+    : { galerie, statutCulling: { $ne: "REJETEE" } };
+  if (onlyIds) filter._id = { $in: toObjectIds(onlyIds) }; // SnapSeal: sealed photos only
+  const docs = await Photo.find(filter)
     .sort({ ordreHistoire: 1, createdAt: 1 })
     .select("nomFichier fichier")
     .lean<Pick<PhotoLean, "nomFichier" | "fichier">[]>();
@@ -184,6 +198,31 @@ export async function listDownloadablePhotos(galerieId: string): Promise<Downloa
     nomFichier: doc.nomFichier,
     read: () => readFileChunks(doc.fichier),
   }));
+}
+
+export type PackagePhoto = DownloadablePhoto & { id: string; taille: number };
+
+/**
+ * SnapSeal delivery: the chosen photos of one gallery, in the given order. Ids from another
+ * gallery are ignored, so a package can't take photos outside its gallery.
+ */
+export async function listPackagePhotos(
+  galerieId: string,
+  photoIds: string[],
+): Promise<PackagePhoto[]> {
+  const galerie = toObjectId(galerieId);
+  if (!galerie) return [];
+  await connectDB();
+  const docs = await Photo.find({ galerie, _id: { $in: toObjectIds(photoIds) } })
+    .select("nomFichier fichier taille")
+    .lean<Pick<PhotoLean, "_id" | "nomFichier" | "fichier" | "taille">[]>();
+  const byId = new Map(docs.map((d) => [d._id.toString(), d]));
+  return photoIds.flatMap((id) => {
+    const doc = byId.get(id);
+    return doc
+      ? [{ id, nomFichier: doc.nomFichier, taille: doc.taille, read: () => readFileChunks(doc.fichier) }]
+      : [];
+  });
 }
 
 // ── Writes (staff — callers must check the area) ────────────────────────────
@@ -234,7 +273,10 @@ export async function uploadPhoto(
   await connectDB();
   const galerieDoc = await Galerie.findById(galerie).select("photoCouverture").lean();
   if (!galerieDoc) throw new ServiceError("Gallery not found.");
-  const editedFields = edition ? await editedPhotoFields(galerie, edition) : {};
+  const edited = edition ? await editedPhotoFields(galerie, edition) : null;
+  const editedFields = edited ?? {};
+  // SnapSeal: a sealed required gallery only takes edited copies of its sealed photos.
+  await assertUploadAllowed(galerie, edited?.photoOrigine);
 
   let miniatureData: Buffer;
   try {
@@ -273,8 +315,16 @@ export async function uploadPhoto(
 
 export async function setCulling(ids: string[], statut: StatutCulling): Promise<number> {
   await connectDB();
+  const _ids = toObjectIds(ids);
+  // SnapSeal: sealed photos of a required gallery keep their decision.
+  await assertPhotosChangeAllowed(
+    await Photo.find({ _id: { $in: _ids } })
+      .select("galerie")
+      .lean<Pick<PhotoLean, "_id" | "galerie">[]>(),
+    "culling",
+  );
   const result = await Photo.updateMany(
-    { _id: { $in: toObjectIds(ids) } },
+    { _id: { $in: _ids } },
     { $set: { statutCulling: statut } },
   );
   return result.modifiedCount;
@@ -287,6 +337,7 @@ export async function deletePhotos(ids: string[]): Promise<number> {
     .select("galerie fichier miniature")
     .lean<Pick<PhotoLean, "_id" | "galerie" | "fichier" | "miniature">[]>();
   if (!docs.length) return 0;
+  await assertPhotosChangeAllowed(docs, "delete"); // SnapSeal: sealed photos stay
 
   const photoIds = docs.map((d) => d._id);
   await Photo.deleteMany({ _id: { $in: photoIds } });

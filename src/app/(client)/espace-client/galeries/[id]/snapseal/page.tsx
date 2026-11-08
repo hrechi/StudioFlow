@@ -9,6 +9,7 @@ import { getGalerieOfClient } from "@/modules/photos-galeries/galerie.service";
 import { listPhotosOfGalerie } from "@/modules/photos-galeries/photo.service";
 import { ClientPanel } from "@/modules/snapseal/components/client-panel";
 import { SnapSealNotConfigured } from "@/modules/snapseal/components/snapseal-parts";
+import { syncGalerieProof } from "@/modules/snapseal/snapseal.guards";
 import { getGalerieSeal, getSnapSealConfig } from "@/modules/snapseal/snapseal.service";
 
 export const metadata: Metadata = { title: "Blockchain proof" };
@@ -23,7 +24,18 @@ export default async function ClientSnapSealPage({
   if (!galerie) notFound();
 
   const config = getSnapSealConfig();
-  const seal = config ? await getGalerieSeal(galerie.id, config.registryAddress) : null;
+  let seal = config ? await getGalerieSeal(galerie.id, config.registryAddress) : null;
+  if (config && seal?.livraison && !seal.deliveredAt) {
+    // A delivery published but not checked yet: look at the chain once.
+    try {
+      await syncGalerieProof(galerie.id);
+      seal = await getGalerieSeal(galerie.id, config.registryAddress);
+    } catch {
+      // Chain unreachable: the download stays locked until it can be checked.
+    }
+  }
+  const deliveryAvailable =
+    !!seal?.livraison && !!seal.deliveredAt && seal.deliveryHash === seal.livraison.hash;
   const visibleIds = new Set(
     (await listPhotosOfGalerie(galerie.id))
       .filter((photo) => photo.statutCulling !== "REJETEE")
@@ -47,6 +59,9 @@ export default async function ClientSnapSealPage({
       ) : seal ? (
         <ClientPanel
           config={config}
+          galerieId={galerie.id}
+          required={galerie.preuveBlockchainRequise}
+          deliveryAvailable={deliveryAvailable}
           seal={seal}
           photos={seal.photos.filter((photo) => visibleIds.has(photo.photoId))}
         />

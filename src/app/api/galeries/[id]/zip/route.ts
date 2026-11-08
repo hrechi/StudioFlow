@@ -6,6 +6,7 @@ import { can } from "@/lib/rbac";
 import { getGalerieById } from "@/modules/photos-galeries/galerie.service";
 import { attachmentHeader } from "@/modules/photos-galeries/photo-file-response";
 import { listDownloadablePhotos } from "@/modules/photos-galeries/photo.service";
+import { clientOriginalsGate, loadProofContext } from "@/modules/snapseal/snapseal.guards";
 
 /** Same file name twice in a gallery → "name (2).jpg". */
 function uniqueName(name: string, used: Map<string, number>): string {
@@ -17,7 +18,7 @@ function uniqueName(name: string, used: Map<string, number>): string {
 }
 
 /**
- * "Download all": the originals of the gallery's non-rejected photos as one ZIP,
+ * "Download all": the gallery's photos as one ZIP (every photo for staff, the non-rejected ones for the client),
  * streamed (JPEGs are already compressed, so entries are stored, not deflated).
  * Staff always; the assigned client only once shared and if downloads are allowed.
  * Guests (shared link) never reach this route: it requires an account.
@@ -39,7 +40,27 @@ export async function GET(_request: NextRequest, ctx: RouteContext<"/api/galerie
     return new Response("Downloads are not allowed for this gallery.", { status: 403 });
   }
 
-  const photos = await listDownloadablePhotos(galerie.id);
+  // SnapSeal (galleries with the option only): the client's originals wait for the selection
+  // on-chain, and the ZIP holds only the sealed photos.
+  let onlyIds: string[] | undefined;
+  if (!isStaff && galerie.preuveBlockchainRequise) {
+    const gate = await clientOriginalsGate(galerie.id);
+    if (gate === "unavailable") {
+      return new Response("The blockchain can't be reached right now. Please try again later.", {
+        status: 503,
+      });
+    }
+    if (gate === "refused") {
+      return new Response(
+        "Originals are available once your selection is validated on the blockchain.",
+        { status: 403 },
+      );
+    }
+    onlyIds = (await loadProofContext(galerie.id))?.seal?.photos.map((p) => p.photo.toString()) ?? [];
+  }
+
+  // Staff get every photo of the gallery; the client never sees the ones culled out.
+  const photos = await listDownloadablePhotos(galerie.id, { includeRejected: isStaff, onlyIds });
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
       const zip = new Zip((error, chunk, final) => {

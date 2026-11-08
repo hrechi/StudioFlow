@@ -7,6 +7,7 @@ import { requireArea } from "@/lib/guards";
 import { GalerieFormDialog } from "@/modules/photos-galeries/components/galerie-form-dialog";
 import { GaleriesBrowser } from "@/modules/photos-galeries/components/galeries-browser";
 import { listGaleries } from "@/modules/photos-galeries/galerie.service";
+import { getSnapSealConfig } from "@/modules/snapseal/snapseal.config";
 import { listClientRefs } from "@/modules/utilisateurs/utilisateur.service";
 
 export const metadata: Metadata = { title: "Galleries" };
@@ -22,6 +23,7 @@ export default async function GaleriesPage() {
         actions={
           <GalerieFormDialog
             clients={clients}
+            snapsealAvailable={getSnapSealConfig() !== null}
             trigger={
               <Button>
                 <FolderPlus aria-hidden />

@@ -12,6 +12,7 @@ import {
   Send,
   Sparkles,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { AIPanel } from "@/components/shared/ai-panel";
@@ -23,22 +24,60 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
+import { syncProofAction } from "@/modules/snapseal/snapseal.actions";
+import type { SnapSealConfig } from "@/modules/snapseal/snapseal.types";
 import type { Galerie, Photo } from "../galerie.types";
 
 type View = "galerie" | "favoris" | "selection" | "commentaires";
 
+/**
+ * SnapSeal, for galleries that require a blockchain proof: the selection is signed on-chain,
+ * and originals unlock only once it is verified. Absent = today's behaviour, unchanged.
+ */
+export type ClientGalleryProof = {
+  config: SnapSealConfig;
+  onChainId: number;
+  clientWallet?: string;
+  photoHashes: Record<string, string>; // photo id → sealed fingerprint
+  selectedHashes: string[]; // verified on-chain selection ([] = not yet)
+};
+
 /** /espace-client/galeries/[id] — client proofing gallery (charter screen 3). */
-export function ClientGallery({ galerie, photos }: { galerie: Galerie; photos: Photo[] }) {
+export function ClientGallery({
+  galerie,
+  photos,
+  proof,
+}: {
+  galerie: Galerie;
+  photos: Photo[];
+  proof?: ClientGalleryProof;
+}) {
+  const router = useRouter();
   const visiblePhotos = useMemo(
     () => photos.filter((p) => p.statutCulling !== "REJETEE"),
     [photos],
   );
+  // On-chain selection: final once validated, and the originals unlock.
+  const chainSelected = useMemo(() => new Set(proof?.selectedHashes ?? []), [proof]);
+  const selectionFinal = !!proof && chainSelected.size > 0;
+  const previewsOnly = !!proof && !selectionFinal;
+  const canDownload = galerie.telechargementAutorise && !previewsOnly;
+  const [signing, setSigning] = useState(false);
   const [view, setView] = useState<View>("galerie");
   const [favoris, setFavoris] = useState(
     () => new Set(visiblePhotos.filter((p) => p.estFavori).map((p) => p.id)),
   );
   const [selection, setSelection] = useState(
-    () => new Set(visiblePhotos.filter((p) => p.estSelectionnee).map((p) => p.id)),
+    () =>
+      new Set(
+        visiblePhotos
+          .filter((p) =>
+            proof
+              ? chainSelected.has(proof.photoHashes[p.id]?.toLowerCase() ?? "")
+              : p.estSelectionnee,
+          )
+          .map((p) => p.id),
+      ),
   );
   const [comments, setComments] = useState(
     () =>
@@ -74,6 +113,46 @@ export function ClientGallery({ galerie, photos }: { galerie: Galerie; photos: P
     else next.add(id);
     setter(next);
   };
+  const toggleSelection = (id: string) => {
+    if (selectionFinal) {
+      toast.info("Your selection is final: it is recorded on the blockchain.");
+      return;
+    }
+    toggle(selection, setSelection, id);
+  };
+
+  /** Signs the selection in MetaMask, then lets the server read the chain (it moves the step). */
+  const approveOnChain = async () => {
+    if (!proof) return;
+    setSigning(true);
+    try {
+      const { signSelection, explainSelectionError } = await import(
+        "@/modules/snapseal/components/sign-selection"
+      );
+      try {
+        await signSelection({
+          config: proof.config,
+          onChainId: proof.onChainId,
+          expectedWallet: proof.clientWallet,
+          hashes: [...selection].flatMap((id) => proof.photoHashes[id] ?? []),
+        });
+      } catch (error) {
+        toast.error(explainSelectionError(error));
+        return;
+      }
+      const synced = await syncProofAction(galerie.id);
+      if (!synced.ok) {
+        toast.error("Signed on the blockchain, but not checked yet", { description: synced.error });
+        return;
+      }
+      toast.success("Selection validated on the blockchain", {
+        description: "The studio can start retouching. Your originals are now available.",
+      });
+      router.refresh();
+    } finally {
+      setSigning(false);
+    }
+  };
 
   const recommandations = visiblePhotos
     .filter((p) => !favoris.has(p.id) && p.scoreQualite >= 85)
@@ -100,7 +179,7 @@ export function ClientGallery({ galerie, photos }: { galerie: Galerie; photos: P
           </TabsList>
         </Tabs>
         <div className="flex gap-2">
-          {galerie.telechargementAutorise && (
+          {canDownload && (
             <Button asChild variant="outline">
               <a href={`/api/galeries/${galerie.id}/zip`} download>
                 <Download aria-hidden />
@@ -108,10 +187,20 @@ export function ClientGallery({ galerie, photos }: { galerie: Galerie; photos: P
               </a>
             </Button>
           )}
-          <Button onClick={() => setConfirmOpen(true)} disabled={selection.size === 0}>
-            <CheckCircle2 aria-hidden />
-            Approve my selection
-          </Button>
+          {selectionFinal ? (
+            <span className="flex items-center gap-1.5 rounded-full bg-success/10 px-3 py-1.5 text-sm font-medium text-success-text">
+              <CheckCircle2 className="size-4" aria-hidden />
+              Selection validated on the blockchain
+            </span>
+          ) : (
+            <Button
+              onClick={() => setConfirmOpen(true)}
+              disabled={selection.size === 0 || signing}
+            >
+              <CheckCircle2 aria-hidden />
+              {signing ? "Waiting for the blockchain…" : "Approve my selection"}
+            </Button>
+          )}
         </div>
       </div>
 
@@ -122,7 +211,8 @@ export function ClientGallery({ galerie, photos }: { galerie: Galerie; photos: P
               <div className="relative overflow-hidden rounded-2xl bg-charcoal">
                 <div className="relative aspect-[3/2]">
                   <SafeImage
-                    src={current.url}
+                    // Before the on-chain selection, a proof gallery shows previews only (D9).
+                    src={previewsOnly ? current.urlMiniature : current.url}
                     alt={current.tagsIA.join(", ")}
                     fill
                     sizes="(min-width: 1024px) 60vw, 100vw"
@@ -153,7 +243,7 @@ export function ClientGallery({ galerie, photos }: { galerie: Galerie; photos: P
                     {index + 1} / {list.length}
                   </span>
                   <div className="flex gap-2">
-                    {galerie.telechargementAutorise && (
+                    {canDownload && (
                       <Button
                         asChild
                         size="sm"
@@ -188,7 +278,7 @@ export function ClientGallery({ galerie, photos }: { galerie: Galerie; photos: P
                     </Button>
                     <Button
                       size="sm"
-                      onClick={() => toggle(selection, setSelection, current.id)}
+                      onClick={() => toggleSelection(current.id)}
                       aria-pressed={selection.has(current.id)}
                       className={cn(
                         "rounded-full",
@@ -355,11 +445,16 @@ export function ClientGallery({ galerie, photos }: { galerie: Galerie; photos: P
         open={confirmOpen}
         onOpenChange={setConfirmOpen}
         title={`Approve your selection of ${selection.size} photo${selection.size > 1 ? "s" : ""}?`}
-        description="The studio will start retouching these photos. You won't be able to change the selection afterwards."
-        confirmLabel="Approve my selection"
+        description={
+          proof
+            ? "MetaMask will ask you to sign. The selection is then recorded on the blockchain: nobody can change it afterwards, including you."
+            : "The studio will start retouching these photos. You won't be able to change the selection afterwards."
+        }
+        confirmLabel={proof ? "Approve and sign" : "Approve my selection"}
         onConfirm={() => {
           setConfirmOpen(false);
-          comingSoon("Approve the selection (galerie.service)");
+          if (proof) void approveOnChain();
+          else comingSoon("Approve the selection (galerie.service)");
         }}
       />
     </div>

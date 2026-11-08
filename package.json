@@ -12,6 +12,7 @@
     "test:facturation": "vitest run src/modules/facturation/tests",
     "test:invitations": "vitest run src/modules/invitations/tests",
     "test:materiel": "vitest run src/modules/materiel/tests",
+    "test:snapseal": "vitest run src/modules/snapseal/tests",
     "test:e2e": "playwright test",
     "format": "prettier --write .",
     "format:check": "prettier --check .",

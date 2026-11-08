@@ -1,6 +1,10 @@
-import "dotenv/config";
+import { fileURLToPath } from "node:url";
+import dotenv from "dotenv";
 import { HardhatUserConfig } from "hardhat/config";
 import "@nomicfoundation/hardhat-toolbox";
+
+// One .env for the whole project: the StudioFlow folder's (shared by the app, Docker and here).
+dotenv.config({ path: fileURLToPath(new URL("../.env", import.meta.url)), quiet: true });
 
 const config: HardhatUserConfig = {
   solidity: {
@@ -9,7 +13,7 @@ const config: HardhatUserConfig = {
     settings: { optimizer: { enabled: true, runs: 200 }, evmVersion: "paris" },
   },
   networks: {
-    // Ganache GUI : http://127.0.0.1:7545 (chainId 1337) — Ganache CLI : port 8545
+    // The shared Ganache: `npm run ganache` in ../contracts (port 7545, chain id 1337).
     ganache: {
       url: process.env.BLOCKCHAIN_RPC_URL ?? "http://127.0.0.1:7545",
       chainId: 1337,

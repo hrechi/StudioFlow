@@ -58,6 +58,8 @@ export type Galerie = {
   statut: StatutGalerie;
   dateCreation: string;
   seance?: { id: string; titre?: string }; // optional until the Séances module has its model
+  /** SnapSeal: the blockchain steps gate sharing and protected files. Fixed at creation. */
+  preuveBlockchainRequise: boolean;
   client: UtilisateurRef;
   nombrePhotos: number; // UI summary
   nombreSelection: number; // UI summary

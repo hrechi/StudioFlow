@@ -127,6 +127,33 @@ export async function findUtilisateurById(id: string): Promise<UtilisateurDTO | 
   return doc ? toUtilisateurDTO(doc) : null;
 }
 
+/**
+ * SnapSeal: the wallet linked to an account, lowercase, or null. Kept out of the DTO and the
+ * Ref on purpose, so it is only read where it is needed (never shown to other clients).
+ */
+export async function getUtilisateurWallet(id: string): Promise<string | null> {
+  const _id = toObjectId(id);
+  if (!_id) return null;
+  await connectDB();
+  const doc = await Utilisateur.findById(_id).select("walletAddress").lean<{ walletAddress?: string }>();
+  return doc?.walletAddress ?? null;
+}
+
+/** SnapSeal: saves a wallet already proven by a signature (snapseal linkWalletAction only). */
+export async function setUtilisateurWallet(id: string, walletAddress: string): Promise<void> {
+  const _id = toObjectId(id);
+  if (!_id) throw new ServiceError("Account not found.");
+  await connectDB();
+  try {
+    await Utilisateur.updateOne({ _id }, { $set: { walletAddress: walletAddress.toLowerCase() } });
+  } catch (error) {
+    if (isDuplicateKeyError(error)) {
+      throw new ServiceError("This wallet is already linked to another account.");
+    }
+    throw error;
+  }
+}
+
 export async function findUtilisateurByEmail(email: string): Promise<UtilisateurDTO | null> {
   await connectDB();
   const doc = await Utilisateur.findOne({ email: email.toLowerCase() }).lean<UtilisateurLean>();

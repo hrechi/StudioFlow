@@ -35,6 +35,7 @@ services:
       context: .
       target: tools # no `next build` here: only the app image builds Next (saves memory and time)
     command: ["npm", "run", "seed:all"]
+    attach: false # keep `docker compose up` readable; see its output with `docker compose logs seed`
     environment:
       MONGODB_URI: *mongo-uri
       ADMIN_EMAIL: ${ADMIN_EMAIL:?Set ADMIN_EMAIL in .env}
@@ -64,10 +65,16 @@ services:
       SNAPSEAL_REGISTRY_ADDRESS: ${SNAPSEAL_REGISTRY_ADDRESS:-}
       SNAPSEAL_DELIVERY_ADDRESS: ${SNAPSEAL_DELIVERY_ADDRESS:-}
       SNAPSEAL_RPC_URL: ${SNAPSEAL_RPC_URL:-}
+      # The server now READS the chain (gates, verified seals); from a container that is the host's Ganache.
+      SNAPSEAL_SERVER_RPC_URL: ${DOCKER_BLOCKCHAIN_RPC_URL:-http://host.docker.internal:7545}
       # Contract notary (contrats): the server calls Ganache running on your machine, so not 127.0.0.1.
       BLOCKCHAIN_RPC_URL: ${DOCKER_BLOCKCHAIN_RPC_URL:-http://host.docker.internal:7545}
       STUDIO_PRIVATE_KEY: ${STUDIO_PRIVATE_KEY:-}
       NOTARY_ADDRESS: ${NOTARY_ADDRESS:-}
+      # Equipment allocation: same Ganache. The browser (MetaMask) uses 127.0.0.1, the server host.docker.internal.
+      NEXT_PUBLIC_CHAIN_ID: ${NEXT_PUBLIC_CHAIN_ID:-1337}
+      NEXT_PUBLIC_RPC_URL: ${NEXT_PUBLIC_RPC_URL:-http://127.0.0.1:7545}
+      GANACHE_RPC_URL: ${DOCKER_BLOCKCHAIN_RPC_URL:-http://host.docker.internal:7545}
       # Online payments (Konnect sandbox/production); without keys the test checkout is used if enabled.
       APP_URL: ${APP_URL:-http://localhost:3000}
       KONNECT_API_KEY: ${KONNECT_API_KEY:-}

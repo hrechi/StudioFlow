@@ -1,91 +1,94 @@
 "use client";
 
 import { isAddress, type JsonRpcSigner } from "ethers";
+import { Download, Send, TriangleAlert } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { toast } from "sonner";
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { SafeImage } from "@/components/shared/safe-image";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { prepareSealAction, recordSealAction } from "../snapseal.actions";
+import type { Galerie, Photo } from "@/modules/photos-galeries/galerie.types";
 import {
-  deliveryContract,
-  explainChainError,
-  registryContract,
-  sha256File,
-  shorten,
-} from "../snapseal.chain";
-import type { GalerieSealDTO, SealedPhoto, SnapSealConfig } from "../snapseal.types";
+  askClientWalletAction,
+  buildDeliveryAction,
+  prepareSealAction,
+  recordSealAction,
+  syncProofAction,
+} from "../snapseal.actions";
+import { deliveryContract, registryContract, shorten } from "../snapseal.chain";
+import type { GalerieSealDTO, LivraisonDTO, SnapSealConfig } from "../snapseal.types";
+import { DeliveryPicker } from "./delivery-picker";
 import { ExplorerLink, SealSection, SealTimeline, WalletCard } from "./snapseal-parts";
 import { useSnapSeal } from "./use-snapseal";
 
-type PendingRecord = { onChainId: number; txHash: string; photos: SealedPhoto[] };
+function formatBytes(bytes: number): string {
+  if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+}
 
-/** Photographer screens of the fiche: "Create a gallery" and "Publish the delivery". */
+/** Photographer screens: seal the gallery, see the client's choice, publish the delivery. */
 export function PhotographerPanel({
   config,
-  galerieId,
-  galerieShared,
+  galerie,
   seal,
+  photos,
+  clientWallet,
   unsealedPhotos,
 }: {
   config: SnapSealConfig;
-  galerieId: string;
-  galerieShared: boolean;
+  galerie: Galerie;
   seal: GalerieSealDTO | null;
+  photos: Photo[];
+  clientWallet: string | null; // linked wallet (required galleries), read on the server
   unsealedPhotos: number;
 }) {
   const router = useRouter();
+  const required = galerie.preuveBlockchainRequise;
   const { address, chain, chainError, busy, connect, run } = useSnapSeal(
     config,
     seal?.onChainId ?? null,
   );
-  const [clientWallet, setClientWallet] = useState("");
-  // The transaction succeeded but saving the link failed: retry without paying again.
-  const [pendingRecord, setPendingRecord] = useState<PendingRecord | null>(null);
-  const [deliveryFile, setDeliveryFile] = useState<{ name: string; hash: string } | null>(null);
-  const clientWalletValid = isAddress(clientWallet.trim());
+  const [pastedWallet, setPastedWallet] = useState("");
+  // The transaction succeeded but recording it failed: retry without paying again.
+  const [pendingTx, setPendingTx] = useState<string | null>(null);
+  const [package_, setPackage] = useState<LivraisonDTO | null>(seal?.livraison ?? null);
+  const [building, startBuilding] = useTransition();
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [asking, startAsking] = useTransition();
 
-  async function saveRecord(record: PendingRecord) {
-    const result = await recordSealAction({ galerieId, ...record });
+  const targetWallet = required ? clientWallet : pastedWallet.trim();
+  const targetValid = !!targetWallet && isAddress(targetWallet);
+
+  async function record(txHash: string) {
+    const result = await recordSealAction({ galerieId: galerie.id, txHash });
     if (!result.ok) {
-      setPendingRecord(record);
-      throw new Error(`Sealed as #${record.onChainId}, but not saved: ${result.error}`);
+      setPendingTx(txHash);
+      throw new Error(`Sealed on-chain, but not recorded: ${result.error}`);
     }
-    setPendingRecord(null);
+    setPendingTx(null);
     router.refresh();
   }
 
   async function createOnChain(signer: JsonRpcSigner) {
-    const prepared = await prepareSealAction(galerieId);
+    const prepared = await prepareSealAction(galerie.id);
     if (!prepared.ok) throw new Error(prepared.error);
-
-    const registry = registryContract(config, signer);
-    const tx = await registry.createGallery(
-      clientWallet.trim(),
+    const tx = await registryContract(config, signer).createGallery(
+      targetWallet,
       prepared.data.map((photo) => photo.hash),
     );
-    const receipt = await tx.wait();
-    const event = receipt.logs
-      .map((log: { topics: string[]; data: string }) => registry.interface.parseLog(log))
-      .find((parsed: { name: string } | null) => parsed?.name === "GalleryCreated");
-    if (!event) throw new Error("The gallery number could not be read from the transaction.");
-
-    await saveRecord({
-      onChainId: Number(event.args.id),
-      txHash: tx.hash,
-      photos: prepared.data,
-    });
+    await tx.wait();
+    // The server reads the receipt itself: nothing else is sent.
+    await record(tx.hash);
   }
 
-  async function pickDeliveryFile(file: File | undefined) {
-    setDeliveryFile(null);
-    if (!file) return;
-    try {
-      setDeliveryFile({ name: file.name, hash: await sha256File(file) });
-    } catch (error) {
-      toast.error(explainChainError(error));
-    }
+  async function sync() {
+    const result = await syncProofAction(galerie.id);
+    if (!result.ok) throw new Error(result.error);
+    router.refresh();
   }
 
   if (!seal) {
@@ -100,37 +103,74 @@ export function PhotographerPanel({
         <SealSection title="Seal this gallery">
           <p className="text-sm text-muted-foreground">
             Publishes the SHA-256 fingerprint of each visible photo. The photos themselves stay in
-            Reframe, and this gallery works exactly as before.
+            Reframe.
           </p>
-          {!galerieShared && (
-            <p className="text-sm text-warning-text">
-              The client can only choose photos once this gallery is shared with them.
+          {required ? (
+            <p className="text-sm text-muted-foreground">
+              This gallery requires a blockchain proof: it can be shared with the client only once
+              sealed, and its photos, client and step are locked afterwards.
             </p>
+          ) : (
+            galerie.statut === "EN_TRI" && (
+              <p className="text-sm text-warning-text">
+                The client can only choose photos once this gallery is shared with them.
+              </p>
+            )
           )}
-          <div className="space-y-1.5">
-            <Label htmlFor="snapseal-client-wallet">Client wallet address</Label>
-            <Input
-              id="snapseal-client-wallet"
-              value={clientWallet}
-              onChange={(e) => setClientWallet(e.target.value)}
-              placeholder="0x…"
-              autoComplete="off"
-            />
-          </div>
-          {pendingRecord ? (
+
+          {required ? (
+            clientWallet ? (
+              <p className="text-sm">
+                Sealed for the client&apos;s linked wallet{" "}
+                <code className="text-xs">{shorten(clientWallet)}</code>.
+              </p>
+            ) : (
+              <div className="space-y-2 rounded-lg bg-warning/10 p-3">
+                <p className="flex items-start gap-2 text-sm text-warning-text">
+                  <TriangleAlert className="mt-0.5 size-4 shrink-0" aria-hidden />
+                  {galerie.client.prenom} hasn&apos;t linked a wallet to their account yet. They
+                  link it once, from their profile; the seal then uses it.
+                </p>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={asking}
+                  onClick={() =>
+                    startAsking(async () => {
+                      const result = await askClientWalletAction(galerie.id);
+                      if (result.ok) toast.success("The client has been asked to link a wallet.");
+                      else toast.error(result.error);
+                    })
+                  }
+                >
+                  <Send aria-hidden />
+                  Ask {galerie.client.prenom} to link a wallet
+                </Button>
+              </div>
+            )
+          ) : (
+            <div className="space-y-1.5">
+              <Label htmlFor="snapseal-client-wallet">Client wallet address</Label>
+              <Input
+                id="snapseal-client-wallet"
+                value={pastedWallet}
+                onChange={(e) => setPastedWallet(e.target.value)}
+                placeholder="0x…"
+                autoComplete="off"
+              />
+            </div>
+          )}
+
+          {pendingTx ? (
             <Button
               disabled={busy}
-              onClick={() =>
-                run("Gallery sealed", async () => {
-                  await saveRecord(pendingRecord);
-                })
-              }
+              onClick={() => run("Gallery sealed", async () => record(pendingTx))}
             >
-              Retry saving gallery #{pendingRecord.onChainId}
+              Retry recording the seal
             </Button>
           ) : (
             <Button
-              disabled={busy || !address || !clientWalletValid}
+              disabled={busy || !address || !targetValid}
               onClick={() => run("Gallery sealed on the blockchain", createOnChain)}
             >
               {busy ? "Waiting for the blockchain…" : "Publish the gallery on the blockchain"}
@@ -141,7 +181,22 @@ export function PhotographerPanel({
     );
   }
 
-  const delivered = !!chain?.deliveryHash;
+  // Live chain state first; the facts saved by the server otherwise.
+  const selectionHashes = new Set(
+    (chain?.selectionHashes.length ? chain.selectionHashes : seal.selectedHashes).map((h) =>
+      h.toLowerCase(),
+    ),
+  );
+  const hasSelection = !!chain?.selectedAt || !!seal.selectionAt;
+  const selectedPhotos = seal.photos.filter((p) => selectionHashes.has(p.hash.toLowerCase()));
+  const selectedPhotoIds = new Set(selectedPhotos.map((p) => p.photoId));
+  const onChainDelivery = chain?.deliveryHash ?? seal.deliveryHash ?? null;
+  const mismatch =
+    !!onChainDelivery &&
+    !!package_ &&
+    onChainDelivery.toLowerCase() !== package_.hash.toLowerCase();
+  const photoById = new Map(photos.map((p) => [p.id, p]));
+
   return (
     <div className="space-y-4">
       <WalletCard
@@ -153,6 +208,7 @@ export function PhotographerPanel({
       />
       {chainError && <p className="text-sm text-destructive-text">{chainError}</p>}
       <SealTimeline chain={chain} />
+
       <SealSection title={`On-chain gallery #${seal.onChainId}`}>
         <p className="text-sm">
           {seal.photos.length} fingerprints sealed
@@ -164,6 +220,15 @@ export function PhotographerPanel({
           )}
           .
         </p>
+        {required && galerie.statut === "EN_TRI" && (
+          <p className="text-sm text-muted-foreground">
+            Sealed: you can now{" "}
+            <Link href={`/dashboard/galeries/${galerie.id}`} className="text-primary-text hover:underline">
+              share the gallery with the client
+            </Link>
+            .
+          </p>
+        )}
         {unsealedPhotos > 0 && (
           <p className="text-sm text-warning-text">
             {unsealedPhotos} visible photo{unsealedPhotos > 1 ? "s are" : " is"} not sealed (added
@@ -178,44 +243,139 @@ export function PhotographerPanel({
           <p className="text-xs break-all text-muted-foreground">Transaction: {seal.txHash}</p>
         )}
       </SealSection>
-      {!delivered && (
+
+      <SealSection title="Photos to deliver">
+        {hasSelection ? (
+          <>
+            <p className="text-sm text-muted-foreground">
+              The client validated {selectedPhotos.length} photo
+              {selectedPhotos.length === 1 ? "" : "s"} on the blockchain. Retouch them in Photo
+              Editing: the edited copies are added to this gallery for the delivery, without being
+              shown to the client.
+            </p>
+            <ul className="grid grid-cols-3 gap-2 sm:grid-cols-5 lg:grid-cols-8">
+              {selectedPhotos.map((p) => (
+                <li key={p.photoId}>
+                  <Link
+                    href={`/dashboard/photos/editeur?photo=${p.photoId}`}
+                    className="relative block aspect-square overflow-hidden rounded-lg ring-1 ring-border hover:ring-primary"
+                    title={`Retouch ${p.nomFichier}`}
+                  >
+                    <SafeImage
+                      src={photoById.get(p.photoId)?.urlMiniature ?? `/api/photos/${p.photoId}/miniature`}
+                      alt={p.nomFichier}
+                      fill
+                      sizes="120px"
+                      className="object-cover"
+                    />
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </>
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            Waiting for the client to validate their selection on the blockchain.
+          </p>
+        )}
+      </SealSection>
+
+      {hasSelection && !onChainDelivery && (
         <SealSection title="Publish the delivery">
           <p className="text-sm text-muted-foreground">
-            Choose the final file (for example a .zip of the retouched photos), then send your
-            client exactly this file. Its fingerprint is computed in your browser and the file is
-            not uploaded. The gallery&apos;s &quot;Download all&quot; zip is rebuilt on each
-            download, so its fingerprint changes: don&apos;t use it as the delivery file.
+            Choose the photos to deliver in this gallery. Reframe builds one ZIP, stores it and
+            computes its fingerprint; you then publish that fingerprint, and the client downloads
+            exactly this file.
           </p>
-          <div className="space-y-1.5">
-            <Label htmlFor="snapseal-delivery-file">Final file</Label>
-            <Input
-              id="snapseal-delivery-file"
-              type="file"
-              onChange={(e) => pickDeliveryFile(e.target.files?.[0])}
-            />
-          </div>
-          {deliveryFile && (
-            <p className="text-xs break-all text-muted-foreground">
-              SHA-256 of {deliveryFile.name}: {deliveryFile.hash}
-            </p>
-          )}
-          <Button
-            disabled={busy || !address || !deliveryFile}
-            onClick={() =>
-              deliveryFile &&
-              run("Delivery published on the blockchain", async (signer) => {
-                const tx = await deliveryContract(config, signer).publishDelivery(
-                  seal.onChainId,
-                  deliveryFile.hash,
-                );
-                await tx.wait();
+          <DeliveryPicker
+            photos={photos}
+            selectedPhotoIds={selectedPhotoIds}
+            initialIds={package_?.photoIds}
+            busy={building || busy}
+            onBuild={(photoIds) =>
+              startBuilding(async () => {
+                const result = await buildDeliveryAction({ galerieId: galerie.id, photoIds });
+                if (!result.ok) {
+                  toast.error(result.error);
+                  return;
+                }
+                setPackage(result.data);
+                toast.success("Delivery package ready", {
+                  description: `${result.data.photoIds.length} photos · ${formatBytes(result.data.taille)}`,
+                });
+                router.refresh();
               })
             }
-          >
-            {busy ? "Waiting for the blockchain…" : "Publish the delivery on the blockchain"}
-          </Button>
+          />
+          {package_ && (
+            <div className="space-y-2 rounded-lg bg-surface p-3">
+              <p className="text-sm font-medium">
+                {package_.nomFichier} · {package_.photoIds.length} photos ·{" "}
+                {formatBytes(package_.taille)}
+              </p>
+              <p className="text-xs break-all text-muted-foreground">SHA-256: {package_.hash}</p>
+              <div className="flex flex-wrap gap-2">
+                <Button asChild size="sm" variant="outline">
+                  <a href={`/api/galeries/${galerie.id}/livraison`} download>
+                    <Download aria-hidden />
+                    Check the package
+                  </a>
+                </Button>
+                <Button size="sm" disabled={busy || !address} onClick={() => setConfirmOpen(true)}>
+                  {busy ? "Waiting for the blockchain…" : "Publish the delivery on the blockchain"}
+                </Button>
+              </div>
+            </div>
+          )}
         </SealSection>
       )}
+
+      {onChainDelivery && (
+        <SealSection title="Delivery">
+          {mismatch ? (
+            <p className="flex items-start gap-2 text-sm text-destructive-text">
+              <TriangleAlert className="mt-0.5 size-4 shrink-0" aria-hidden />
+              The fingerprint on the blockchain doesn&apos;t match the package stored in Reframe, so
+              the client can&apos;t download it here.
+            </p>
+          ) : (
+            <p className="text-sm text-success-text">
+              Published on the blockchain
+              {package_ ? ` · ${package_.photoIds.length} photos, ${formatBytes(package_.taille)}` : ""}.
+              {chain?.confirmedAt ? " The client confirmed the reception." : ""}
+            </p>
+          )}
+          <p className="text-xs break-all text-muted-foreground">SHA-256: {onChainDelivery}</p>
+          {package_ && (
+            <Button asChild size="sm" variant="outline">
+              <a href={`/api/galeries/${galerie.id}/livraison`} download>
+                <Download aria-hidden />
+                Download the delivered package
+              </a>
+            </Button>
+          )}
+        </SealSection>
+      )}
+
+      <ConfirmDialog
+        open={confirmOpen}
+        onOpenChange={setConfirmOpen}
+        title="Publish this delivery on the blockchain?"
+        description="The contract accepts one delivery only: after this, the package can't be changed. MetaMask will ask you to sign."
+        confirmLabel="Publish and sign"
+        onConfirm={() => {
+          setConfirmOpen(false);
+          if (!package_) return;
+          void run("Delivery published on the blockchain", async (signer) => {
+            const tx = await deliveryContract(config, signer).publishDelivery(
+              seal.onChainId,
+              package_.hash,
+            );
+            await tx.wait();
+            await sync(); // the server checks the on-chain hash against the stored package
+          });
+        }}
+      />
     </div>
   );
 }

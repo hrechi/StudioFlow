@@ -1,10 +1,11 @@
 /* Module : Gestion des Photos & Galeries · Responsable : Louay Herichi */
-import { ArrowLeft, ImageOff } from "lucide-react";
+import { ArrowLeft, FileArchive, ImageOff } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { EmptyState } from "@/components/shared/empty-state";
 import { PageHeader } from "@/components/shared/page-header";
 import { SafeImage } from "@/components/shared/safe-image";
+import { Button } from "@/components/ui/button";
 import { requireArea } from "@/lib/guards";
 import { PhotoEditor } from "@/modules/photos-galeries/components/photo-editor/photo-editor";
 import { getGalerieById, listGaleries } from "@/modules/photos-galeries/galerie.service";
@@ -21,10 +22,12 @@ export default async function PhotoEditingPage({
 
   const photo = typeof photoId === "string" ? await getPhotoById(photoId) : null;
   if (photo) {
+    // The other photos of its gallery, for "Apply to photos…".
+    const galleryPhotos = await listPhotosOfGalerie(photo.galerieId);
     return (
       <div className="space-y-4">
         <PageHeader title="Photo Editing" />
-        <PhotoEditor key={photo.id} photo={photo} />
+        <PhotoEditor key={photo.id} photo={photo} galleryPhotos={galleryPhotos} />
       </div>
     );
   }
@@ -46,6 +49,16 @@ export default async function PhotoEditingPage({
           }
           title={galerie.titre}
           description="Choose the photo to edit. The original stays as it is."
+          actions={
+            photos.length > 0 ? (
+              <Button asChild variant="outline">
+                <a href={`/api/galeries/${galerie.id}/zip`} download>
+                  <FileArchive aria-hidden />
+                  Download gallery (.zip)
+                </a>
+              </Button>
+            ) : undefined
+          }
         />
         {photos.length === 0 ? (
           <EmptyState

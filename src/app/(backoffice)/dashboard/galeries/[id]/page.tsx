@@ -1,5 +1,5 @@
 /* Module : Gestion des Photos & Galeries · Responsable : Louay Herichi */
-import { ArrowLeft, CalendarDays, Check } from "lucide-react";
+import { ArrowLeft, CalendarDays, Check, ShieldCheck } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -18,6 +18,7 @@ import {
   statutGalerieConfig,
 } from "@/modules/photos-galeries/galerie.types";
 import { listPhotosOfGalerie } from "@/modules/photos-galeries/photo.service";
+import { loadProofContext } from "@/modules/snapseal/snapseal.guards";
 import { listClientRefs } from "@/modules/utilisateurs/utilisateur.service";
 
 export const metadata: Metadata = { title: "Gallery" };
@@ -30,8 +31,25 @@ export default async function GalerieDetailPage({
   const [{ id }, { onglet }] = await Promise.all([params, searchParams]);
   const galerie = await getGalerieById(id);
   if (!galerie) notFound();
-  const [photos, clients] = await Promise.all([listPhotosOfGalerie(id), listClientRefs()]);
+  const [photos, clients, proof] = await Promise.all([
+    listPhotosOfGalerie(id),
+    listClientRefs(),
+    galerie.preuveBlockchainRequise ? loadProofContext(galerie.id) : null,
+  ]);
   const currentStep = GALERIE_PIPELINE.indexOf(galerie.statut);
+  // SnapSeal (galleries with the option): sharing waits for the seal, which then locks the gallery.
+  const sealed = !!proof?.seal;
+  const proofStage = !galerie.preuveBlockchainRequise
+    ? null
+    : !sealed
+      ? "Not sealed yet"
+      : proof.seal?.confirmedAt
+        ? "Reception confirmed"
+        : proof.seal?.deliveredAt
+          ? "Delivery on-chain"
+          : proof.seal?.selectionAt
+            ? "Selection on-chain"
+            : "Sealed";
 
   return (
     <div className="space-y-6">
@@ -43,7 +61,15 @@ export default async function GalerieDetailPage({
           <ArrowLeft className="size-4" aria-hidden />
           Galleries
         </Link>
-        <GalerieActions galerie={galerie} clients={clients} />
+        <GalerieActions
+          galerie={galerie}
+          clients={clients}
+          lockedReason={
+            sealed
+              ? "Sealed on the blockchain: the client is fixed and the step follows the chain."
+              : undefined
+          }
+        />
       </div>
       <div className="flex flex-col gap-5 rounded-xl bg-card p-5 shadow-soft ring-1 ring-border md:flex-row md:items-center">
         <div className="relative h-24 w-36 shrink-0 overflow-hidden rounded-lg bg-muted">
@@ -88,6 +114,12 @@ export default async function GalerieDetailPage({
             >
               Blockchain proof
             </Link>
+            {proofStage && (
+              <span className="flex items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary-text">
+                <ShieldCheck className="size-3.5" aria-hidden />
+                Proof required · {proofStage}
+              </span>
+            )}
           </div>
         </div>
         <ol className="flex flex-wrap items-center gap-1.5" aria-label="Gallery steps">
@@ -116,6 +148,11 @@ export default async function GalerieDetailPage({
         galerie={galerie}
         photos={photos}
         initialTab={onglet === "editees" ? "EDITEES" : "TOUTES"}
+        shareBlockedReason={
+          galerie.preuveBlockchainRequise && !sealed
+            ? "This gallery requires a blockchain proof: seal it first, then share it."
+            : undefined
+        }
       />
     </div>
   );

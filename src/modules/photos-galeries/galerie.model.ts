@@ -18,6 +18,8 @@ export interface IGalerie {
   statut: StatutGalerie;
   client: Types.ObjectId;
   seance?: Types.ObjectId; // optional until the Séances module has its model
+  /** SnapSeal: sharing and protected files wait for the blockchain steps. Set at creation only. */
+  preuveBlockchainRequise?: boolean;
   createdAt: Date; // = dateCreation
   updatedAt: Date;
 }
@@ -36,6 +38,8 @@ const galerieSchema = new Schema<IGalerie>(
     statut: { type: String, enum: STATUTS_GALERIE, default: "EN_TRI", required: true },
     client: { type: Schema.Types.ObjectId, ref: "Utilisateur", required: true },
     seance: { type: Schema.Types.ObjectId, ref: "Seance" },
+    // Old documents have no field: they behave as false (normal gallery).
+    preuveBlockchainRequise: { type: Boolean, default: false },
   },
   { timestamps: true, collection: "galeries" },
 );

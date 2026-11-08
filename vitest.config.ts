@@ -12,6 +12,7 @@ export default defineConfig({
       "src/modules/facturation/tests/**/*.test.ts",
       "src/modules/invitations/tests/**/*.test.ts",
       "src/modules/materiel/tests/**/*.test.ts",
+      "src/modules/snapseal/tests/**/*.test.ts",
     ],
   },
 });

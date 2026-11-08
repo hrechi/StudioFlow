@@ -10,11 +10,18 @@ export const ADJUST_CONTROLS = [
   { key: "contrast", label: "Contrast", group: "Light", min: -100, max: 100 },
   { key: "highlights", label: "Highlights", group: "Light", min: -100, max: 100 },
   { key: "shadows", label: "Shadows", group: "Light", min: -100, max: 100 },
+  { key: "whites", label: "Whites", group: "Light", min: -100, max: 100 },
+  { key: "blacks", label: "Blacks", group: "Light", min: -100, max: 100 },
   { key: "temperature", label: "Temperature", group: "Color", min: -100, max: 100 },
   { key: "tint", label: "Tint", group: "Color", min: -100, max: 100 },
+  { key: "hue", label: "Hue", group: "Color", min: -100, max: 100 },
   { key: "saturation", label: "Saturation", group: "Color", min: -100, max: 100 },
   { key: "vibrance", label: "Vibrance", group: "Color", min: -100, max: 100 },
-  { key: "sharpen", label: "Sharpen", group: "Effects", min: 0, max: 100 },
+  { key: "clarity", label: "Clarity", group: "Detail", min: -100, max: 100 },
+  { key: "dehaze", label: "Dehaze", group: "Detail", min: -100, max: 100 },
+  { key: "sharpen", label: "Sharpen", group: "Detail", min: 0, max: 100 },
+  { key: "noise", label: "Noise reduction", group: "Detail", min: 0, max: 100 },
+  { key: "blur", label: "Blur", group: "Detail", min: 0, max: 100 },
   { key: "vignette", label: "Vignette", group: "Effects", min: -100, max: 100 },
   { key: "grain", label: "Grain", group: "Effects", min: 0, max: 100 },
 ] as const;
@@ -96,26 +103,103 @@ export type TextLayer = {
   font: string;
 };
 
+// ── Color mixer (Photoshop Hue/Saturation by range) ─────────────────────────
+
+/** The eight color ranges, with the hue (degrees) each one is centred on. */
+export const HSL_BANDS = [
+  { key: "red", label: "Reds", hue: 0, swatch: "#e5484d" },
+  { key: "orange", label: "Oranges", hue: 30, swatch: "#f76b15" },
+  { key: "yellow", label: "Yellows", hue: 60, swatch: "#ffc53d" },
+  { key: "green", label: "Greens", hue: 120, swatch: "#46a758" },
+  { key: "aqua", label: "Aquas", hue: 180, swatch: "#12a594" },
+  { key: "blue", label: "Blues", hue: 240, swatch: "#3e63dd" },
+  { key: "purple", label: "Purples", hue: 280, swatch: "#8e4ec6" },
+  { key: "magenta", label: "Magentas", hue: 320, swatch: "#d6409f" },
+] as const;
+
+export type HslBand = (typeof HSL_BANDS)[number]["key"];
+/** Each value -100 to 100: hue shift, saturation, luminance of that range. */
+export type HslValues = { h: number; s: number; l: number };
+export type HslMix = Record<HslBand, HslValues>;
+
+export function neutralHsl(): HslMix {
+  return Object.fromEntries(HSL_BANDS.map((b) => [b.key, { h: 0, s: 0, l: 0 }])) as HslMix;
+}
+
+// ── Color balance (Photoshop Color Balance) ─────────────────────────────────
+
+export const TONE_RANGES = [
+  { key: "shadows", label: "Shadows" },
+  { key: "midtones", label: "Midtones" },
+  { key: "highlights", label: "Highlights" },
+] as const;
+
+export type ToneRange = (typeof TONE_RANGES)[number]["key"];
+/** Each axis -100 to 100: cyan ↔ red, magenta ↔ green, yellow ↔ blue. */
+export type BalanceValues = { cr: number; mg: number; yb: number };
+export type ColorBalance = Record<ToneRange, BalanceValues>;
+
+export const BALANCE_AXES = [
+  { key: "cr", from: "Cyan", to: "Red", fromColor: "#00b7c3", toColor: "#e5484d" },
+  { key: "mg", from: "Magenta", to: "Green", fromColor: "#d6409f", toColor: "#46a758" },
+  { key: "yb", from: "Yellow", to: "Blue", fromColor: "#ffc53d", toColor: "#3e63dd" },
+] as const;
+
+export function neutralBalance(): ColorBalance {
+  return Object.fromEntries(
+    TONE_RANGES.map((r) => [r.key, { cr: 0, mg: 0, yb: 0 }]),
+  ) as ColorBalance;
+}
+
 export type EditState = {
   adjust: Adjustments;
   filter: { id: string | null; intensity: number }; // intensity 0–100
+  hsl: HslMix;
+  balance: ColorBalance;
   geometry: Geometry;
   texts: TextLayer[];
 };
+
+export function neutralGeometry(): Geometry {
+  return { quarterTurns: 0, flipH: false, flipV: false, straighten: 0, crop: FULL_CROP };
+}
 
 export function neutralEditState(): EditState {
   return {
     adjust: neutralAdjustments(),
     filter: { id: null, intensity: 100 },
-    geometry: { quarterTurns: 0, flipH: false, flipV: false, straighten: 0, crop: FULL_CROP },
+    hsl: neutralHsl(),
+    balance: neutralBalance(),
+    geometry: neutralGeometry(),
     texts: [],
   };
 }
 
-/** The values the pixel pipeline uses: the sliders plus the preset at its intensity. */
-export type ResolvedLook = { adjust: Adjustments; mono: number; sepia: number; fade: number };
+/** What "Apply to photos…" copies: the look always, crop/rotation and text only if asked. */
+export function editForOtherPhoto(
+  state: EditState,
+  { geometry, texts }: { geometry: boolean; texts: boolean },
+): EditState {
+  return {
+    ...state,
+    geometry: geometry ? state.geometry : neutralGeometry(),
+    texts: texts ? state.texts : [],
+  };
+}
 
-export function resolveLook(state: Pick<EditState, "adjust" | "filter">): ResolvedLook {
+/** The values the pixel pipeline uses: the sliders plus the preset at its intensity. */
+export type ResolvedLook = {
+  adjust: Adjustments;
+  mono: number;
+  sepia: number;
+  fade: number;
+  hsl: HslMix;
+  balance: ColorBalance;
+};
+
+export function resolveLook(
+  state: Pick<EditState, "adjust" | "filter"> & Partial<Pick<EditState, "hsl" | "balance">>,
+): ResolvedLook {
   const preset = filterPreset(state.filter.id);
   const strength = preset ? state.filter.intensity / 100 : 0;
   const adjust = { ...state.adjust };
@@ -129,5 +213,7 @@ export function resolveLook(state: Pick<EditState, "adjust" | "filter">): Resolv
     mono: (preset?.mono ?? 0) * strength,
     sepia: (preset?.sepia ?? 0) * strength,
     fade: (preset?.fade ?? 0) * strength,
+    hsl: state.hsl ?? neutralHsl(),
+    balance: state.balance ?? neutralBalance(),
   };
 }

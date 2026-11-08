@@ -205,3 +205,69 @@ export function TextOverlay({
     </div>
   );
 }
+
+/**
+ * Before / after: the original on the left of the divider, the edit on the right. Drag anywhere
+ * on the photo (or use the arrow keys on the handle) to move the divider.
+ */
+export function SplitOverlay({
+  position,
+  onChange,
+}: {
+  position: number; // 0–1 from the left
+  onChange: (position: number) => void;
+}) {
+  const container = useRef<HTMLDivElement>(null);
+
+  const moveTo = (event: ReactPointerEvent) => {
+    const box = container.current?.getBoundingClientRect();
+    if (!box || box.width === 0) return;
+    onChange(clamp((event.clientX - box.left) / box.width, 0, 1));
+  };
+
+  return (
+    <div
+      ref={container}
+      className="absolute inset-0 cursor-ew-resize touch-none select-none"
+      onPointerDown={(event) => {
+        event.currentTarget.setPointerCapture(event.pointerId);
+        moveTo(event);
+      }}
+      onPointerMove={(event) => {
+        if (event.currentTarget.hasPointerCapture(event.pointerId)) moveTo(event);
+      }}
+    >
+      <span className="pointer-events-none absolute top-2 left-2 rounded-full bg-black/70 px-2.5 py-1 text-xs font-semibold text-white">
+        Before
+      </span>
+      <span className="pointer-events-none absolute top-2 right-2 rounded-full bg-black/70 px-2.5 py-1 text-xs font-semibold text-white">
+        After
+      </span>
+      <div
+        className="pointer-events-none absolute inset-y-0 w-0.5 -translate-x-1/2 bg-white shadow-[0_0_0_1px_rgba(0,0,0,0.35)]"
+        style={{ left: `${position * 100}%` }}
+      >
+        <button
+          type="button"
+          role="slider"
+          aria-label="Before and after divider"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={Math.round(position * 100)}
+          className="pointer-events-auto absolute top-1/2 left-1/2 grid size-9 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full bg-white text-neutral-900 shadow-lg ring-1 ring-black/20 focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
+          onKeyDown={(event) => {
+            const step = event.shiftKey ? 0.1 : 0.02;
+            if (event.key === "ArrowLeft") onChange(clamp(position - step, 0, 1));
+            else if (event.key === "ArrowRight") onChange(clamp(position + step, 0, 1));
+            else return;
+            event.preventDefault();
+          }}
+        >
+          <svg viewBox="0 0 24 24" className="size-4" aria-hidden>
+            <path d="M9 6 3 12l6 6M15 6l6 6-6 6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </button>
+      </div>
+    </div>
+  );
+}

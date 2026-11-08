@@ -9,6 +9,7 @@ import { listPhotosOfGalerie } from "@/modules/photos-galeries/photo.service";
 import { PhotographerPanel } from "@/modules/snapseal/components/photographer-panel";
 import { SnapSealNotConfigured } from "@/modules/snapseal/components/snapseal-parts";
 import { getGalerieSeal, getSnapSealConfig } from "@/modules/snapseal/snapseal.service";
+import { getUtilisateurWallet } from "@/modules/utilisateurs/utilisateur.service";
 
 export const metadata: Metadata = { title: "Blockchain proof" };
 
@@ -21,11 +22,17 @@ export default async function GalerieSnapSealPage({
   if (!galerie) notFound();
 
   const config = getSnapSealConfig();
-  const seal = config ? await getGalerieSeal(galerie.id, config.registryAddress) : null;
+  const [seal, photos, clientWallet] = await Promise.all([
+    config ? getGalerieSeal(galerie.id, config.registryAddress) : null,
+    listPhotosOfGalerie(galerie.id),
+    // Required galleries are sealed for the client's linked wallet, read here on the server.
+    galerie.preuveBlockchainRequise ? getUtilisateurWallet(galerie.client.id) : null,
+  ]);
   const sealedIds = new Set(seal?.photos.map((photo) => photo.photoId));
   const unsealedPhotos = seal
-    ? (await listPhotosOfGalerie(galerie.id)).filter(
-        (photo) => photo.statutCulling !== "REJETEE" && !sealedIds.has(photo.id),
+    ? photos.filter(
+        (photo) =>
+          photo.statutCulling !== "REJETEE" && !photo.estEditee && !sealedIds.has(photo.id),
       ).length
     : 0;
 
@@ -44,9 +51,10 @@ export default async function GalerieSnapSealPage({
       {config ? (
         <PhotographerPanel
           config={config}
-          galerieId={galerie.id}
-          galerieShared={galerie.statut !== "EN_TRI"}
+          galerie={galerie}
           seal={seal}
+          photos={photos}
+          clientWallet={clientWallet}
           unsealedPhotos={unsealedPhotos}
         />
       ) : (

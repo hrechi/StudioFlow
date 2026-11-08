@@ -1,6 +1,6 @@
 "use client";
 
-import { CloudUpload, Pencil, Trash2 } from "lucide-react";
+import { CloudUpload, FileArchive, Pencil, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
@@ -16,9 +16,12 @@ import { UploadDialog } from "./upload-dialog";
 export function GalerieActions({
   galerie,
   clients,
+  lockedReason,
 }: {
   galerie: Galerie;
   clients: UtilisateurRef[];
+  /** SnapSeal: set when the gallery is sealed (client and step locked in the edit dialog). */
+  lockedReason?: string;
 }) {
   const router = useRouter();
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -48,9 +51,16 @@ export function GalerieActions({
           </Button>
         }
       />
+      <Button asChild variant="outline">
+        <a href={`/api/galeries/${galerie.id}/zip`} download>
+          <FileArchive aria-hidden />
+          Download .zip
+        </a>
+      </Button>
       <GalerieFormDialog
         galerie={galerie}
         clients={clients}
+        lockedReason={lockedReason}
         trigger={
           <Button variant="outline">
             <Pencil aria-hidden />

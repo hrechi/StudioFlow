@@ -60,10 +60,13 @@ export function GalerieManager({
   galerie,
   photos,
   initialTab = "TOUTES",
+  shareBlockedReason,
 }: {
   galerie: Galerie;
   photos: Photo[];
   initialTab?: GalerieTab;
+  /** SnapSeal: a required gallery can't be shared before it is sealed. */
+  shareBlockedReason?: string;
 }) {
   const router = useRouter();
   const [culling, setCulling] = useState(() => new Map(photos.map((p) => [p.id, p.statutCulling])));
@@ -333,7 +336,7 @@ export function GalerieManager({
       </Card>
 
       <aside className="space-y-4">
-        <ShareCard galerie={galerie} />
+        <ShareCard galerie={galerie} blockedReason={shareBlockedReason} />
 
         <Card>
           <CardHeader>
@@ -412,7 +415,7 @@ export function GalerieManager({
 const noopSubscribe = () => () => {};
 
 /** Share settings: password, expiry date, downloads; the first save shares the gallery. */
-function ShareCard({ galerie }: { galerie: Galerie }) {
+function ShareCard({ galerie, blockedReason }: { galerie: Galerie; blockedReason?: string }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [download, setDownload] = useState(galerie.telechargementAutorise);
@@ -523,7 +526,18 @@ function ShareCard({ galerie }: { galerie: Galerie }) {
           Downloads allowed
           <Switch checked={download} onCheckedChange={setDownload} aria-label="Downloads allowed" />
         </label>
-        <Button className="w-full" onClick={save} disabled={pending}>
+        {enTri && blockedReason && (
+          <p className="rounded-lg bg-warning/10 p-3 text-sm text-warning-text">
+            {blockedReason}{" "}
+            <Link
+              href={`/dashboard/galeries/${galerie.id}/snapseal`}
+              className="font-medium underline"
+            >
+              Open the blockchain proof
+            </Link>
+          </p>
+        )}
+        <Button className="w-full" onClick={save} disabled={pending || (enTri && !!blockedReason)}>
           {pending ? <Loader2 className="animate-spin" aria-hidden /> : <Send aria-hidden />}
           {enTri ? "Share with the client" : "Update sharing"}
         </Button>

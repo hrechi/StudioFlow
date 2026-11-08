@@ -38,9 +38,28 @@ export type SealedPhoto = {
   hash: string; // 0x + SHA-256 of the original file
 };
 
-/** Link between a Reframe gallery and its on-chain gallery. The chain stays the source of truth. */
+/** The stored delivery package (a ZIP of photos chosen in the gallery). */
+export type LivraisonDTO = {
+  nomFichier: string;
+  taille: number;
+  hash: string;
+  photoIds: string[];
+  creeLe: string;
+};
+
+/**
+ * Link between a Reframe gallery and its on-chain gallery. The dates and hashes are facts the
+ * server read from the contracts (saved once verified); the chain stays the source of truth.
+ */
 export type GalerieSealDTO = {
   onChainId: number;
   txHash: string;
   photos: SealedPhoto[];
+  clientWallet?: string;
+  selectionAt?: string;
+  selectedHashes: string[];
+  deliveredAt?: string;
+  deliveryHash?: string;
+  confirmedAt?: string;
+  livraison?: LivraisonDTO;
 };

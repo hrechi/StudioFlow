@@ -1,6 +1,5 @@
 import "server-only";
 import { createHash } from "node:crypto";
-import { isAddress } from "ethers";
 import { ServiceError } from "@/lib/action-result";
 import { connectDB } from "@/lib/db";
 import {
@@ -8,31 +7,18 @@ import {
   listPhotosOfGalerie,
   toObjectId,
 } from "@/modules/photos-galeries/photo.service";
+import { getGalerieById } from "@/modules/photos-galeries/galerie.service";
+import { getUtilisateurWallet } from "@/modules/utilisateurs/utilisateur.service";
 import { GalerieSeal, type IGalerieSeal } from "./snapseal.model";
+import { readSealReceipt } from "./snapseal.server-chain";
 import {
   SNAPSEAL_MAX_PHOTOS,
-  SNAPSEAL_NETWORKS,
   type GalerieSealDTO,
   type SealedPhoto,
   type SnapSealConfig,
 } from "./snapseal.types";
 
-/** Read at request time, so setting the addresses only needs a restart, not a rebuild. */
-export function getSnapSealConfig(): SnapSealConfig | null {
-  const registryAddress = process.env.SNAPSEAL_REGISTRY_ADDRESS?.trim() ?? "";
-  const deliveryAddress = process.env.SNAPSEAL_DELIVERY_ADDRESS?.trim() ?? "";
-  if (!isAddress(registryAddress) || !isAddress(deliveryAddress)) return null;
-  const network =
-    process.env.SNAPSEAL_NETWORK?.trim().toLowerCase() === "ganache"
-      ? SNAPSEAL_NETWORKS.ganache
-      : SNAPSEAL_NETWORKS.sepolia;
-  return {
-    registryAddress,
-    deliveryAddress,
-    ...network,
-    rpcUrl: process.env.SNAPSEAL_RPC_URL?.trim() || network.rpcUrl,
-  };
-}
+export { getSnapSealConfig } from "./snapseal.config";
 
 async function hashPhotoFile(photoId: string): Promise<string> {
   const file = await (await getPhotoFileAccess(photoId, "file"))?.open();
@@ -91,7 +77,63 @@ export async function getGalerieSeal(
       nomFichier: p.nomFichier,
       hash: p.hash,
     })),
+    clientWallet: doc.clientWallet,
+    selectionAt: doc.selectionAt?.toISOString(),
+    selectedHashes: doc.selectedHashes ?? [],
+    deliveredAt: doc.deliveredAt?.toISOString(),
+    deliveryHash: doc.deliveryHash,
+    confirmedAt: doc.confirmedAt?.toISOString(),
+    livraison: doc.livraison
+      ? {
+          nomFichier: doc.livraison.nomFichier,
+          taille: doc.livraison.taille,
+          hash: doc.livraison.hash,
+          photoIds: doc.livraison.photos.map((id) => id.toString()),
+          creeLe: doc.livraison.creeLe.toISOString(),
+        }
+      : undefined,
   };
+}
+
+/**
+ * Records the seal of a gallery from a transaction hash alone. The receipt is read from the
+ * chain by the server: the event must come from OUR registry, its client must be the gallery
+ * client's linked wallet (required galleries), and its fingerprints must be exactly this
+ * gallery's photos right now. The on-chain id is the event's, never the browser's.
+ */
+export async function verifyAndRecordSeal(
+  config: SnapSealConfig,
+  galerieId: string,
+  txHash: string,
+): Promise<void> {
+  const galerie = await getGalerieById(galerieId);
+  if (!galerie) throw new ServiceError("Gallery not found.");
+
+  const receipt = await readSealReceipt(config, txHash);
+  if (galerie.preuveBlockchainRequise) {
+    const wallet = await getUtilisateurWallet(galerie.client.id);
+    if (!wallet || wallet !== receipt.client) {
+      throw new ServiceError("This seal was made for another wallet than the client's linked one.");
+    }
+  }
+  const photos = await computeGalerieHashes(galerie.id);
+  const expected = new Set(photos.map((p) => p.hash.toLowerCase()));
+  const published = new Set(receipt.hashes);
+  if (expected.size !== published.size || [...expected].some((h) => !published.has(h))) {
+    throw new ServiceError(
+      "The fingerprints on the blockchain don't match this gallery's photos. Was a photo changed while sealing?",
+    );
+  }
+
+  await recordGalerieSeal({
+    galerieId: galerie.id,
+    registryAddress: config.registryAddress,
+    onChainId: receipt.onChainId,
+    txHash,
+    photos,
+    photographerWallet: receipt.photographer,
+    clientWallet: receipt.client,
+  });
 }
 
 export async function recordGalerieSeal(input: {
@@ -100,16 +142,25 @@ export async function recordGalerieSeal(input: {
   onChainId: number;
   txHash: string;
   photos: SealedPhoto[];
+  photographerWallet: string;
+  clientWallet: string;
 }): Promise<void> {
   const galerie = toObjectId(input.galerieId);
   if (!galerie) throw new ServiceError("Gallery not found.");
   await connectDB();
+  const registryAddress = input.registryAddress.toLowerCase();
+  // One on-chain gallery seals one Reframe gallery, never two.
+  if (await GalerieSeal.exists({ registryAddress, onChainId: input.onChainId })) {
+    throw new ServiceError(`On-chain gallery #${input.onChainId} is already linked to a gallery.`);
+  }
   try {
     await GalerieSeal.create({
       galerie,
-      registryAddress: input.registryAddress.toLowerCase(),
+      registryAddress,
       onChainId: input.onChainId,
       txHash: input.txHash,
+      photographerWallet: input.photographerWallet,
+      clientWallet: input.clientWallet,
       photos: input.photos.map((p) => ({
         photo: toObjectId(p.photoId) ?? undefined,
         nomFichier: p.nomFichier,

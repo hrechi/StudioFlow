@@ -80,8 +80,26 @@ Stop it and delete `contracts/.ganache-db` to start from an empty chain. Then:
 - Deleting the folder resets the addresses too, so the first deployment gets the same ones again. Delete the old links with `db.galerie_seals.deleteMany({})` in MongoDB, or those galleries will look sealed with no data behind them.
 - If MetaMask reports a nonce error, clear its activity for each account (Settings > Advanced > Clear activity tab data).
 
+## Galleries that require a proof
+
+When creating a gallery, the option **Blockchain proof required** makes SnapSeal control it (off by
+default; normal galleries are unchanged). The server reads the contracts itself and never holds a
+private key: only MetaMask signs.
+
+| Step | Who | What unlocks |
+| --- | --- | --- |
+| 1. Link wallets | Photographer and client, once, in **My profile** (a free signature) | The seal uses the client's linked wallet, nothing is pasted |
+| 2. Seal | Photographer, on the gallery's **Blockchain proof** page | Sharing (a required gallery can't be shared before). Photos, client and step are then locked |
+| 3. Select | Client, in the gallery: **Approve my selection** signs it | Step → Approved, automatically. Originals and the ZIP (if downloads are allowed) |
+| 4. Retouch | Photographer, in Photo Editing | Edited copies of sealed photos are accepted after step 3; the client doesn't see them as gallery photos |
+| 5. Deliver | Photographer picks the photos **in the gallery** (pre-selected: the retouched copies of the client's choice) → Reframe builds one ZIP, stores it and computes its SHA-256 → the photographer publishes that hash | Step → Delivered, automatically, only if the on-chain hash equals the stored ZIP. The client can download exactly that file |
+| 6. Confirm | Client, after downloading and verifying the file | Recorded (it unlocks nothing) |
+
+If the chain can't be reached, anything not verified yet stays locked (with a clear message);
+facts already verified are saved and keep working.
+
 ## Limits
 
 - A gallery holds at most 300 distinct photos in one transaction (about 7.2M gas). Use a small gallery for the demo: gas is paid in test ETH.
 - Sealing covers the photos visible at that moment. Photos added later cannot be selected on-chain.
-- A delivery's fingerprint belongs to one exact file. The gallery's "Download all" zip is rebuilt on each download, so it never matches: send the client the file you published.
+- A delivery's fingerprint belongs to one exact file. The gallery's "Download all" zip is rebuilt on each download, so it never matches. The delivery package built on the Blockchain proof page is stored, so it always does (500 MB maximum).

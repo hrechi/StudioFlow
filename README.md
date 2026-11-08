@@ -161,6 +161,7 @@ Production build: `npm run build` then `npm run start`.
 | `npm run build` / `npm run start` | Production build / server |
 | `npm run seed:admin` | Creates the first ADMIN from `.env.local` |
 | `npm run typecheck` | Generates route types and runs `tsc --noEmit` |
+| `npm run test:snapseal` | SnapSeal gates, verified seals, wallet linking, chain sync (no network). The flow is described in `contracts/README.md` |
 | `npm run lint` | ESLint |
 | `npm run format` / `format:check` | Prettier |
 

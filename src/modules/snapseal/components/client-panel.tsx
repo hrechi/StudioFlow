@@ -1,6 +1,8 @@
 "use client";
 
-import { CheckCircle2 } from "lucide-react";
+import { CheckCircle2, Download } from "lucide-react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
@@ -9,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
+import { syncProofAction } from "../snapseal.actions";
 import {
   deliveryContract,
   explainChainError,
@@ -26,13 +29,22 @@ type VerifyResult = { tone: "success" | "danger"; message: string };
 /** Client screens of the fiche: "Choose my photos" and "Tracking and reception". */
 export function ClientPanel({
   config,
+  galerieId,
+  required,
   seal,
   photos,
+  deliveryAvailable,
 }: {
   config: SnapSealConfig;
+  galerieId: string;
+  /** Proof-required gallery: the selection is made in the gallery itself. */
+  required: boolean;
   seal: GalerieSealDTO;
   photos: SealedPhoto[]; // sealed photos the client can still see
+  /** The stored package matches the delivery on-chain: the client may download it. */
+  deliveryAvailable: boolean;
 }) {
+  const router = useRouter();
   const { address, chain, chainError, busy, connect, run } = useSnapSeal(config, seal.onChainId);
   const [picked, setPicked] = useState<Set<string>>(new Set());
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -92,6 +104,18 @@ export function ClientPanel({
       {chainError && <p className="text-sm text-destructive-text">{chainError}</p>}
       <SealTimeline chain={chain} />
 
+      {required && !hasSelection ? (
+        <SealSection title="Choose my photos">
+          <p className="text-sm text-muted-foreground">
+            Select your photos in the gallery, then click{" "}
+            <strong className="font-medium text-foreground">Approve my selection</strong>: MetaMask
+            records it on the blockchain.
+          </p>
+          <Button asChild variant="outline">
+            <Link href={`/espace-client/galeries/${galerieId}`}>Open my gallery</Link>
+          </Button>
+        </SealSection>
+      ) : (
       <SealSection title={hasSelection ? "My validated selection" : "Choose my photos"}>
         {!hasSelection && (
           <p className="text-sm text-muted-foreground">
@@ -161,9 +185,26 @@ export function ClientPanel({
           </Button>
         )}
       </SealSection>
+      )}
 
       {chain?.deliveryHash && (
         <SealSection title="Reception">
+          <p className="text-sm text-muted-foreground">
+            1. Download the delivery. 2. Check it below with &quot;Verify a received file&quot;. 3.
+            Confirm the reception.
+          </p>
+          {deliveryAvailable ? (
+            <Button asChild variant="outline">
+              <a href={`/api/galeries/${galerieId}/livraison`} download>
+                <Download aria-hidden />
+                Download my delivery
+              </a>
+            </Button>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              The studio delivered this file outside Reframe: ask them for it, then verify it below.
+            </p>
+          )}
           <p className="text-xs break-all text-muted-foreground">
             Published delivery fingerprint: {chain.deliveryHash}
           </p>
@@ -178,6 +219,9 @@ export function ClientPanel({
                     seal.onChainId,
                   );
                   await tx.wait();
+                  // The server records the confirmation date from the chain.
+                  await syncProofAction(galerieId);
+                  router.refresh();
                 })
               }
             >

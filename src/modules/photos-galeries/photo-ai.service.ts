@@ -10,6 +10,7 @@ import {
   isClaudeConfigured,
   type ClaudeImage,
 } from "@/lib/llm-claude";
+import { assertPhotosChangeAllowed } from "@/modules/snapseal/snapseal.guards";
 import {
   ADJUST_CONTROLS,
   FILTER_PRESETS,
@@ -210,9 +211,11 @@ export async function autoCullGalerie(id: string): Promise<CullingSummary> {
     const pending = await Photo.find({ galerie, statutCulling: "EN_ATTENTE" })
       .sort({ createdAt: 1 })
       .limit(BATCH_MAX)
-      .select("_id miniature scoreQualite estFloue yeuxFermes statutAnalyseIA")
+      .select("_id galerie miniature scoreQualite estFloue yeuxFermes statutAnalyseIA")
       .lean<PhotoLean[]>();
     if (!pending.length) return { kept: 0, rejected: 0, duplicates: 0, analysed };
+    // SnapSeal: sealed photos of a required gallery keep their decision, AI included.
+    await assertPhotosChangeAllowed(pending, "culling");
 
     // Near-duplicates among the pending photos (one request with every thumbnail).
     const duplicateLosers = new Set<string>();

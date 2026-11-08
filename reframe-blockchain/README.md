@@ -41,9 +41,9 @@ Vérification publique : PDF → SHA-256 (navigateur) → GET /api/contrats/veri
 Événements : `ContractRegistered`, `ContractSigned`, `ContractAmended`, `ContractRevoked` (traçabilité complète).
 
 ## 5. Mise en route (Ganache + MetaMask)
-1. **Ganache** : lancer un workspace (RPC `http://127.0.0.1:7545`). Le 1er compte = compte du studio ; copier sa clé privée (icône clé).
-2. Dans ce dossier : `cp .env.example .env`, renseigner `STUDIO_PRIVATE_KEY`, puis
-   `npm install && npm test && npm run deploy:ganache` → noter l'adresse affichée dans `NOTARY_ADDRESS`.
+1. **Ganache** : un seul Ganache pour tout le projet — `cd ../contracts && npm run ganache` (RPC `http://127.0.0.1:7545`, chain ID `1337`, comptes déterministes). Compte du studio = compte **(2)**.
+2. Tout se règle dans le **`.env` du dossier StudioFlow** (pas de `.env` ici : `hardhat.config.ts` lit `../.env`). `STUDIO_PRIVATE_KEY` = clé du compte (2), puis
+   `npm install && npm test && npm run deploy:ganache` → reporter l'adresse affichée dans `NOTARY_ADDRESS` du `.env` principal.
 3. Dans ReFrame : `npm i ethers`, copier `integration/src/` dans `src/`, appliquer `integration/PATCHES.md`, ajouter les variables d'env.
 4. **MetaMask** (uniquement pour la co-signature client / démonstration) : Ajouter un réseau → RPC `http://127.0.0.1:7545`, chain ID `1337`, symbole ETH ; importer un compte Ganache (2e compte) = « wallet du client ».
 5. Démo : (a) admin envoie un devis → (b) client l'accepte → (c) l'admin voit « Ancré » + hash + tx (visible aussi dans l'onglet *Transactions* de Ganache) → (d) `/verifier-contrat` avec le PDF ✅ → (e) modifier un seul caractère du PDF ❌ → (f) avenant ⚠️ « remplacé ».

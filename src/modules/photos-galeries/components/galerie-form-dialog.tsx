@@ -48,6 +48,7 @@ type Values = {
   telechargementAutorise: boolean;
   motDePasse: string;
   statut: StatutGalerie;
+  preuveBlockchainRequise: boolean;
 };
 
 function inDaysDate(days: number): string {
@@ -56,15 +57,23 @@ function inDaysDate(days: number): string {
   return date.toISOString().slice(0, 10);
 }
 
-/** Create a gallery, or edit its title / category / client / status. */
+/**
+ * Create a gallery, or edit its title / category / client / status.
+ * `snapsealAvailable` (create only): offers the "blockchain proof required" option.
+ * `lockedReason` (edit only): the gallery is sealed on-chain, so client and step can't change.
+ */
 export function GalerieFormDialog({
   trigger,
   clients,
   galerie,
+  snapsealAvailable = false,
+  lockedReason,
 }: {
   trigger: React.ReactNode;
   clients: UtilisateurRef[];
   galerie?: Galerie;
+  snapsealAvailable?: boolean;
+  lockedReason?: string;
 }) {
   const editing = !!galerie;
   const router = useRouter();
@@ -79,6 +88,7 @@ export function GalerieFormDialog({
     telechargementAutorise: galerie?.telechargementAutorise ?? false,
     motDePasse: "",
     statut: galerie?.statut ?? "EN_TRI",
+    preuveBlockchainRequise: galerie?.preuveBlockchainRequise ?? false,
   });
   const form = useForm<Values>({
     // Create and edit share one field shape; each schema validates only its own fields.
@@ -173,7 +183,11 @@ export function GalerieFormDialog({
                 render={({ field }) => {
                   const selected = clients.find((c) => c.id === field.value);
                   return (
-                    <Select value={field.value} onValueChange={field.onChange}>
+                    <Select
+                      value={field.value}
+                      onValueChange={field.onChange}
+                      disabled={!!lockedReason}
+                    >
                       <SelectTrigger
                         id="clientId"
                         className="h-10 w-full bg-card"
@@ -208,12 +222,22 @@ export function GalerieFormDialog({
           </div>
 
           {editing ? (
-            <FormField id="statut" label="Step" required error={errors.statut?.message}>
+            <FormField
+              id="statut"
+              label="Step"
+              required
+              error={errors.statut?.message}
+              hint={lockedReason}
+            >
               <Controller
                 control={form.control}
                 name="statut"
                 render={({ field }) => (
-                  <Select value={field.value} onValueChange={field.onChange}>
+                  <Select
+                    value={field.value}
+                    onValueChange={field.onChange}
+                    disabled={!!lockedReason}
+                  >
                     <SelectTrigger id="statut" className="h-10 w-full bg-card">
                       <SelectValue>{statutGalerieConfig[field.value].label}</SelectValue>
                     </SelectTrigger>
@@ -272,6 +296,28 @@ export function GalerieFormDialog({
                   </label>
                 )}
               />
+              {snapsealAvailable && (
+                <Controller
+                  control={form.control}
+                  name="preuveBlockchainRequise"
+                  render={({ field }) => (
+                    <label className="flex items-start justify-between gap-3 text-sm text-slate">
+                      <span className="space-y-0.5">
+                        <span className="block">Blockchain proof required</span>
+                        <span className="block text-xs text-muted-foreground">
+                          The gallery is shared only once sealed, the client selects on-chain, and
+                          originals and the delivery unlock step by step. Can&apos;t be changed later.
+                        </span>
+                      </span>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                        aria-label="Blockchain proof required"
+                      />
+                    </label>
+                  )}
+                />
+              )}
             </>
           )}
         </form>

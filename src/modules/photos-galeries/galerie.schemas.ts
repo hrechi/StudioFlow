@@ -34,6 +34,8 @@ export const galerieCreateSchema = z.object({
   dateExpiration: dateExpirationSchema,
   telechargementAutorise: z.boolean(),
   motDePasse: galeriePasswordSchema,
+  /** SnapSeal: chosen at creation only, never editable afterwards (D2). */
+  preuveBlockchainRequise: z.boolean().optional(),
 });
 export type GalerieCreateInput = z.infer<typeof galerieCreateSchema>;
 

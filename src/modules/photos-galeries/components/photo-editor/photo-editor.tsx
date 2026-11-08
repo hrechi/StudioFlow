@@ -2,10 +2,13 @@
 
 import {
   ArrowLeft,
+  ChevronDown,
+  Columns2,
   Download,
-  Eye,
+  FileArchive,
   ImagePlus,
   Loader2,
+  Palette,
   Redo2,
   RotateCcw,
   SlidersHorizontal,
@@ -22,6 +25,12 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState, type ComponentType } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { PHOTO_MAX_BYTES, type Photo } from "../../galerie.types";
 import {
@@ -33,13 +42,23 @@ import {
   type TextLayer,
 } from "../../photo-edit";
 import { exportEdit, outputSize, renderEdit } from "../../photo-edit.render";
-import { CropOverlay, TextOverlay } from "./overlays";
-import { AIPanel, AdjustPanel, CropPanel, FiltersPanel, TextPanel } from "./tool-panels";
+import { ApplyToPhotosDialog } from "./apply-to-photos-dialog";
+import { CropOverlay, SplitOverlay, TextOverlay } from "./overlays";
+import { editedFileName, uploadEditedPhoto } from "./save-edit";
+import {
+  AIPanel,
+  AdjustPanel,
+  ColorPanel,
+  CropPanel,
+  FiltersPanel,
+  TextPanel,
+} from "./tool-panels";
 
-type Tool = "adjust" | "filters" | "crop" | "text" | "ai";
+type Tool = "adjust" | "color" | "filters" | "crop" | "text" | "ai";
 
 const TOOLS: { value: Tool; label: string; icon: ComponentType<{ className?: string }> }[] = [
   { value: "adjust", label: "Adjust", icon: SlidersHorizontal },
+  { value: "color", label: "Color", icon: Palette },
   { value: "filters", label: "Filters", icon: Wand2 },
   { value: "crop", label: "Crop", icon: Crop },
   { value: "text", label: "Text", icon: Type },
@@ -121,19 +140,15 @@ function useEditHistory() {
   };
 }
 
-function editedFileName(name: string): string {
-  const base = name.replace(/\.[^.]+$/, "").replace(/-edited$/, "");
-  return `${base}-edited.jpg`;
-}
-
 /** /dashboard/photos/editeur?photo=… — the workspace. The original photo is never changed. */
-export function PhotoEditor({ photo }: { photo: Photo }) {
+export function PhotoEditor({ photo, galleryPhotos }: { photo: Photo; galleryPhotos: Photo[] }) {
   const router = useRouter();
   const { state, canUndo, canRedo, update, commit, apply, undo, redo } = useEditHistory();
   const [loaded, setLoaded] = useState<LoadedPhoto | null>(null);
   const [failed, setFailed] = useState(false);
   const [tool, setTool] = useState<Tool>("adjust");
-  const [comparing, setComparing] = useState(false);
+  const [splitOn, setSplitOn] = useState(false);
+  const [splitAt, setSplitAt] = useState(0.5);
   const [zoom, setZoom] = useState(1);
   const [ratio, setRatio] = useState<number | null>(null);
   const [selectedText, setSelectedText] = useState<string | null>(null);
@@ -142,6 +157,7 @@ export function PhotoEditor({ photo }: { photo: Photo }) {
   const [stage, setStage] = useState<HTMLDivElement | null>(null);
   const [stageSize, setStageSize] = useState({ w: 0, h: 0 });
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const beforeRef = useRef<HTMLCanvasElement>(null);
 
   // Same origin (/api/photos/…), so the canvas can read the pixels back.
   useEffect(() => {
@@ -177,6 +193,8 @@ export function PhotoEditor({ photo }: { photo: Photo }) {
 
   const cropping = tool === "crop";
   const shownCrop = cropping ? FULL_CROP : state.geometry.crop;
+  // The crop box and dragging text need the whole photo, so the split pauses on those tools.
+  const splitting = splitOn && !cropping && tool !== "text";
 
   // One redraw per frame at most, however fast a slider moves.
   useEffect(() => {
@@ -185,12 +203,17 @@ export function PhotoEditor({ photo }: { photo: Photo }) {
       if (canvasRef.current) {
         renderEdit(canvasRef.current, loaded.base, loaded.w, loaded.h, state, {
           applyCrop: !cropping,
-          applyEdits: !comparing,
         });
       }
     });
     return () => cancelAnimationFrame(frame);
-  }, [loaded, state, cropping, comparing]);
+  }, [loaded, state, cropping]);
+
+  // "Before": the same framing (crop, rotation) with the original colors and no text.
+  useEffect(() => {
+    if (!loaded || !splitting || !beforeRef.current) return;
+    renderEdit(beforeRef.current, loaded.base, loaded.w, loaded.h, state, { applyEdits: false });
+  }, [loaded, splitting, state.geometry]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const dirty = state !== savedState && (canUndo || state.texts.length > 0);
 
@@ -264,14 +287,7 @@ export function PhotoEditor({ photo }: { photo: Photo }) {
     setSaving("gallery");
     try {
       const blob = await renderFile();
-      const form = new FormData();
-      form.set("galerieId", photo.galerieId);
-      form.set("photoOrigine", photo.id);
-      form.set("styleApplique", filterPreset(state.filter.id)?.label ?? "Custom");
-      form.set("file", new File([blob], editedFileName(photo.nomFichier), { type: "image/jpeg" }));
-      const response = await fetch("/api/photos/upload", { method: "POST", body: form });
-      const result = (await response.json()) as { ok: boolean; error?: string };
-      if (!result.ok) throw new Error(result.error ?? "The photo could not be saved.");
+      await uploadEditedPhoto(photo, blob, filterPreset(state.filter.id)?.label ?? "Custom");
       setSavedState(state);
       toast.success("Edited photo added to the gallery", {
         description: "The original stays as it was.",
@@ -333,30 +349,45 @@ export function PhotoEditor({ photo }: { photo: Photo }) {
           </Button>
           <Button
             size="sm"
-            variant="ghost"
-            title="Press and hold to see the original colors"
-            className="touch-none select-none"
-            onPointerDown={() => setComparing(true)}
-            onPointerUp={() => setComparing(false)}
-            onPointerLeave={() => setComparing(false)}
-            onPointerCancel={() => setComparing(false)}
+            variant={splitOn ? "secondary" : "ghost"}
+            aria-pressed={splitOn}
+            title="Show the original and the edit side by side; drag the divider to compare"
+            onClick={() => setSplitOn((on) => !on)}
           >
-            <Eye aria-hidden />
-            Compare
+            <Columns2 aria-hidden />
+            Before / After
           </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={download}
+          <ApplyToPhotosDialog
+            photos={galleryPhotos}
+            currentId={photo.id}
+            state={state}
             disabled={!loaded || saving !== null}
-          >
-            {saving === "download" ? (
-              <Loader2 className="animate-spin" aria-hidden />
-            ) : (
-              <Download aria-hidden />
-            )}
-            Download
-          </Button>
+          />
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button size="sm" variant="outline" disabled={saving !== null}>
+                {saving === "download" ? (
+                  <Loader2 className="animate-spin" aria-hidden />
+                ) : (
+                  <Download aria-hidden />
+                )}
+                Download
+                <ChevronDown aria-hidden />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem disabled={!loaded} onSelect={download}>
+                <Download aria-hidden />
+                This photo, edited (.jpg)
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <a href={`/api/galeries/${photo.galerieId}/zip`} download>
+                  <FileArchive aria-hidden />
+                  Whole gallery (.zip)
+                </a>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <Button size="sm" onClick={addToGallery} disabled={!loaded || saving !== null}>
             {saving === "gallery" ? (
               <Loader2 className="animate-spin" aria-hidden />
@@ -387,11 +418,22 @@ export function PhotoEditor({ photo }: { photo: Photo }) {
             ) : (
               <div className="flex min-h-full min-w-full items-center justify-center">
                 <div className="relative shrink-0" style={{ width: display.w, height: display.h }}>
+                  {splitting && (
+                    <canvas
+                      ref={beforeRef}
+                      className="absolute inset-0 block size-full"
+                      aria-label={`Original of ${photo.nomFichier}`}
+                    />
+                  )}
                   <canvas
                     ref={canvasRef}
-                    className="block size-full"
+                    className="relative block size-full"
+                    style={
+                      splitting ? { clipPath: `inset(0 0 0 ${splitAt * 100}%)` } : undefined
+                    }
                     aria-label={`Preview of ${photo.nomFichier}`}
                   />
+                  {splitting && <SplitOverlay position={splitAt} onChange={setSplitAt} />}
                   {cropping && (
                     <CropOverlay
                       crop={state.geometry.crop}
@@ -418,9 +460,9 @@ export function PhotoEditor({ photo }: { photo: Photo }) {
               </div>
             )}
           </div>
-          {comparing && (
+          {splitOn && !splitting && (
             <span className="absolute top-3 left-3 rounded-full bg-black/70 px-2.5 py-1 text-xs font-semibold text-white">
-              Original colors
+              Before / after pauses while cropping or placing text
             </span>
           )}
           {!cropping && (
@@ -473,6 +515,9 @@ export function PhotoEditor({ photo }: { photo: Photo }) {
           </div>
           <div className="min-h-0 flex-1 overflow-y-auto p-4">
             {tool === "adjust" && <AdjustPanel state={state} update={update} commit={commit} />}
+            {tool === "color" && (
+              <ColorPanel state={state} update={update} commit={commit} apply={apply} />
+            )}
             {tool === "filters" && loaded && (
               <FiltersPanel
                 state={state}

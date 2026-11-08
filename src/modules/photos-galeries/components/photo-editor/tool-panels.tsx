@@ -11,7 +11,7 @@ import {
   Trash2,
   Wand2,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition, type ReactNode } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,14 +19,21 @@ import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import {
   ADJUST_CONTROLS,
+  BALANCE_AXES,
   FILTER_PRESETS,
   FULL_CROP,
+  HSL_BANDS,
   TEXT_FONTS,
+  TONE_RANGES,
   neutralAdjustments,
+  neutralBalance,
   neutralEditState,
+  neutralHsl,
   type EditState,
   type FilterPreset,
+  type HslValues,
   type TextLayer,
+  type ToneRange,
 } from "../../photo-edit";
 import { renderEdit, rotatedSize } from "../../photo-edit.render";
 import { suggestPhotoEditAction } from "../../photo-ai.actions";
@@ -40,21 +47,24 @@ function Slider({
   min,
   max,
   neutral = 0,
+  track,
   onChange,
   onCommit,
 }: {
-  label: string;
+  label: ReactNode;
   value: number;
   min: number;
   max: number;
   neutral?: number;
+  /** A CSS gradient for the track, e.g. cyan → red on Color Balance. */
+  track?: string;
   onChange: (value: number) => void;
   onCommit: () => void;
 }) {
   return (
     <label className="block space-y-1">
       <span className="flex items-center justify-between text-xs">
-        <span className="font-medium text-slate">{label}</span>
+        <span className="flex items-center gap-1.5 font-medium text-slate">{label}</span>
         <span className={cn("tabular-nums", value === neutral ? "text-muted-foreground" : "text-foreground")}>
           {value > 0 && min < 0 ? `+${value}` : value}
         </span>
@@ -73,9 +83,146 @@ function Slider({
           onChange(neutral);
           onCommit();
         }}
-        className="h-5 w-full cursor-pointer accent-primary"
+        className={cn(
+          "h-5 w-full cursor-pointer accent-primary",
+          track && "h-2 appearance-none rounded-full [&::-webkit-slider-thumb]:size-4 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:shadow [&::-webkit-slider-thumb]:ring-1 [&::-webkit-slider-thumb]:ring-black/30 [&::-moz-range-thumb]:size-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:bg-white [&::-moz-range-thumb]:shadow",
+        )}
+        style={track ? { background: track } : undefined}
       />
     </label>
+  );
+}
+
+function Swatch({ color }: { color: string }) {
+  return <span className="size-2.5 shrink-0 rounded-full" style={{ background: color }} aria-hidden />;
+}
+
+// ── Color: mixer (Hue/Saturation by range) and Color Balance ────────────────
+
+const MIX_MODES = [
+  { key: "h", label: "Hue" },
+  { key: "s", label: "Saturation" },
+  { key: "l", label: "Luminance" },
+] as const;
+
+export function ColorPanel({
+  state,
+  update,
+  commit,
+  apply,
+}: {
+  state: EditState;
+  update: Change;
+  commit: () => void;
+  apply: Change;
+}) {
+  const [mode, setMode] = useState<keyof HslValues>("h");
+  const [range, setRange] = useState<ToneRange>("midtones");
+
+  return (
+    <div className="space-y-6">
+      <section className="space-y-3">
+        <h2 className="text-xs font-semibold tracking-wide text-foreground uppercase">
+          Color mixer
+        </h2>
+        <div role="tablist" aria-label="Mixer channel" className="grid grid-cols-3 gap-1">
+          {MIX_MODES.map((m) => (
+            <Button
+              key={m.key}
+              size="sm"
+              role="tab"
+              aria-selected={mode === m.key}
+              variant={mode === m.key ? "default" : "outline"}
+              onClick={() => setMode(m.key)}
+            >
+              {m.label}
+            </Button>
+          ))}
+        </div>
+        {HSL_BANDS.map((band) => (
+          <Slider
+            key={band.key}
+            label={
+              <>
+                <Swatch color={band.swatch} />
+                {band.label}
+              </>
+            }
+            min={-100}
+            max={100}
+            value={state.hsl[band.key][mode]}
+            onChange={(value) =>
+              update((s) => ({
+                ...s,
+                hsl: { ...s.hsl, [band.key]: { ...s.hsl[band.key], [mode]: value } },
+              }))
+            }
+            onCommit={commit}
+          />
+        ))}
+        <Button
+          variant="outline"
+          size="sm"
+          className="w-full"
+          onClick={() => apply((s) => ({ ...s, hsl: neutralHsl() }))}
+        >
+          <RotateCcw aria-hidden />
+          Reset mixer
+        </Button>
+      </section>
+
+      <section className="space-y-3 border-t pt-5">
+        <h2 className="text-xs font-semibold tracking-wide text-foreground uppercase">
+          Color balance
+        </h2>
+        <div role="tablist" aria-label="Tone range" className="grid grid-cols-3 gap-1">
+          {TONE_RANGES.map((r) => (
+            <Button
+              key={r.key}
+              size="sm"
+              role="tab"
+              aria-selected={range === r.key}
+              variant={range === r.key ? "default" : "outline"}
+              onClick={() => setRange(r.key)}
+            >
+              {r.label}
+            </Button>
+          ))}
+        </div>
+        {BALANCE_AXES.map((axis) => (
+          <Slider
+            key={axis.key}
+            label={
+              <>
+                {axis.from}
+                <span className="text-muted-foreground">↔</span>
+                {axis.to}
+              </>
+            }
+            min={-100}
+            max={100}
+            track={`linear-gradient(to right, ${axis.fromColor}, #9ca3af, ${axis.toColor})`}
+            value={state.balance[range][axis.key]}
+            onChange={(value) =>
+              update((s) => ({
+                ...s,
+                balance: { ...s.balance, [range]: { ...s.balance[range], [axis.key]: value } },
+              }))
+            }
+            onCommit={commit}
+          />
+        ))}
+        <Button
+          variant="outline"
+          size="sm"
+          className="w-full"
+          onClick={() => apply((s) => ({ ...s, balance: neutralBalance() }))}
+        >
+          <RotateCcw aria-hidden />
+          Reset color balance
+        </Button>
+      </section>
+    </div>
   );
 }
 

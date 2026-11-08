@@ -7,8 +7,8 @@ async function main() {
   const signers = await ethers.getSigners();
   if (signers.length === 0) {
     throw new Error(
-      "No signer found. Make sure STUDIO_PRIVATE_KEY is set in .env " +
-      "(files/reframe-blockchain/.env) and Ganache is running on http://127.0.0.1:7545"
+      "No signer found. Make sure STUDIO_PRIVATE_KEY is set in the StudioFlow .env " +
+      "and Ganache is running (npm run ganache in contracts/)"
     );
   }
 
@@ -28,7 +28,7 @@ async function main() {
 
   const address = await notary.getAddress();
   console.log("\n✅ ContractNotary deployed:", address);
-  console.log("\nAdd these lines to your StudioFlow .env.local:");
+  console.log("\nAdd these lines to the StudioFlow .env:");
   console.log(`BLOCKCHAIN_RPC_URL=http://127.0.0.1:7545`);
   console.log(`STUDIO_PRIVATE_KEY=${process.env.STUDIO_PRIVATE_KEY}`);
   console.log(`NOTARY_ADDRESS=${address}`);
