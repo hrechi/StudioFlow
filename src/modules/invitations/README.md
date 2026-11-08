@@ -1,6 +1,7 @@
 # Invitations
 
-Wedding invitation editor for clients. It is a paid feature: locked until the client has paid for it,
+Invitation editor for clients, for 11 kinds of events (wedding, engagement, henna night, birthday, baby shower,
+graduation, corporate event, conference, anniversary, religious celebration, housewarming). It is a paid feature: locked until the client has paid for it,
 through the same billing path as a session.
 
 ## Unlocking (link with Facturation)
@@ -21,6 +22,17 @@ One payment unlocks the whole account, for up to `MAX_INVITATIONS` cards.
 
 `invitation.schema.ts` (Zod) is the single source of truth: size, background, elements (`id`, `type`, `x`, `y`,
 `width`, `height`, `rotation`, `layer`, `style`, `linkedTo`) and the form details. Announce any change to it.
+
+**Changes (event types, editor tools, animations, QR):** every new field is optional, so cards saved before stay valid
+as they are and need no migration (checked on the 25 cards of the local demo database).
+
+- `typeEvenement` (absent = `MARIAGE`), read with `typeDe()`; details gain `titre`, `hotes`, `tenue`, `contact`,
+  `adresse`, `coordonnees` and the matching `linkedTo` values.
+- Elements gain `nom`, `visible`, `verrouille`, `flipX`, `flipY`, `groupe` and `animation` (bounded in `BORNES_ANIMATION`).
+  Text style: `lineHeight`, `majuscules`, `ombre`, `contour`, `courbe`. Shapes: `star`, `ring`, `arch`, `frame`,
+  `degrade`, `cornerRadius`, `epaisseur`. Images: `masque`, `cadre`, `filtre`.
+- New element types `qrcode` (Google Maps link of the venue; the schema refuses a pale or tiny code) and `countdown`.
+- Card-level `ouverture`, `ambiance`, `musique` (public page only; exports always show the still card).
 Two examples are in `examples/`. Images can only be a bundled decoration (`public/invitations/decorations`) or
 an upload (GridFS bucket `imagesInvitations`): outside links are refused because they break the export.
 
@@ -34,10 +46,18 @@ an upload (GridFS bucket `imagesInvitations`): outside links are refused because
 | Fields linked to the card | `invitation.linked.ts` |
 | Undo / redo, alignment guides | `invitation.history.ts`, `invitation.snap.ts` |
 | AI text and colors, with written fallbacks | `invitation.ia.ts` (needs `GEMINI_API_KEY`) |
-| Templates | `invitation.templates.ts` |
+| Templates (5 hand-made weddings + a factory for the other types) | `invitation.templates.ts` |
+| Event types: labels, palettes, decorations, AI tone, written texts | `invitation.evenements.ts` |
+| Align, distribute, group, layers, flip | `invitation.outils.ts` |
+| Animation timing, countdown, device profile | `invitation.animation.ts`, `components/invitation-animee.tsx` |
+| Map links (Google Maps, Apple Maps, Waze), QR code, contrast | `invitation.lieu.ts`, `invitation.qr.ts`, `invitation.couleurs.ts` |
+| Link preview (Open Graph picture in GridFS) | `saveApercu` / `openApercu`, `/api/invitations/[id]/apercu`, `/api/invitations/apercu/[token]` |
+| Music library (files in `public/invitations/musique`, hidden while missing) | `MUSIQUES`, `invitation.musique.ts` |
 
 Shortcuts: Ctrl+Z / Ctrl+Y undo and redo, Ctrl+C / Ctrl+V / Ctrl+D copy, paste and duplicate, Del removes,
-arrows move (Shift = 10), Ctrl+S saves. The editor also saves by itself.
+arrows move (Shift = 10), Ctrl+S saves, Ctrl+A selects all, Ctrl+G / Ctrl+Shift+G group and ungroup, [ and ] change
+the layer (Ctrl = to the back / front), Shift+H / Shift+V flip, G shows the grid, Ctrl+wheel or Ctrl +/- zoom,
+Space + drag moves the view, Shift + click selects several. The editor also saves by itself.
 
 A card can be shared at `/invitation/<token>`: public, not indexed, and the client can turn it off.
 

@@ -8,6 +8,8 @@ export interface IInvitation {
   /** Validated by contenuSchema before every write: Zod is the source of truth, not Mongoose. */
   contenu: ContenuInvitation;
   partage?: { token: string; actif: boolean };
+  /** Link preview picture (GridFS `imagesInvitations`), made by the editor when the card is shared. */
+  apercu?: Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -22,6 +24,7 @@ const invitationSchema = new Schema<IInvitation>({
       actif: { type: Boolean, required: true, default: false },
     }, { _id: false }),
   },
+  apercu: { type: Schema.Types.ObjectId },
 }, { timestamps: true, collection: "invitations", minimize: false });
 
 invitationSchema.index({ "partage.token": 1 }, { unique: true, sparse: true });

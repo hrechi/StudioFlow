@@ -35,6 +35,8 @@ export default function manifest(): MetadataRoute.Manifest {
       { name: "Portfolio", url: "/portfolio", icons: [{ src: "/icons/icon-192.png", sizes: "192x192" }] },
       { name: "My space", url: "/espace-client", icons: [{ src: "/icons/icon-192.png", sizes: "192x192" }] },
       { name: "Dashboard", url: "/dashboard", icons: [{ src: "/icons/icon-192.png", sizes: "192x192" }] },
+      { name: "My day", short_name: "My day", url: "/dashboard/materiel/today", icons: [{ src: "/icons/icon-192.png", sizes: "192x192" }] },
+      { name: "Reservations", url: "/dashboard/materiel/reservations", icons: [{ src: "/icons/icon-192.png", sizes: "192x192" }] },
     ],
   };
 }

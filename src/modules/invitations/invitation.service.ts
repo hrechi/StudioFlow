@@ -18,8 +18,8 @@ import {
 import { assertDebloque } from "./invitation.acces";
 import { appliquerDetails } from "./invitation.linked";
 import { Invitation, type IInvitation } from "./invitation.model";
-import { contenuSchema, type ContenuInvitation } from "./invitation.schema";
-import { findTemplate } from "./invitation.templates";
+import { contenuSchema, type ContenuInvitation, type Langue } from "./invitation.schema";
+import { adapterLangue, findTemplate } from "./invitation.templates";
 import {
   IMAGE_TAILLE_MAX,
   IMAGE_TYPES,
@@ -66,7 +66,7 @@ export async function loadInvitation(id: string, actor: Actor): Promise<Invitati
   return toView(doc);
 }
 
-export async function createInvitation(input: { titre: string; templateId: string }, actor: Actor): Promise<{ id: string }> {
+export async function createInvitation(input: { titre: string; templateId: string; langue?: Langue }, actor: Actor): Promise<{ id: string }> {
   await assertDebloque(actor);
   const template = findTemplate(input.templateId);
   if (!template) throw new ValidationError("Choose a template.", "templateId");
@@ -74,7 +74,7 @@ export async function createInvitation(input: { titre: string; templateId: strin
   const doc = await Invitation.create({
     client: toObjectId(actor.id),
     titre: input.titre,
-    contenu: appliquerDetails(contenuSchema.parse(template.contenu)),
+    contenu: appliquerDetails(contenuSchema.parse(input.langue ? adapterLangue(template.contenu, input.langue) : template.contenu)),
   });
   return { id: doc._id.toString() };
 }
@@ -107,6 +107,7 @@ export async function deleteInvitation(id: string, actor: Actor) {
   const doc = await Invitation.findOneAndDelete(proprietaire(id, actor)).lean<Lean>();
   if (!doc) throw new NotFoundError("Invitation not found.");
   await supprimerImagesOrphelines(doc.contenu, actor);
+  if (doc.apercu) await (await bucket()).delete(doc.apercu).catch(() => undefined);
 }
 
 // ---------------------------------------------------------------------------
@@ -125,11 +126,64 @@ export async function setPartage(id: string, actif: boolean, actor: Actor): Prom
 }
 
 /** What a guest sees: the card and its name, nothing about the account. */
-export async function findInvitationPublique(token: string): Promise<{ titre: string; contenu: ContenuInvitation } | null> {
+export async function findInvitationPublique(token: string): Promise<{ titre: string; contenu: ContenuInvitation; aApercu: boolean } | null> {
   if (!/^[0-9a-f]{32}$/.test(token)) return null;
   await connectDB();
   const doc = await Invitation.findOne({ "partage.token": token, "partage.actif": true }).lean<Lean>();
-  return doc ? { titre: doc.titre, contenu: JSON.parse(JSON.stringify(doc.contenu)) as ContenuInvitation } : null;
+  return doc ? { titre: doc.titre, contenu: JSON.parse(JSON.stringify(doc.contenu)) as ContenuInvitation, aApercu: !!doc.apercu } : null;
+}
+
+// ---------------------------------------------------------------------------
+// Link preview (Open Graph picture of a shared card)
+// ---------------------------------------------------------------------------
+
+/** Open Graph size: WhatsApp, Messenger and the others crop around this 1.91:1 frame. */
+const APERCU_LARGEUR = 1200;
+const APERCU_HAUTEUR = 630;
+const APERCU_TAILLE_MAX = 4 * 1024 * 1024;
+
+/**
+ * The editor sends a PNG of the card; it is decoded (so it really is an image), framed on the card's
+ * background color and stored as a JPEG. The previous preview of the card is deleted.
+ */
+export async function saveApercu(id: string, file: { type: string; size: number; data: Buffer }, actor: Actor): Promise<void> {
+  await assertDebloque(actor);
+  if (file.type !== "image/png" || file.size > APERCU_TAILLE_MAX) throw new ValidationError("The preview must be a PNG of 4 MB or less.", "image");
+  await connectDB();
+  const doc = await Invitation.findOne(proprietaire(id, actor)).select("apercu contenu.background").lean<Lean>();
+  if (!doc) throw new NotFoundError("Invitation not found.");
+
+  let jpeg: Buffer;
+  try {
+    const fond = /^#[0-9a-f]{6}$/i.test(doc.contenu.background.color) ? doc.contenu.background.color : "#ffffff";
+    jpeg = await sharp(file.data, { limitInputPixels: 20_000_000 })
+      .resize({ width: APERCU_LARGEUR, height: APERCU_HAUTEUR, fit: "contain", background: fond })
+      .flatten({ background: fond })
+      .jpeg({ quality: 85, mozjpeg: true })
+      .toBuffer();
+  } catch {
+    throw new ValidationError("This file is not a valid image.", "image");
+  }
+
+  const b = await bucket();
+  const upload = b.openUploadStream("apercu.jpg", { metadata: { client: actor.id, invitation: id, apercu: true, contentType: "image/jpeg" } });
+  await new Promise<void>((resolve, reject) => {
+    Readable.from(jpeg).pipe(upload).on("finish", resolve).on("error", reject);
+  });
+  await Invitation.updateOne({ _id: doc._id }, { $set: { apercu: upload.id } });
+  if (doc.apercu) await b.delete(doc.apercu).catch(() => undefined);
+}
+
+/** The preview of a card that is shared right now, for anyone (link previews have no session). */
+export async function openApercu(token: string) {
+  if (!/^[0-9a-f]{32}$/.test(token)) return null;
+  await connectDB();
+  const doc = await Invitation.findOne({ "partage.token": token, "partage.actif": true }).select("apercu").lean<Lean>();
+  if (!doc?.apercu) return null;
+  const b = await bucket();
+  const [file] = await b.find({ _id: doc.apercu }).limit(1).toArray();
+  if (!file) return null;
+  return { stream: Readable.toWeb(b.openDownloadStream(doc.apercu)) as ReadableStream<Uint8Array>, length: file.length };
 }
 
 // ---------------------------------------------------------------------------
@@ -150,7 +204,7 @@ export async function uploadImage(file: { type: string; size: number; data: Buff
   if (!(IMAGE_TYPES as readonly string[]).includes(file.type)) throw new ValidationError("The image must be a JPG, PNG or WEBP file.", "image");
   if (file.size > IMAGE_TAILLE_MAX) throw new ValidationError("The image must be 5 MB or less.", "image");
   const b = await bucket();
-  const total = await b.find({ "metadata.client": actor.id }).toArray();
+  const total = await b.find({ "metadata.client": actor.id, "metadata.apercu": { $ne: true } }).toArray();
   if (total.length >= MAX_IMAGES) throw new BusinessRuleError("You reached the limit of uploaded images: delete an invitation first.");
 
   let sortie: { data: Buffer; info: { width: number; height: number } };

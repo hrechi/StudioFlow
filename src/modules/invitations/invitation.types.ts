@@ -3,7 +3,22 @@
  * Views shared by the server and the browser, plus the labels of the editor.
  */
 import type { StatusConfig } from "@/components/shared/status-badge";
-import type { ChampLie, ContenuInvitation, Langue, Ton } from "./invitation.schema";
+import type {
+  AMBIANCES,
+  BOUCLES,
+  ChampLie,
+  ContenuInvitation,
+  EASINGS,
+  Entree,
+  FILTRES,
+  Langue,
+  MASQUES,
+  OUVERTURES,
+  PisteMusique,
+  Ton,
+  TypeElement,
+  UNITES_COMPTE,
+} from "./invitation.schema";
 
 /**
  * Where the client stands. Never stored: it is read from the invitation quote and its invoice, so
@@ -81,20 +96,49 @@ export const FORMATS_CARTE = [
   { id: "5x7", label: "5 × 7 in", width: 360, height: 504 },
 ] as const;
 
+const deco = (fichier: string, label: string, groupe: GroupeDecoration) => ({ src: `/invitations/decorations/${fichier}.svg`, label, groupe });
+
+export const GROUPES_DECORATION = ["Flowers", "Hearts", "Frames", "Party", "Baby", "Graduation", "Traditions", "Business", "Home"] as const;
+export type GroupeDecoration = (typeof GROUPES_DECORATION)[number];
+
+/** Bundled decorations (public/invitations/decorations), all original drawings. */
 export const DECORATIONS = [
-  { src: "/invitations/decorations/flower-rose.svg", label: "Rose", groupe: "Flowers" },
-  { src: "/invitations/decorations/flower-corner.svg", label: "Corner flowers", groupe: "Flowers" },
-  { src: "/invitations/decorations/leaf-branch.svg", label: "Branch", groupe: "Flowers" },
-  { src: "/invitations/decorations/heart-solid.svg", label: "Heart", groupe: "Hearts" },
-  { src: "/invitations/decorations/heart-outline.svg", label: "Outline heart", groupe: "Hearts" },
-  { src: "/invitations/decorations/hearts-duo.svg", label: "Two hearts", groupe: "Hearts" },
-  { src: "/invitations/decorations/rings.svg", label: "Rings", groupe: "Hearts" },
-  { src: "/invitations/decorations/frame-gold.svg", label: "Gold frame", groupe: "Frames" },
-  { src: "/invitations/decorations/frame-floral.svg", label: "Floral frame", groupe: "Frames" },
-  { src: "/invitations/decorations/frame-arch.svg", label: "Arch", groupe: "Frames" },
-  { src: "/invitations/decorations/divider-flourish.svg", label: "Flourish", groupe: "Frames" },
-  { src: "/invitations/decorations/divider-dots.svg", label: "Dots", groupe: "Frames" },
-] as const;
+  deco("flower-rose", "Rose", "Flowers"),
+  deco("flower-corner", "Corner flowers", "Flowers"),
+  deco("leaf-branch", "Branch", "Flowers"),
+  deco("laurel", "Laurel", "Flowers"),
+  deco("heart-solid", "Heart", "Hearts"),
+  deco("heart-outline", "Outline heart", "Hearts"),
+  deco("hearts-duo", "Two hearts", "Hearts"),
+  deco("rings", "Rings", "Hearts"),
+  deco("diamond-ring", "Engagement ring", "Hearts"),
+  deco("champagne", "Champagne", "Hearts"),
+  deco("frame-gold", "Gold frame", "Frames"),
+  deco("frame-floral", "Floral frame", "Frames"),
+  deco("frame-arch", "Arch", "Frames"),
+  deco("geometric-corner", "Geometric corner", "Frames"),
+  deco("divider-flourish", "Flourish", "Frames"),
+  deco("divider-dots", "Dots", "Frames"),
+  deco("balloons", "Balloons", "Party"),
+  deco("confetti", "Confetti", "Party"),
+  deco("cake", "Cake", "Party"),
+  deco("gift", "Gift", "Party"),
+  deco("party-hat", "Party hat", "Party"),
+  deco("star-sparkle", "Sparkles", "Party"),
+  deco("baby-rattle", "Rattle", "Baby"),
+  deco("baby-footprints", "Footprints", "Baby"),
+  deco("cloud-moon", "Moon and cloud", "Baby"),
+  deco("graduation-cap", "Graduation cap", "Graduation"),
+  deco("diploma", "Diploma", "Graduation"),
+  deco("mandala", "Mandala", "Traditions"),
+  deco("henna-hand", "Henna hand", "Traditions"),
+  deco("lantern", "Lantern", "Traditions"),
+  deco("crescent-star", "Crescent and star", "Traditions"),
+  deco("microphone", "Microphone", "Business"),
+  deco("lightbulb", "Light bulb", "Business"),
+  deco("house", "House", "Home"),
+  deco("house-key", "Key", "Home"),
+];
 
 export const langueLabels: Record<Langue, string> = { fr: "Français", en: "English", ar: "العربية" };
 
@@ -113,8 +157,86 @@ export const champLieLabels: Record<ChampLie, string> = {
   heure: "Time",
   lieu: "Venue",
   message: "Message",
+  titre: "Title",
+  hotes: "Hosts",
+  tenue: "Dress code",
+  contact: "Contact",
+  adresse: "Address",
+};
+
+export const typeElementLabels: Record<TypeElement, string> = {
+  text: "Text",
+  image: "Image",
+  shape: "Shape",
+  qrcode: "QR code",
+  countdown: "Countdown",
+};
+
+export const entreeLabels: Record<Entree, string> = {
+  AUCUNE: "None",
+  FONDU: "Fade in",
+  GLISSEMENT_HAUT: "Slide up",
+  GLISSEMENT_BAS: "Slide down",
+  GLISSEMENT_GAUCHE: "Slide from the right",
+  GLISSEMENT_DROITE: "Slide from the left",
+  ZOOM: "Zoom",
+  REVELATION: "Reveal",
+  MACHINE_A_ECRIRE: "Typewriter",
+};
+
+export const boucleLabels: Record<(typeof BOUCLES)[number], string> = {
+  AUCUNE: "None",
+  FLOTTEMENT: "Float",
+  SCINTILLEMENT: "Twinkle",
+  PULSATION: "Pulse",
+};
+
+export const easingLabels: Record<(typeof EASINGS)[number], string> = {
+  LINEAIRE: "Linear",
+  DOUCE: "Smooth",
+  ENTREE: "Slow start",
+  SORTIE: "Slow end",
+  REBOND: "Bounce",
+};
+
+export const ouvertureLabels: Record<(typeof OUVERTURES)[number], string> = {
+  ENVELOPPE: "Envelope",
+  SCEAU: "Wax seal",
+  RIDEAU: "Curtain",
+  CADEAU: "Gift box",
+};
+
+export const ambianceLabels: Record<(typeof AMBIANCES)[number], string> = {
+  PETALES: "Petals",
+  CONFETTIS: "Confetti",
+  BALLONS: "Balloons",
+  ETINCELLES: "Sparkles",
+  LANTERNES: "Lanterns",
+};
+
+export const masqueLabels: Record<(typeof MASQUES)[number], string> = { CERCLE: "Circle", ARCHE: "Arch", COEUR: "Heart" };
+export const filtreLabels: Record<(typeof FILTRES)[number], string> = { NOIR_BLANC: "Black & white", SEPIA: "Sepia", DOUX: "Soft", CHAUD: "Warm" };
+export const unitesCompteLabels: Record<(typeof UNITES_COMPTE)[number], string> = {
+  JOURS: "Days",
+  JOURS_HEURES: "Days and hours",
+  COMPLET: "Days, hours, minutes, seconds",
+};
+
+/**
+ * Music library. The files are not shipped: drop royalty-free MP3s in public/invitations/musique
+ * with these names (see the README there). A track without its file is simply not offered.
+ */
+export const MUSIQUES: Record<PisteMusique, { titre: string; fichier: string }> = {
+  "piano-doux": { titre: "Soft piano", fichier: "/invitations/musique/piano-doux.mp3" },
+  valse: { titre: "Waltz", fichier: "/invitations/musique/valse.mp3" },
+  fete: { titre: "Party", fichier: "/invitations/musique/fete.mp3" },
+  oud: { titre: "Oud", fichier: "/invitations/musique/oud.mp3" },
+  lounge: { titre: "Lounge", fichier: "/invitations/musique/lounge.mp3" },
+  berceuse: { titre: "Lullaby", fichier: "/invitations/musique/berceuse.mp3" },
 };
 
 export const CLIENT_PATH = "/espace-client/invitations";
 export const imageHref = (id: string) => `/api/invitations/images/${id}`;
+/** Link preview (Open Graph) of a shared card. */
+export const apercuHref = (token: string) => `/api/invitations/apercu/${token}`;
 export const partageHref = (token: string) => `/invitation/${token}`;

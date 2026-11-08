@@ -161,7 +161,23 @@ async function main() {
   const password = await hashPassword(process.env.SEED_CLIENT_PASSWORD || DEFAULT_CLIENT_PASSWORD);
   const clients: { id: Types.ObjectId; nom: string; email: string }[] = [];
   for (const c of CLIENTS) {
-    const id = await upsert(Utilisateur, { email: c.email }, { ...c, motDePasse: password, role: "CLIENT", statut: "ACTIF", typeClient: c.typeClient ?? "PARTICULIER" });
+    const existing = await Utilisateur.findOne({ email: c.email }).select("_id").lean<{ _id: Types.ObjectId }>();
+    const account = await Utilisateur.findOneAndUpdate(
+      { email: c.email },
+      {
+        $set: {
+          ...c,
+          motDePasse: password,
+          role: "CLIENT",
+          statut: "ACTIF",
+          typeClient: c.typeClient ?? "PARTICULIER",
+        },
+      },
+      { upsert: true, returnDocument: "after", setDefaultsOnInsert: true, runValidators: true },
+    ).select("_id").lean<{ _id: Types.ObjectId }>();
+    if (!account) throw new Error(`Could not seed client account ${c.email}`);
+    const id = account._id;
+    if (!existing) console.log(`Created client account ${c.email}`);
     clients.push({ id, nom: `${c.prenom} ${c.nom}`, email: c.email });
   }
 

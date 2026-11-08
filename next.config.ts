@@ -2,6 +2,8 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   deploymentId: process.env.NEXT_DEPLOYMENT_ID,
+  // `npm run dev` only: lets a phone on the same Wi-Fi (http://192.168.x.x:PORT) load the dev scripts.
+  allowedDevOrigins: ["192.168.*.*", "10.*.*.*"],
   // Docker build only (see Dockerfile): self-contained server in .next/standalone.
   // Off locally so `npm run start` keeps working as usual.
   output: process.env.NEXT_OUTPUT_STANDALONE === "1" ? "standalone" : undefined,

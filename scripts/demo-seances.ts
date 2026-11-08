@@ -3,7 +3,7 @@
  * "[seed:demo] <key>"; scripts/seed-materiel.ts finds them by that key to book equipment.
  * All dates are relative to today.
  *
- * One studio, one client (amel.mediouni@gmail.com, Amoulette); event types are the ones of
+ * One studio, one client (client.amira@reframe.test, Amira Ben Salem); event types are the ones of
  * scripts/seed-facturation.ts.
  */
 export const HOUR = 3_600_000;
@@ -173,5 +173,5 @@ export const DEMO_SEANCES: SeanceDemoSeed[] = [
   },
 ];
 
-export const DEMO_CLIENT_EMAIL = "amel.mediouni@gmail.com";
+export const DEMO_CLIENT_EMAIL = "client.amira@reframe.test";
 export const DEMO_CLIENT_NOM = "Amel Mediouni (Amoulette)";
