@@ -29,7 +29,7 @@ import { cn } from "@/lib/utils";
 import { getWalletLinkMessageAction, linkWalletAction } from "../allocation.actions";
 import { chainName, type ChainConfig } from "../allocation.types";
 import {
-  connectWallet,
+  chooseWallet,
   ensureChain,
   getConnectedAccount,
   getWalletChainId,
@@ -210,7 +210,7 @@ export function WalletPanel({ isAdmin }: { isAdmin: boolean }) {
       </Line>
     );
     action = (
-      <Button disabled={isPending} onClick={() => run(async () => void (await connectWallet()))}>
+      <Button disabled={isPending} onClick={() => run(async () => void (await chooseWallet()))}>
         <Wallet aria-hidden />
         Connect MetaMask
       </Button>
@@ -234,15 +234,25 @@ export function WalletPanel({ isAdmin }: { isAdmin: boolean }) {
     body = (
       <Line icon={Link2} tone="warn">
         {status.address
-          ? `This MetaMask account is not the wallet linked to your StudioFlow account (${shortAddress(status.address)}). Switch account in MetaMask, or link this one instead.`
-          : "Link this wallet to your StudioFlow account (a free signature, no transaction)."}
+          ? `The site sees ${shortAddress(account)}, not the wallet linked to your StudioFlow account (${shortAddress(status.address)}). Choose that account, or link this one instead.`
+          : `Link ${shortAddress(account)} to your StudioFlow account (a free signature, no transaction). Not the right account? Choose another one first.`}
       </Line>
     );
     action = (
-      <Button disabled={isPending} onClick={link}>
-        <Link2 aria-hidden />
-        Link this wallet
-      </Button>
+      <div className="flex flex-wrap gap-2">
+        <Button
+          variant="outline"
+          disabled={isPending}
+          onClick={() => run(async () => void (await chooseWallet()))}
+        >
+          <Wallet aria-hidden />
+          Choose account
+        </Button>
+        <Button disabled={isPending} onClick={link}>
+          <Link2 aria-hidden />
+          Link this wallet
+        </Button>
+      </div>
     );
   } else if (isAdmin && !status.owner) {
     body = (

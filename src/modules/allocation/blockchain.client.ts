@@ -137,6 +137,25 @@ export async function connectWallet(): Promise<string> {
   }
 }
 
+/**
+ * Opens MetaMask's account picker, so the user chooses WHICH account this site uses. Needed
+ * because switching account inside MetaMask does not change the account a site already sees:
+ * without this, a new account (e.g. the photographer's) is never offered to the site.
+ */
+export async function chooseWallet(): Promise<string> {
+  const eth = requireMetaMask();
+  try {
+    await eth.request({ method: "wallet_requestPermissions", params: [{ eth_accounts: {} }] });
+    const accounts = (await eth.request({ method: "eth_accounts" })) as string[];
+    if (!accounts[0]) throw new WalletError("No account selected in MetaMask.", "rejected");
+    return getAddress(accounts[0]);
+  } catch (error) {
+    // Wallets without the picker: fall back to the usual connection request.
+    if ((error as { code?: number })?.code === -32601) return connectWallet();
+    throw walletErrorMessage(error);
+  }
+}
+
 export async function getWalletChainId(): Promise<number | null> {
   const eth = metaMask();
   if (!eth) return null;

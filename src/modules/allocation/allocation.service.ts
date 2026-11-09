@@ -97,7 +97,9 @@ export async function linkWallet(user: Actor, input: WalletLinkInput): Promise<s
   await connectDB();
   const owner = await WalletLink.findOne({ adresse: input.address }).lean();
   if (owner && owner.utilisateur.toString() !== user.id) {
-    throw new ServiceError("This wallet is already linked to another StudioFlow account.");
+    throw new ServiceError(
+      `This wallet (${input.address.slice(0, 6)}…${input.address.slice(-4)}) is already linked to another StudioFlow account. Click "Choose account" and pick another MetaMask account.`,
+    );
   }
   await WalletLink.updateOne(
     { utilisateur: new Types.ObjectId(user.id) },

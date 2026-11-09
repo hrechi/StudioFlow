@@ -164,7 +164,9 @@ export async function setUtilisateurWallet(id: string, walletAddress: string): P
     await Utilisateur.updateOne({ _id }, { $set: { walletAddress: walletAddress.toLowerCase() } });
   } catch (error) {
     if (isDuplicateKeyError(error)) {
-      throw new ServiceError("This wallet is already linked to another account.");
+      throw new ServiceError(
+        `This wallet (${walletAddress.slice(0, 6)}…${walletAddress.slice(-4)}) is already linked to another account. Pick another account in the MetaMask window.`,
+      );
     }
     throw error;
   }

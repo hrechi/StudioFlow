@@ -45,6 +45,13 @@ export function WalletLinkCard({
     }
     setPending(true);
     try {
+      // MetaMask's account picker: switching account inside MetaMask doesn't change the account
+      // a site already sees, so the user chooses here which one to link.
+      try {
+        await wallet.request({ method: "wallet_requestPermissions", params: [{ eth_accounts: {} }] });
+      } catch (error) {
+        if ((error as { code?: number }).code !== -32601) throw error; // no picker: usual request
+      }
       const [address] = (await wallet.request({ method: "eth_requestAccounts" })) as string[];
       const issuedAt = new Date().toISOString();
       const signature = (await wallet.request({
