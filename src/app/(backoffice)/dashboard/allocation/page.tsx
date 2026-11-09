@@ -5,8 +5,9 @@ import { PageHeader } from "@/components/shared/page-header";
 import { StatCard } from "@/components/shared/stat-card";
 import { requireArea } from "@/lib/guards";
 import {
+  countSeancesNotYetAllocatable,
   getWalletStatus,
-  listAllocatableMateriels,
+  listAllocatableMaterielsWithChain,
   listAllocations,
   listMaterielsOnChain,
   listPhotographersWithWallets,
@@ -23,11 +24,12 @@ export const metadata: Metadata = { title: "Blockchain allocation" };
 export default async function AllocationPage() {
   const user = await requireArea("dashboard");
   const isAdmin = user.role === "ADMIN";
-  const [chain, wallet, materiels, seances, allocations] = await Promise.all([
+  const [chain, wallet, materiels, seances, hiddenSeances, allocations] = await Promise.all([
     checkChain(),
     getWalletStatus(user.id),
-    listAllocatableMateriels(),
+    listAllocatableMaterielsWithChain(),
     listSeancesReservables(),
+    countSeancesNotYetAllocatable(),
     listAllocations(isAdmin ? undefined : user.id),
   ]);
   const [materielsOnChain, photographes] = isAdmin
@@ -39,7 +41,8 @@ export default async function AllocationPage() {
   return (
     <WalletProvider
       config={getChainConfig()}
-      status={{ ...wallet, chainReachable: chainOk && wallet.chainReachable }}
+      // Two facts, two flags: "offline" only when Ganache really can't be reached.
+      status={{ ...wallet, chainReachable: chain.reachable && wallet.chainReachable, chainDeployed: chain.deployed }}
     >
       <div className="space-y-6">
         <PageHeader
@@ -51,8 +54,8 @@ export default async function AllocationPage() {
           <p className="flex items-start gap-2 rounded-xl bg-destructive/10 p-4 text-sm text-destructive-text ring-1 ring-destructive/20">
             <ServerOff className="mt-0.5 size-4 shrink-0" aria-hidden />
             {chain.reachable
-              ? "Ganache is running but the contract is not deployed there. In StudioFlow-Blockchain run npm run deploy, then npm run export."
-              : "Ganache is offline. In StudioFlow-Blockchain run npm run ganache (keep it open), then reload."}
+              ? "Ganache is running but the EquipmentAllocation contract is not deployed there. Run npm run deploy:allocation in the reframe-blockchain folder, then restart the app."
+              : "Ganache is offline. Run npm run ganache in the contracts folder (keep it open), then reload."}
           </p>
         )}
 
@@ -72,6 +75,8 @@ export default async function AllocationPage() {
 
         <AllocationForm
           materiels={materiels}
+          isAdmin={isAdmin}
+          hiddenSeances={hiddenSeances}
           seances={seances.map((s) => ({
             id: s.id,
             titre: s.titre,

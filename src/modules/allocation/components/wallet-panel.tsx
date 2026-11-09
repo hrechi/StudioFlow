@@ -46,6 +46,8 @@ export type WalletStatus = {
   owner: boolean;
   staff: boolean;
   chainReachable: boolean;
+  /** The contract exists at the configured address (false: deploy it). Absent = assumed yes. */
+  chainDeployed?: boolean;
 };
 
 type WalletState = {
@@ -112,7 +114,13 @@ export function WalletProvider({
     account,
     rightChain,
     linked,
-    ready: !!installed && !!account && rightChain && linked && status.chainReachable,
+    ready:
+      !!installed &&
+      !!account &&
+      rightChain &&
+      linked &&
+      status.chainReachable &&
+      status.chainDeployed !== false,
   };
   return <WalletContext.Provider value={value}>{children}</WalletContext.Provider>;
 }
@@ -288,7 +296,12 @@ export function WalletPanel({ isAdmin }: { isAdmin: boolean }) {
         </div>
         {!status.chainReachable ? (
           <Line icon={ServerOff} tone="danger">
-            Ganache is offline: start it with <code>npm run ganache</code> in StudioFlow-Blockchain.
+            Ganache is offline: start it with <code>npm run ganache</code> in the contracts folder.
+          </Line>
+        ) : status.chainDeployed === false ? (
+          <Line icon={ServerOff} tone="danger">
+            The allocation contract is not deployed on this Ganache: run{" "}
+            <code>npm run deploy:allocation</code> in the reframe-blockchain folder.
           </Line>
         ) : (
           body

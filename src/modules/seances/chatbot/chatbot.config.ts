@@ -5,7 +5,7 @@
  * (Fichier sans "server-only" : il est aussi importé par le widget côté navigateur.)
  */
 export const CHATBOT_NAME = "Lumi";
-export const CHATBOT_ROLE = "Assistant IA de ReFrame";
+export const CHATBOT_ROLE = "ReFrame AI assistant";
 
 /** Pack tel que le widget l'affiche : toujours construit depuis le catalogue réel, jamais par le modèle. */
 export type ChatPackCard = {

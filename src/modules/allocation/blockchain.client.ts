@@ -85,13 +85,20 @@ export function walletErrorMessage(error: unknown): WalletError {
   if (name && CONTRACT_ERROR_MESSAGES[name]) {
     return new WalletError(CONTRACT_ERROR_MESSAGES[name], "contract");
   }
+  // MetaMask wraps node errors as "could not coalesce error": look at the real one inside first.
+  const raw = `${e?.message ?? ""} ${JSON.stringify(e?.info ?? "")}`;
+  if (/nonce/i.test(raw)) {
+    return new WalletError(
+      "MetaMask's transaction count doesn't match the chain (Ganache was probably restarted). In MetaMask, clear this account's activity data, then try again.",
+    );
+  }
   if (
     e?.code === "NETWORK_ERROR" ||
     e?.code === -32603 ||
     /failed to fetch|ECONNREFUSED|could not coalesce/i.test(e?.message ?? "")
   ) {
     return new WalletError(
-      "Cannot reach the blockchain. Is Ganache running on http://127.0.0.1:8545?",
+      "Cannot reach the blockchain. Is Ganache running (npm run ganache in the contracts folder)?",
       "offline",
     );
   }

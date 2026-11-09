@@ -32,7 +32,7 @@ This starts three services:
 | Service | What it does |
 | --- | --- |
 | `mongo` | MongoDB 8.3.13 with a persistent volume (its data has FCV 8.3, so never pin an older image). Compass: `mongodb://127.0.0.1:27018` |
-| `seed` | Creates the first ADMIN from `.env` if none exists, then exits |
+| `seed` | **On demand only** (not started by `up`): reconciles the ADMIN from `.env` and fills the demo data. Run it with `docker compose --profile seed run --rm seed` |
 | `app` | The production build of ReFrame on <http://localhost:3000> |
 
 Useful commands:
@@ -42,9 +42,9 @@ Useful commands:
 | `docker compose up -d --build` | Same, in the background |
 | `docker compose logs -f app` | Follow the app logs |
 | `docker compose down` | Stop (data is kept) |
-| `docker compose down -v` | Stop and **delete** the Docker database (the admin is re-seeded on the next `up`) |
-| `docker compose run --rm seed npx tsx scripts/verify-admin-auth.ts` | Verify the seeded admin password and role |
-| `docker compose run --rm seed npx tsx scripts/reset-admin-password.ts` | Replace the existing admin password from `.env` |
+| `docker compose down -v` | Stop and **delete** the Docker database. Then run the seed once to recreate the admin |
+| `docker compose --profile seed run --rm seed npx tsx scripts/verify-admin-auth.ts` | Verify the seeded admin password and role |
+| `docker compose --profile seed run --rm seed npx tsx scripts/reset-admin-password.ts` | Replace the existing admin password from `.env` |
 
 **"ports are not available … 3000"** means something else (usually `npm run dev`) already uses port 3000: stop it, or add `APP_PORT=3001` to `.env` and open <http://localhost:3001>.
 

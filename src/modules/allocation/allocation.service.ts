@@ -21,6 +21,7 @@ import { getMaterielById, listMateriels } from "@/modules/materiel/materiel.serv
 import type { Materiel as MaterielDTO } from "@/modules/materiel/materiel.types";
 import { STATUTS_BLOQUANTS, peutPasser } from "@/modules/materiel/reservation-materiel.rules";
 import { getSeanceReservable } from "@/modules/materiel/seance-source";
+import { listSeances } from "@/modules/seances/seance.service";
 import {
   findUtilisateurRefs,
   listPhotographeRefs,
@@ -51,6 +52,7 @@ import {
   type EquipementChain,
 } from "./allocation.types";
 import {
+  checkChain,
   readAllocationEvents,
   readChainAllocation,
   readEquipments,
@@ -117,7 +119,9 @@ export async function getWalletStatus(utilisateurId: string): Promise<{
   try {
     return { address, ...(await readRoles(address)), chainReachable: true };
   } catch {
-    return { address, owner: false, staff: false, chainReachable: false };
+    // A missing contract also fails here: only call it "offline" when Ganache really is.
+    const { reachable } = await checkChain();
+    return { address, owner: false, staff: false, chainReachable: reachable };
   }
 }
 
@@ -402,6 +406,52 @@ export async function recordAllocationStep(user: Actor, input: AllocationStepInp
 /** Equipment that can be allocated: not archived, available, not out of order. */
 export async function listAllocatableMateriels(): Promise<MaterielDTO[]> {
   return (await listMateriels()).filter((m) => m.disponible && m.etat !== "EN_PANNE");
+}
+
+/** Why an item can't be booked on-chain at all (whatever the dates), or "ok". */
+export type MaterielChainState = "ok" | "not-registered" | "inactive" | "out-of-order";
+
+/**
+ * The allocatable items with their state on the contract, so the form can say up front which
+ * ones the admin still has to register (or that are deactivated / out of order on-chain).
+ * `chain` is null when Ganache can't be read.
+ */
+export async function listAllocatableMaterielsWithChain(): Promise<
+  { materiel: MaterielDTO; chain: MaterielChainState | null }[]
+> {
+  const materiels = await listAllocatableMateriels();
+  let states: EquipementChain[] | null = null;
+  try {
+    states = await readEquipments(materiels.map((m) => hashId(m.id)));
+  } catch {
+    states = null;
+  }
+  return materiels.map((materiel, i) => {
+    const s = states?.[i];
+    const chain: MaterielChainState | null = !s
+      ? null
+      : !s.registered
+        ? "not-registered"
+        : !s.active
+          ? "inactive"
+          : s.etat === "EN_PANNE"
+            ? "out-of-order"
+            : "ok";
+    return { materiel, chain };
+  });
+}
+
+/**
+ * Upcoming séances the form can't offer yet because they are still a client request
+ * ("Request received") or postponed: equipment is only allocated to committed séances.
+ */
+export async function countSeancesNotYetAllocatable(): Promise<number> {
+  const now = Date.now();
+  return (await listSeances()).filter(
+    (s) =>
+      (s.statut === "DEMANDE_RECUE" || s.statut === "REPORTEE") &&
+      new Date(s.dateFin).getTime() > now,
+  ).length;
 }
 
 /** Inventory with its on-chain registration (admin). `chain` is null when Ganache is offline. */

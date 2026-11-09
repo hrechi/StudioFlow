@@ -21,7 +21,7 @@ import {
   verifyEquipmentRegistered,
   verifyStaffAdded,
 } from "./allocation.service";
-import { isAvailableOnChain } from "./blockchain.server";
+import { availabilityDetails, type AvailabilityDetails } from "./blockchain.server";
 
 /**
  * Staff (ADMIN + PHOTOGRAPHE) use this page. Every action that follows a MetaMask signature
@@ -93,17 +93,19 @@ export async function recordAllocationStepAction(input: unknown): Promise<Action
 /** Live "available on the blockchain?" for the form (server-side read, no MetaMask needed). */
 export async function checkAvailabilityAction(
   input: unknown,
-): Promise<ActionResult<{ available: boolean }>> {
+): Promise<ActionResult<AvailabilityDetails>> {
   await requireArea("dashboard");
   const parsed = allocationRequestSchema.safeParse(input);
   if (!parsed.success) return validationFailure(parsed.error);
   try {
-    const available = await isAvailableOnChain(
-      hashId(parsed.data.materielId),
-      toChainTime(parsed.data.dateDebut),
-      toChainTime(parsed.data.dateFin),
+    // The contract's answer, with the reason when it is "no" (shown as-is in the form).
+    return success(
+      await availabilityDetails(
+        hashId(parsed.data.materielId),
+        toChainTime(parsed.data.dateDebut),
+        toChainTime(parsed.data.dateFin),
+      ),
     );
-    return success({ available });
   } catch (error) {
     return toFailure(error);
   }

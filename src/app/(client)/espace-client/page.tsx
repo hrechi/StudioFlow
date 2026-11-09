@@ -88,7 +88,8 @@ export default async function EspaceClientPage() {
 
       {/* ── Pending contract alert ────────────────────────────── */}
       {contratEnAttente && (
-        <Link href={`/espace-client/contrats/${contratEnAttente.id}`}>
+        // block: an inline link ignores the page's vertical spacing, so the alert touched the cards.
+        <Link href={`/espace-client/contrats/${contratEnAttente.id}`} className="block">
           <article className="flex items-center gap-4 rounded-2xl border border-warning/40 bg-warning/5 px-5 py-4 transition-colors hover:bg-warning/10">
             <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-warning/15 text-warning-text">
               <FileLock2 className="size-5" aria-hidden />

@@ -20,9 +20,13 @@ const status = await checkChain();
 const randomId = () => Wallet.createRandom().address.slice(2, 26).toLowerCase(); // 24 hex chars
 
 describe.skipIf(!status.deployed)("blockchain.server against Ganache", () => {
-  const provider = new JsonRpcProvider("http://127.0.0.1:8545", Network.from(1337), {
-    staticNetwork: true,
-  });
+  const provider = new JsonRpcProvider(
+    process.env.GANACHE_RPC_URL ?? process.env.NEXT_PUBLIC_RPC_URL ?? "http://127.0.0.1:8545",
+    Network.from(1337),
+    {
+      staticNetwork: true,
+    },
+  );
   let admin: JsonRpcSigner;
   let photographer: JsonRpcSigner;
   let asAdmin: Contract;

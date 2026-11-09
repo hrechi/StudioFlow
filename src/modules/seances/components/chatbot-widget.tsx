@@ -20,14 +20,14 @@ type Msg = {
 };
 
 const SUGGESTIONS = [
-  "Quels packs proposez-vous pour un mariage ?",
-  "J'ai un budget de 800 TND",
-  "Comparez vos packs",
+  "Which packs do you offer for a wedding?",
+  "My budget is 800 TND",
+  "Compare your packs",
 ];
 
 function formatPrix(prix: number | null): string {
-  if (prix === null) return "Prix sur demande";
-  return `${(prix / 1000).toLocaleString("fr-TN", { minimumFractionDigits: 0 })} TND`;
+  if (prix === null) return "Price on request";
+  return `${(prix / 1000).toLocaleString("en-US", { minimumFractionDigits: 0 })} TND`;
 }
 
 function formatDuree(min: number): string {
@@ -98,7 +98,7 @@ function PackCard({ pack, bookHref }: { pack: ChatPackCard; bookHref: string }) 
 
 function TypingDots() {
   return (
-    <div className="flex items-center gap-1 px-3 py-2" aria-label="L'assistant réfléchit…">
+    <div className="flex items-center gap-1 px-3 py-2" aria-label="The assistant is thinking…">
       {[0, 1, 2].map((i) => (
         <span
           key={i}
@@ -145,7 +145,7 @@ export function ChatbotWidget({ bookHref }: { bookHref: string }) {
         ...next,
         {
           role: "assistant",
-          content: data.reply ?? data.error ?? "Une erreur est survenue. Veuillez réessayer.",
+          content: data.reply ?? data.error ?? "Something went wrong. Please try again.",
           packs: data.packs,
         },
       ]);
@@ -154,7 +154,7 @@ export function ChatbotWidget({ bookHref }: { bookHref: string }) {
         ...next,
         {
           role: "assistant",
-          content: "Problème de connexion. Veuillez réessayer dans un moment.",
+          content: "Connection problem. Please try again in a moment.",
         },
       ]);
     } finally {
@@ -183,7 +183,7 @@ export function ChatbotWidget({ bookHref }: { bookHref: string }) {
             <button
               type="button"
               onClick={() => setOpen(false)}
-              aria-label="Fermer l'assistant"
+              aria-label="Close the assistant"
               className="rounded-md p-1 text-muted-foreground hover:bg-muted"
             >
               <X className="size-4" aria-hidden />
@@ -194,15 +194,15 @@ export function ChatbotWidget({ bookHref }: { bookHref: string }) {
           <div
             className="flex-1 space-y-3 overflow-y-auto px-4 py-3 text-sm"
             aria-live="polite"
-            aria-label="Historique de la conversation"
+            aria-label="Conversation history"
           >
             {messages.length === 0 && (
               <div className="space-y-3">
                 <div className="flex items-start gap-2">
                   <Avatar className="size-6 shrink-0 mt-0.5" />
                   <p className="text-foreground bg-muted rounded-2xl rounded-bl-sm px-3 py-2 text-sm">
-                    Bonjour ! Je suis {CHATBOT_NAME}, je peux vous expliquer nos packs, les comparer et vous aider à choisir.
-                    Les prix proviennent directement des offres actuelles du studio.
+                    Hello! I&apos;m {CHATBOT_NAME}. I can explain our packs, compare them and help you choose.
+                    Prices come straight from the studio&apos;s current offers.
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-2 pl-8" role="list" aria-label="Suggestions">
@@ -266,28 +266,28 @@ export function ChatbotWidget({ bookHref }: { bookHref: string }) {
             className="flex items-center gap-2 border-t p-3"
           >
             <label htmlFor="chat-input" className="sr-only">
-              Votre message
+              Your message
             </label>
             <input
               id="chat-input"
               value={input}
               onChange={(e) => setInput(e.target.value)}
               maxLength={600}
-              placeholder="Posez une question sur nos packs…"
+              placeholder="Ask a question about our packs…"
               className="h-10 flex-1 rounded-lg border border-input bg-transparent px-3 text-sm outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
             />
             <Button
               type="submit"
               size="icon"
               disabled={pending || !input.trim()}
-              aria-label="Envoyer"
+              aria-label="Send"
             >
               {pending ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Send aria-hidden />}
             </Button>
           </form>
 
           <p className="px-4 pb-2 text-[0.65rem] text-muted-foreground">
-            {CHATBOT_NAME} · IA · Le studio valide chaque demande de réservation.
+            {CHATBOT_NAME} · AI · The studio approves every booking request.
           </p>
         </section>
       ) : (
@@ -296,10 +296,10 @@ export function ChatbotWidget({ bookHref }: { bookHref: string }) {
           size="lg"
           onClick={() => setOpen(true)}
           className="rounded-full shadow-lg"
-          aria-label={`Ouvrir l'assistant ${CHATBOT_NAME}`}
+          aria-label={`Open the ${CHATBOT_NAME} assistant`}
         >
           <MessageCircle aria-hidden />
-          Demandez-nous
+          Ask us
         </Button>
       )}
     </div>

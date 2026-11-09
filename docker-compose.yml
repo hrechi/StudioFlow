@@ -29,8 +29,11 @@ services:
       retries: 30
       start_period: 30s
 
-  # Reconciles the ADMIN and fills every module with repeatable demo data.
+  # Reconciles the ADMIN and fills every module with demo data. ON DEMAND ONLY (profile "seed"):
+  # `docker compose up` no longer runs it, so your data is never re-seeded. To seed on purpose:
+  #   docker compose --profile seed run --rm seed
   seed:
+    profiles: ["seed"]
     build:
       context: .
       target: tools # no `next build` here: only the app image builds Next (saves memory and time)
@@ -40,7 +43,7 @@ services:
       MONGODB_URI: *mongo-uri
       ADMIN_EMAIL: ${ADMIN_EMAIL:?Set ADMIN_EMAIL in .env}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:?Set ADMIN_PASSWORD in .env}
-      SEED_CLIENT_PASSWORD: ${SEED_CLIENT_PASSWORD:-} # docker compose run --rm seed npx tsx scripts/seed-facturation.ts
+      SEED_CLIENT_PASSWORD: ${SEED_CLIENT_PASSWORD:-} # docker compose --profile seed run --rm seed npx tsx scripts/seed-facturation.ts
     depends_on:
       mongo:
         condition: service_healthy
@@ -110,8 +113,6 @@ services:
     depends_on:
       mongo:
         condition: service_healthy
-      seed:
-        condition: service_completed_successfully
 
   elasticsearch:
     image: elasticsearch:8.17.0

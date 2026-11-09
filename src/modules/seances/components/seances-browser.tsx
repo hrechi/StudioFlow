@@ -166,6 +166,9 @@ export function SeancesBrowser({
           {
             key: "titre",
             header: "Session",
+            // Long text wraps instead of widening the row: the table then fits its space on
+            // laptop screens rather than showing a horizontal scrollbar.
+            className: "min-w-[13rem] whitespace-normal",
             cell: (s) => (
               <div>
                 <p className="font-medium text-foreground">{s.titre}</p>
@@ -187,11 +190,18 @@ export function SeancesBrowser({
               </span>
             ),
           },
-          { key: "lieu", header: "Location", hideOnMobile: true, cell: (s) => s.lieu },
+          {
+            key: "lieu",
+            header: "Location",
+            hideOnMobile: true,
+            className: "min-w-[9rem] whitespace-normal",
+            cell: (s) => s.lieu,
+          },
           {
             key: "equipe",
             header: "Team",
-            hideOnMobile: true,
+            // Shown from 1280 px: below that the other columns need the space (see a session for its team).
+            className: "hidden min-w-[7rem] whitespace-normal xl:table-cell",
             cell: (s) =>
               s.equipe.length === 0 ? (
                 <span className="text-muted-foreground">Unassigned</span>

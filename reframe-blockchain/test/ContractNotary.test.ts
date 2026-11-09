@@ -1,5 +1,8 @@
 import { expect } from "chai";
-import { ethers } from "hardhat";
+import hre from "hardhat";
+
+// Default import: the Hardhat config loads the shared .env with import.meta, so files run as ES modules.
+const { ethers } = hre;
 
 const sha = (s: string) => ethers.sha256(ethers.toUtf8Bytes(s)); // SHA-256 -> bytes32
 

@@ -34,7 +34,7 @@ const SERVER_RPC_URL =
   process.env.GANACHE_RPC_URL ?? process.env.NEXT_PUBLIC_RPC_URL ?? "http://127.0.0.1:8545";
 
 const OFFLINE =
-  "The blockchain is unreachable. Start Ganache (npm run ganache in StudioFlow-Blockchain) and try again.";
+  "The blockchain is unreachable. Start the shared Ganache (npm run ganache in the contracts folder) and try again.";
 
 let provider: JsonRpcProvider | undefined;
 let contract: Contract | undefined;
@@ -212,6 +212,58 @@ export async function isAvailableOnChain(equipmentHash: string, start: bigint, e
   return onChain(
     (c) => c.getFunction("isAvailable").staticCall(equipmentHash, start, end) as Promise<boolean>,
   );
+}
+
+export type UnavailableReason =
+  | "not-registered"
+  | "inactive"
+  | "out-of-order"
+  | "invalid-period"
+  | "overlap";
+
+export type AvailabilityDetails = {
+  available: boolean;
+  reason?: UnavailableReason;
+  /** The booking that already holds the item (reason "overlap"). */
+  conflict?: { dateDebut: string; dateFin: string };
+};
+
+/**
+ * Same answer as the contract's isAvailable, plus WHY when it is "no", read from the same
+ * contract: the item is not registered, deactivated, out of order, or already allocated then.
+ */
+export async function availabilityDetails(
+  equipmentHash: string,
+  start: bigint,
+  end: bigint,
+): Promise<AvailabilityDetails> {
+  return onChain(async (c) => {
+    const e = await c.getFunction("equipments").staticCall(equipmentHash);
+    if (!e.exists) return { available: false, reason: "not-registered" };
+    if (!e.active) return { available: false, reason: "inactive" };
+    if (CONDITION_FROM_INDEX[Number(e.condition)] === "EN_PANNE") {
+      return { available: false, reason: "out-of-order" };
+    }
+    if (end <= start) return { available: false, reason: "invalid-period" };
+    if (await c.getFunction("isAvailable").staticCall(equipmentHash, start, end)) {
+      return { available: true };
+    }
+    // Which booking holds it: pending, confirmed or in use, over an overlapping period.
+    const history = (await c.getFunction("getEquipmentHistory").staticCall(equipmentHash)) as string[];
+    for (const allocationId of history) {
+      const a = await c.getFunction("getAllocation").staticCall(allocationId);
+      const statut = STATUS_FROM_INDEX[Number(a.status)];
+      const holding = statut === "EN_ATTENTE" || statut === "CONFIRMEE" || statut === "EN_COURS";
+      if (holding && start < BigInt(a.end) && BigInt(a.start) < end) {
+        return {
+          available: false,
+          reason: "overlap",
+          conflict: { dateDebut: fromChainTime(a.start), dateFin: fromChainTime(a.end) },
+        };
+      }
+    }
+    return { available: false, reason: "overlap" };
+  });
 }
 
 export async function readEquipments(hashes: string[]): Promise<EquipementChain[]> {

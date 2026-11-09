@@ -90,7 +90,7 @@ export function comparePacks(catalogue: CataloguePublicDTO, args: { pack_ids?: s
   if (packs.length < 2) {
     return {
       erreur: "comparaison_impossible",
-      message: "Il faut au moins deux packs publiés existants.",
+      message: "At least two existing published packs are needed.",
     };
   }
   const services = [...new Set(packs.flatMap((p) => p.prestations.map((s) => s.nom)))];
@@ -103,7 +103,7 @@ export function comparePacks(catalogue: CataloguePublicDTO, args: { pack_ids?: s
           p.nom,
           line
             ? `${line.quantite}${line.conditions ? ` (${line.conditions})` : ""}`
-            : "non inclus",
+            : "not included",
         ];
       }),
     ),
@@ -172,7 +172,7 @@ export function recommendPacks(
       .sort((a, b) => a.p.prix! - b.p.prix!)[0];
     return {
       recommandations: [],
-      message: "Aucun pack publié ne correspond à ces critères.",
+      message: "No published pack matches these criteria.",
       pack_le_moins_cher: cheapest
         ? { nom: cheapest.p.nom, prix_tnd: cheapest.p.prix }
         : null,
@@ -210,7 +210,7 @@ export function studioContact() {
   if (!email && !telephone) {
     return {
       disponible: false,
-      message: "Les coordonnées du studio ne sont pas configurées.",
+      message: "The studio's contact details are not configured.",
     };
   }
   return { disponible: true, email: email ?? null, telephone: telephone ?? null };

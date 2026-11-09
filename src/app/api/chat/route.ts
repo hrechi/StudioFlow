@@ -49,14 +49,14 @@ export async function POST(request: Request) {
 
   if (limited(ip)) {
     return NextResponse.json(
-      { error: "Trop de messages. Veuillez patienter un moment." },
+      { error: "Too many messages. Please wait a moment." },
       { status: 429 },
     );
   }
 
   const parsed = bodySchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success || parsed.data.messages.at(-1)?.role !== "user") {
-    return NextResponse.json({ error: "Requête invalide." }, { status: 400 });
+    return NextResponse.json({ error: "Invalid request." }, { status: 400 });
   }
 
   const result = await answerChat(parsed.data.messages);

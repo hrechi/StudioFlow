@@ -43,13 +43,34 @@ function toLocalInput(iso: string): string {
 
 type Availability = "idle" | "checking" | "available" | "taken" | "error";
 
+type ChainState = "ok" | "not-registered" | "inactive" | "out-of-order";
+
+/** Why an item can't be booked on-chain, whatever the dates. */
+const CHAIN_STATE_LABEL: Record<Exclude<ChainState, "ok">, string> = {
+  "not-registered": "not on the blockchain yet",
+  inactive: "deactivated on the blockchain",
+  "out-of-order": "out of order on the blockchain",
+};
+
+function formatPeriod(dateDebut: string, dateFin: string): string {
+  const fmt = (iso: string) =>
+    new Date(iso).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
+  return `${fmt(dateDebut)} → ${fmt(dateFin)}`;
+}
+
 /** Allocate one item to a séance: availability is checked live on the contract before signing. */
 export function AllocationForm({
   materiels,
   seances,
+  isAdmin,
+  hiddenSeances,
 }: {
-  materiels: Materiel[];
+  /** Items with their state on the contract (null: Ganache could not be read). */
+  materiels: { materiel: Materiel; chain: ChainState | null }[];
   seances: SeanceOption[];
+  isAdmin: boolean;
+  /** Upcoming séances not offered yet: still a client request, or postponed. */
+  hiddenSeances: number;
 }) {
   const router = useRouter();
   const { config, ready } = useWallet();
@@ -59,6 +80,12 @@ export function AllocationForm({
   const [fin, setFin] = useState("");
   const [availability, setAvailability] = useState<Availability>("idle");
   const [availabilityError, setAvailabilityError] = useState("");
+  const [takenReason, setTakenReason] = useState("");
+  // Bookable items first; the others stay visible, greyed out, with the reason.
+  const ordered = [...materiels].sort(
+    (a, b) => Number(a.chain !== "ok") - Number(b.chain !== "ok"),
+  );
+  const bookable = materiels.filter((m) => m.chain === "ok").length;
   const [step, setStep] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -79,7 +106,23 @@ export function AllocationForm({
       });
       if (!alive) return;
       if (result.ok) {
-        setAvailability(result.data.available ? "available" : "taken");
+        const { available, reason, conflict } = result.data;
+        setAvailability(available ? "available" : "taken");
+        setTakenReason(
+          reason === "overlap"
+            ? conflict
+              ? `Not available: already allocated ${formatPeriod(conflict.dateDebut, conflict.dateFin)}`
+              : "Not available: already allocated during this period"
+            : reason === "not-registered"
+              ? isAdmin
+                ? "Not available: this item isn't on the blockchain yet. Register it in Blockchain setup below."
+                : "Not available: this item isn't on the blockchain yet. Ask the admin to register it."
+              : reason === "inactive"
+                ? "Not available: this item is deactivated on the blockchain"
+                : reason === "out-of-order"
+                  ? "Not available: this item is out of order on the blockchain"
+                  : "Not available: the end must be after the start",
+        );
       } else {
         setAvailability("error");
         setAvailabilityError(result.error);
@@ -89,7 +132,7 @@ export function AllocationForm({
       alive = false;
       clearTimeout(timer);
     };
-  }, [complete, validPeriod, materielId, seanceId, debut, fin]);
+  }, [complete, validPeriod, materielId, seanceId, debut, fin, isAdmin]);
 
   const pickSeance = (id: string) => {
     setSeanceId(id);
@@ -162,21 +205,48 @@ export function AllocationForm({
           }}
         >
           <div className="grid gap-4 sm:grid-cols-2">
-            <FormField id="alloc-materiel" label="Equipment" required>
+            <FormField
+              id="alloc-materiel"
+              label="Equipment"
+              required
+              hint={
+                materiels.some((m) => m.chain !== null)
+                  ? `${bookable} of ${materiels.length} items are on the blockchain and can be booked.${
+                      bookable < materiels.length
+                        ? isAdmin
+                          ? " Register the others in Blockchain setup below."
+                          : " The admin registers the others."
+                        : ""
+                    }`
+                  : undefined
+              }
+            >
               <Select value={materielId} onValueChange={setMaterielId}>
                 <SelectTrigger id="alloc-materiel" className="h-10 w-full bg-card">
                   <SelectValue placeholder="Choose an item" />
                 </SelectTrigger>
                 <SelectContent>
-                  {materiels.map((m) => (
-                    <SelectItem key={m.id} value={m.id}>
+                  {ordered.map(({ materiel: m, chain }) => (
+                    <SelectItem key={m.id} value={m.id} disabled={chain !== null && chain !== "ok"}>
                       {m.nom} · {categorieMaterielLabels[m.categorie]}
+                      {chain && chain !== "ok" && (
+                        <span className="text-muted-foreground"> — {CHAIN_STATE_LABEL[chain]}</span>
+                      )}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </FormField>
-            <FormField id="alloc-seance" label="Session" required>
+            <FormField
+              id="alloc-seance"
+              label="Session"
+              required
+              hint={
+                hiddenSeances > 0
+                  ? `${hiddenSeances} upcoming session${hiddenSeances > 1 ? "s are" : " is"} not listed: still a client request ("Request received") or postponed. Confirm ${hiddenSeances > 1 ? "them" : "it"} in Sessions first.`
+                  : undefined
+              }
+            >
               <Select value={seanceId} onValueChange={pickSeance}>
                 <SelectTrigger id="alloc-seance" className="h-10 w-full bg-card">
                   <SelectValue
@@ -234,9 +304,7 @@ export function AllocationForm({
               {shownAvailability === "taken" && (
                 <>
                   <XCircle className="size-4 text-destructive" aria-hidden />
-                  <span className="text-destructive-text">
-                    Not available: already allocated then, out of order, or not registered on-chain
-                  </span>
+                  <span className="text-destructive-text">{takenReason}</span>
                 </>
               )}
               {shownAvailability === "error" && (

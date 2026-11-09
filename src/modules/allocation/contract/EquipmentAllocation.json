@@ -1,5 +1,5 @@
 {
-  "address": "0x5FbDB2315678afecb367f032d93F642f64180aa3",
+  "address": "0x59d3631c86BbE35EF041872d502F218A39FBa150",
   "chainId": 1337,
   "abi": [
     {
@@ -81,7 +81,7 @@
     {
       "inputs": [
         {
-          "internalType": "enum EquipmentAllocation.Condition",
+          "internalType": "uint8",
           "name": "condition",
           "type": "uint8"
         }
@@ -92,12 +92,12 @@
     {
       "inputs": [
         {
-          "internalType": "enum EquipmentAllocation.Status",
+          "internalType": "uint8",
           "name": "from",
           "type": "uint8"
         },
         {
-          "internalType": "enum EquipmentAllocation.Status",
+          "internalType": "uint8",
           "name": "to",
           "type": "uint8"
         }
@@ -285,7 +285,7 @@
         },
         {
           "indexed": false,
-          "internalType": "enum EquipmentAllocation.Condition",
+          "internalType": "uint8",
           "name": "condition",
           "type": "uint8"
         },
@@ -310,7 +310,7 @@
         },
         {
           "indexed": false,
-          "internalType": "enum EquipmentAllocation.Condition",
+          "internalType": "uint8",
           "name": "condition",
           "type": "uint8"
         }
@@ -329,7 +329,7 @@
         },
         {
           "indexed": false,
-          "internalType": "enum EquipmentAllocation.Condition",
+          "internalType": "uint8",
           "name": "condition",
           "type": "uint8"
         },
@@ -580,7 +580,7 @@
           "type": "bytes32"
         },
         {
-          "internalType": "enum EquipmentAllocation.Condition",
+          "internalType": "uint8",
           "name": "condition",
           "type": "uint8"
         }
@@ -657,7 +657,7 @@
           "type": "bytes32"
         },
         {
-          "internalType": "enum EquipmentAllocation.Condition",
+          "internalType": "uint8",
           "name": "condition",
           "type": "uint8"
         }
@@ -693,7 +693,7 @@
           "type": "bytes32"
         },
         {
-          "internalType": "enum EquipmentAllocation.Condition",
+          "internalType": "uint8",
           "name": "condition",
           "type": "uint8"
         }
