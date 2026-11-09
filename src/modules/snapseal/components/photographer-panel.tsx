@@ -68,6 +68,12 @@ export function PhotographerPanel({
 
   const targetWallet = required ? clientWallet : pastedWallet.trim();
   const targetValid = !!targetWallet && isAddress(targetWallet);
+  // The contract refuses a gallery whose photographer IS the client: catch it before MetaMask.
+  const sameWallet =
+    !!address &&
+    !!targetWallet &&
+    targetValid &&
+    address.toLowerCase() === targetWallet.toLowerCase();
 
   async function record(txHash: string) {
     const result = await recordSealAction({ galerieId: galerie.id, txHash });
@@ -130,7 +136,44 @@ export function PhotographerPanel({
                 Sealed for the client&apos;s linked wallet{" "}
                 <code className="text-xs">{shorten(clientWallet)}</code>.
               </p>
-            ) : (
+            ) : null
+          ) : null}
+
+          {sameWallet && (
+            <div className="space-y-2 rounded-lg bg-destructive/10 p-3">
+              <p className="flex items-start gap-2 text-sm text-destructive-text">
+                <TriangleAlert className="mt-0.5 size-4 shrink-0" aria-hidden />
+                <span>
+                  You&apos;re connected with the client&apos;s wallet{" "}
+                  <code className="text-xs">{shorten(targetWallet!)}</code>: the photographer and
+                  the client must use two different wallets, or the contract refuses.{" "}
+                  {required
+                    ? `Click "Choose account" and pick your own wallet. If this is your wallet, it is linked to ${galerie.client.prenom}'s account by mistake: link it in your profile (Change wallet moves it to you), then ${galerie.client.prenom} links their own.`
+                    : 'Click "Choose account" and pick your own wallet, or enter the client\'s address.'}
+                </span>
+              </p>
+              {required && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={asking}
+                  onClick={() =>
+                    startAsking(async () => {
+                      const result = await askClientWalletAction(galerie.id);
+                      if (result.ok) toast.success("The client has been asked to link a wallet.");
+                      else toast.error(result.error);
+                    })
+                  }
+                >
+                  <Send aria-hidden />
+                  Ask {galerie.client.prenom} to link their own wallet
+                </Button>
+              )}
+            </div>
+          )}
+
+          {required ? (
+            clientWallet ? null : (
               <div className="space-y-2 rounded-lg bg-warning/10 p-3">
                 <p className="flex items-start gap-2 text-sm text-warning-text">
                   <TriangleAlert className="mt-0.5 size-4 shrink-0" aria-hidden />
@@ -176,7 +219,7 @@ export function PhotographerPanel({
             </Button>
           ) : (
             <Button
-              disabled={busy || !address || !targetValid}
+              disabled={busy || !address || !targetValid || sameWallet}
               onClick={() => run("Gallery sealed on the blockchain", createOnChain)}
             >
               {busy ? "Waiting for the blockchain…" : "Publish the gallery on the blockchain"}
