@@ -16,7 +16,7 @@ export const metadata: Metadata = { title: "Blockchain proof" };
 export default async function GalerieSnapSealPage({
   params,
 }: PageProps<"/dashboard/galeries/[id]/snapseal">) {
-  await requireArea("photos-galeries");
+  const user = await requireArea("photos-galeries");
   const { id } = await params;
   const galerie = await getGalerieById(id);
   if (!galerie) notFound();
@@ -56,6 +56,7 @@ export default async function GalerieSnapSealPage({
           photos={photos}
           clientWallet={clientWallet}
           unsealedPhotos={unsealedPhotos}
+          isAdmin={user.role === "ADMIN"}
         />
       ) : (
         <SnapSealNotConfigured />

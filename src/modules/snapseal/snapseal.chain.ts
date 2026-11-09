@@ -52,8 +52,17 @@ export function readOnlyProvider(config: SnapSealConfig): Provider {
 export async function connectWallet(
   wallet: InjectedWallet,
   config: SnapSealConfig,
+  /** Open MetaMask's account picker: the site otherwise keeps the account it first saw. */
+  pick = false,
 ): Promise<JsonRpcSigner> {
   const chainId = `0x${config.chainId.toString(16)}`;
+  if (pick) {
+    try {
+      await wallet.request({ method: "wallet_requestPermissions", params: [{ eth_accounts: {} }] });
+    } catch (error) {
+      if ((error as { code?: number }).code !== -32601) throw error; // no picker: usual request
+    }
+  }
   await wallet.request({ method: "eth_requestAccounts" });
   try {
     await wallet.request({ method: "wallet_switchEthereumChain", params: [{ chainId }] });

@@ -17,6 +17,7 @@ import {
   buildDeliveryAction,
   prepareSealAction,
   recordSealAction,
+  resetSealAction,
   syncProofAction,
 } from "../snapseal.actions";
 import { deliveryContract, registryContract, shorten } from "../snapseal.chain";
@@ -38,7 +39,10 @@ export function PhotographerPanel({
   photos,
   clientWallet,
   unsealedPhotos,
+  isAdmin = false,
 }: {
+  /** Admins can reset a seal that isn't delivered yet (sealed with the wrong wallets). */
+  isAdmin?: boolean;
   config: SnapSealConfig;
   galerie: Galerie;
   seal: GalerieSealDTO | null;
@@ -58,6 +62,8 @@ export function PhotographerPanel({
   const [package_, setPackage] = useState<LivraisonDTO | null>(seal?.livraison ?? null);
   const [building, startBuilding] = useTransition();
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [resetOpen, setResetOpen] = useState(false);
+  const [resetting, startResetting] = useTransition();
   const [asking, startAsking] = useTransition();
 
   const targetWallet = required ? clientWallet : pastedWallet.trim();
@@ -205,6 +211,7 @@ export function PhotographerPanel({
         expectedLabel="photographer"
         networkName={config.networkName}
         onConnect={connect}
+        canReset={isAdmin && !seal.deliveredAt && !chain?.deliveredAt}
       />
       {chainError && <p className="text-sm text-destructive-text">{chainError}</p>}
       <SealTimeline chain={chain} />
@@ -223,7 +230,10 @@ export function PhotographerPanel({
         {required && galerie.statut === "EN_TRI" && (
           <p className="text-sm text-muted-foreground">
             Sealed: you can now{" "}
-            <Link href={`/dashboard/galeries/${galerie.id}`} className="text-primary-text hover:underline">
+            <Link
+              href={`/dashboard/galeries/${galerie.id}`}
+              className="text-primary-text hover:underline"
+            >
               share the gallery with the client
             </Link>
             .
@@ -262,7 +272,10 @@ export function PhotographerPanel({
                     title={`Retouch ${p.nomFichier}`}
                   >
                     <SafeImage
-                      src={photoById.get(p.photoId)?.urlMiniature ?? `/api/photos/${p.photoId}/miniature`}
+                      src={
+                        photoById.get(p.photoId)?.urlMiniature ??
+                        `/api/photos/${p.photoId}/miniature`
+                      }
                       alt={p.nomFichier}
                       fill
                       sizes="120px"
@@ -341,8 +354,10 @@ export function PhotographerPanel({
           ) : (
             <p className="text-sm text-success-text">
               Published on the blockchain
-              {package_ ? ` · ${package_.photoIds.length} photos, ${formatBytes(package_.taille)}` : ""}.
-              {chain?.confirmedAt ? " The client confirmed the reception." : ""}
+              {package_
+                ? ` · ${package_.photoIds.length} photos, ${formatBytes(package_.taille)}`
+                : ""}
+              .{chain?.confirmedAt ? " The client confirmed the reception." : ""}
             </p>
           )}
           <p className="text-xs break-all text-muted-foreground">SHA-256: {onChainDelivery}</p>
@@ -356,6 +371,42 @@ export function PhotographerPanel({
           )}
         </SealSection>
       )}
+
+      {isAdmin && !seal.deliveredAt && !chain?.deliveredAt && (
+        <SealSection title="Wrong wallets?">
+          <p className="text-sm text-muted-foreground">
+            Sealed with the wrong photographer or client wallet? Reset the seal, link the right
+            wallets in the profiles, then seal again. The delivery isn&apos;t published yet, so
+            nothing is lost: the old on-chain record just stops counting for this gallery.
+          </p>
+          <Button variant="outline" onClick={() => setResetOpen(true)} disabled={resetting}>
+            Reset seal
+          </Button>
+        </SealSection>
+      )}
+
+      <ConfirmDialog
+        open={resetOpen}
+        onOpenChange={setResetOpen}
+        title="Reset this gallery's seal?"
+        description={`On-chain gallery #${seal.onChainId} will no longer count for this gallery, and its wallets can be linked elsewhere again. You can then seal the gallery again (MetaMask will ask you to sign). The client's selection, if any, must be made again.`}
+        confirmLabel="Reset seal"
+        tone="destructive"
+        pending={resetting}
+        onConfirm={() =>
+          startResetting(async () => {
+            const result = await resetSealAction(galerie.id);
+            if (!result.ok) {
+              toast.error(result.error);
+              return;
+            }
+            setResetOpen(false);
+            setPackage(null);
+            toast.success("Seal reset: you can seal the gallery again.");
+            router.refresh();
+          })
+        }
+      />
 
       <ConfirmDialog
         open={confirmOpen}

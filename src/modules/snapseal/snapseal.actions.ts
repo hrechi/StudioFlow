@@ -15,7 +15,7 @@ import { getGalerieById } from "@/modules/photos-galeries/galerie.service";
 import { createNotification } from "@/modules/utilisateurs/notification.service";
 import { getUtilisateurWallet } from "@/modules/utilisateurs/utilisateur.service";
 import { buildDeliveryPackage } from "./snapseal.delivery";
-import { loadProofContext, syncGalerieProof } from "./snapseal.guards";
+import { deleteSealsOfGalerie, loadProofContext, syncGalerieProof } from "./snapseal.guards";
 import { computeGalerieHashes, getSnapSealConfig, verifyAndRecordSeal } from "./snapseal.service";
 import { SNAPSEAL_MAX_PHOTOS, type LivraisonDTO, type SealedPhoto } from "./snapseal.types";
 
@@ -23,6 +23,37 @@ const recordSealSchema = z.object({
   galerieId: z.string().min(1),
   txHash: z.string().regex(/^0x[0-9a-fA-F]{64}$/),
 });
+
+/**
+ * Admin: forgets a seal that isn't delivered yet (e.g. sealed with the wrong wallet), so the
+ * gallery can be sealed again with the right photographer and client wallets. The old on-chain
+ * record stays on the blockchain (it can't be erased) but no longer counts for this gallery;
+ * its wallets are free to move again.
+ */
+export async function resetSealAction(galerieId: string): Promise<ActionResult> {
+  const user = await requireUser();
+  if (user.role !== "ADMIN") return failure("Only an admin can reset a seal.");
+  try {
+    const ctx = await loadProofContext(galerieId);
+    if (!ctx?.seal) return failure("This gallery has no seal to reset.");
+    let deliveredAt = ctx.seal.deliveredAt;
+    try {
+      deliveredAt = (await syncGalerieProof(ctx.galerie._id)).seal?.deliveredAt ?? deliveredAt;
+    } catch {
+      // Chain unreachable: decide on what was last recorded.
+    }
+    if (deliveredAt) {
+      return failure(
+        "The delivery is already published on the blockchain: this seal can't be reset.",
+      );
+    }
+    await deleteSealsOfGalerie(ctx.galerie._id);
+    revalidateProof(galerieId);
+    return success();
+  } catch (error) {
+    return toFailure(error);
+  }
+}
 
 function revalidateProof(galerieId: string) {
   revalidatePath(`/dashboard/galeries/${galerieId}`, "layout");
@@ -70,7 +101,10 @@ export async function recordSealAction(input: unknown): Promise<ActionResult> {
 
 const buildDeliverySchema = z.object({
   galerieId: z.string().regex(/^[a-f\d]{24}$/i),
-  photoIds: z.array(z.string().regex(/^[a-f\d]{24}$/i)).min(1, "Choose at least one photo").max(SNAPSEAL_MAX_PHOTOS * 2),
+  photoIds: z
+    .array(z.string().regex(/^[a-f\d]{24}$/i))
+    .min(1, "Choose at least one photo")
+    .max(SNAPSEAL_MAX_PHOTOS * 2),
 });
 
 /**

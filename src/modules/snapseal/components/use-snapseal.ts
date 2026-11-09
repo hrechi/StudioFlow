@@ -56,20 +56,23 @@ export function useSnapSeal(config: SnapSealConfig, onChainId: number | null) {
     };
   }, []);
 
-  const connect = useCallback(async () => {
-    const wallet = getInjectedWallet();
-    if (!wallet) {
-      toast.error("MetaMask was not found in this browser.");
-      return;
-    }
-    try {
-      const nextSigner = await connectWallet(wallet, config);
-      setSigner(nextSigner);
-      setAddress(await nextSigner.getAddress());
-    } catch (error) {
-      toast.error(explainChainError(error));
-    }
-  }, [config]);
+  const connect = useCallback(
+    async (pick = false) => {
+      const wallet = getInjectedWallet();
+      if (!wallet) {
+        toast.error("MetaMask was not found in this browser.");
+        return;
+      }
+      try {
+        const nextSigner = await connectWallet(wallet, config, pick);
+        setSigner(nextSigner);
+        setAddress(await nextSigner.getAddress());
+      } catch (error) {
+        toast.error(explainChainError(error));
+      }
+    },
+    [config],
+  );
 
   /** Runs one step with the busy state, the error toast and a re-read of the chain. */
   const run = useCallback(

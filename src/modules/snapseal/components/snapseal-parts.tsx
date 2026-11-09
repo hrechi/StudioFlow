@@ -17,12 +17,16 @@ export function WalletCard({
   expectedLabel,
   networkName,
   onConnect,
+  canReset = false,
 }: {
   address: string | null;
   expected?: string;
   expectedLabel: string;
   networkName: string;
-  onConnect: () => void;
+  /** `pick`: open MetaMask's account picker to use another account. */
+  onConnect: (pick?: boolean) => void;
+  /** The seal can be reset on this page (shown in the wrong-wallet hint). */
+  canReset?: boolean;
 }) {
   const wrongWallet = !!address && !!expected && !sameAddress(address, expected);
   return (
@@ -40,12 +44,20 @@ export function WalletCard({
             </span>
           )}
         </div>
-        {!address && <Button onClick={onConnect}>Connect MetaMask</Button>}
+        {!address ? (
+          <Button onClick={() => onConnect(true)}>Connect MetaMask</Button>
+        ) : (
+          <Button variant="outline" size="sm" onClick={() => onConnect(true)}>
+            Choose account
+          </Button>
+        )}
         {wrongWallet && expected && (
           <p className="flex w-full items-center gap-2 text-sm text-destructive-text">
             <TriangleAlert className="size-4 shrink-0" aria-hidden />
-            This gallery expects the {expectedLabel} wallet {shorten(expected)}. Switch account in
-            MetaMask, or the contract will refuse.
+            This gallery was sealed with the {expectedLabel} wallet {shorten(expected)}: use
+            &quot;Choose account&quot; to pick it
+            {canReset ? ", or reset the seal below to seal again with another wallet" : ""}.
+            Otherwise the contract will refuse.
           </p>
         )}
       </CardContent>

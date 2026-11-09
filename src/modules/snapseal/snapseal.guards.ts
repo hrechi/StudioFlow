@@ -122,7 +122,9 @@ export function planProofSync(input: {
 }
 
 /** True when the delivery on-chain is the package stored here (what the client may download). */
-export function deliveryVerified(seal: Pick<IGalerieSeal, "deliveredAt" | "deliveryHash" | "livraison">) {
+export function deliveryVerified(
+  seal: Pick<IGalerieSeal, "deliveredAt" | "deliveryHash" | "livraison">,
+) {
   return (
     !!seal.deliveredAt &&
     !!seal.livraison &&
@@ -228,7 +230,9 @@ export async function assertUploadAllowed(
   const ctx = await loadProofContext(galerieId);
   if (!ctx?.required || !ctx.seal) return;
   if (!rootOriginalId) {
-    throw new ServiceError(`${LOCKED}photos can't be added anymore. Retouch them in Photo Editing instead.`);
+    throw new ServiceError(
+      `${LOCKED}photos can't be added anymore. Retouch them in Photo Editing instead.`,
+    );
   }
   if (!ctx.seal.photos.some((p) => p.photo.equals(rootOriginalId))) {
     throw new ServiceError(`${LOCKED}only edited copies of its sealed photos can be added.`);
@@ -289,8 +293,8 @@ export async function assertWalletChangeAllowed(
   if (open) {
     throw new ServiceError(
       otherAccount
-        ? "This wallet is used by another account for a sealed gallery that isn't finished yet, so it can't move now. Pick another MetaMask account."
-        : "One of your galleries is sealed with your current wallet and isn't finished yet. Keep this wallet until you confirm the reception.",
+        ? "This wallet is still needed by another account's sealed gallery that isn't finished. An admin can reset that seal (gallery → Blockchain proof → Reset seal); then link it again here."
+        : "One of your galleries is sealed with your current wallet and isn't finished yet. Keep this wallet until you confirm the reception, or ask the studio to reset that seal.",
     );
   }
 }
