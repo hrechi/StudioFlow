@@ -46,8 +46,7 @@ async function main() {
   console.log(`EquipmentAllocation deployed: ${address}`);
 
   if (sepolia) {
-    console.log("
-Add these to Vercel (Settings → Environment Variables), then redeploy:");
+    console.log("\nAdd these to Vercel (Settings → Environment Variables), then redeploy:");
     console.log(`ALLOCATION_CONTRACT_ADDRESS=${address}`);
     console.log(`NEXT_PUBLIC_CHAIN_ID=${chainId}`);
     return;
