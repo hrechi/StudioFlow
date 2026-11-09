@@ -116,11 +116,14 @@ export function DonutChart({
   centerValue,
   centerLabel,
   label,
+  compact = false,
 }: {
   slices: DonutSlice[];
   centerValue: string | number;
   centerLabel: string;
   label: string;
+  /** Smaller ring, more room for the legend (narrow cards, e.g. the dashboard). */
+  compact?: boolean;
 }) {
   const data = slices.filter((s) => s.value > 0);
   const total = data.reduce((a, s) => a + s.value, 0);
@@ -129,16 +132,18 @@ export function DonutChart({
   }
   const r = 52;
   const c = 2 * Math.PI * r;
-  let offset = 0;
+  // Where each slice starts on the ring (computed up front: no mutation while rendering).
+  const lengths = data.map((s) => (s.value / total) * c);
+  const starts = lengths.map((_, i) => lengths.slice(0, i).reduce((a, l) => a + l, 0));
   return (
     <div className="flex flex-col items-center gap-5 sm:flex-row sm:items-center">
-      <div className="relative size-40 shrink-0">
+      <div className={cn("relative shrink-0", compact ? "size-32" : "size-40")}>
         <svg viewBox="0 0 140 140" role="img" aria-label={label} className="size-full -rotate-90">
           <circle cx="70" cy="70" r={r} fill="none" stroke="currentColor" strokeWidth="16" className="text-muted" />
           {data.map((s, i) => {
-            const len = (s.value / total) * c;
+            const len = lengths[i];
             const gap = data.length > 1 ? 2 : 0;
-            const el = (
+            return (
               <circle
                 key={s.label}
                 cx="70"
@@ -148,13 +153,11 @@ export function DonutChart({
                 stroke={s.color ?? CHART_COLORS[i % CHART_COLORS.length]}
                 strokeWidth="16"
                 strokeDasharray={`${Math.max(len - gap, 0.5)} ${c}`}
-                strokeDashoffset={-offset}
+                strokeDashoffset={-starts[i]}
               >
                 <title>{`${s.label}: ${s.display ?? s.value}`}</title>
               </circle>
             );
-            offset += len;
-            return el;
           })}
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center text-center">

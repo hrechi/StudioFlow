@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
+import { DashboardCharts } from "@/components/dashboard/dashboard-charts";
 import { AIPanel } from "@/components/shared/ai-panel";
 import { SafeImage } from "@/components/shared/safe-image";
 import { StatCard } from "@/components/shared/stat-card";
@@ -130,6 +131,17 @@ export default async function DashboardPage() {
       <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
         {stats.map((s) => <StatCard key={s.label} label={s.label} value={s.value} icon={s.icon} tone={s.tone} hint={s.hint} />)}
       </div>
+
+      <DashboardCharts
+        isAdmin={user.role === "ADMIN"}
+        canSeances={can(user.role, "seances")}
+        seances={seances}
+        taches={taches}
+        factures={factures}
+        galeriesParStatut={galeriesParStatut}
+        photosParCulling={photosParCulling}
+        now={now}
+      />
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]">
         <div className="space-y-6">
