@@ -15,7 +15,12 @@ import {
   type Eip1193Provider,
 } from "ethers";
 import { CONDITION_INDEX, CONTRACT_ERROR_MESSAGES, hashId, toChainTime } from "./allocation.rules";
-import type { ChainConfig, EtatEquipement, EtatRetour } from "./allocation.types";
+import {
+  type ChainConfig,
+  type EtatEquipement,
+  type EtatRetour,
+  chainName,
+} from "./allocation.types";
 import deployment from "./contract/EquipmentAllocation.json";
 
 type MetaMask = Eip1193Provider & {
@@ -162,7 +167,7 @@ export async function ensureChain(config: ChainConfig): Promise<void> {
         params: [
           {
             chainId: hexChainId(config.chainId),
-            chainName: "Ganache StudioFlow",
+            chainName: chainName(config.chainId),
             rpcUrls: [config.rpcUrl],
             nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
           },

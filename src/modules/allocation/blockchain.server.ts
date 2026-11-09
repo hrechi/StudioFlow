@@ -8,7 +8,7 @@
  * emitted the expected event with the expected values.
  */
 import "server-only";
-import { Contract, JsonRpcProvider, Network, type EventLog, type Log } from "ethers";
+import { Contract, isAddress, JsonRpcProvider, Network, type EventLog, type Log } from "ethers";
 import { ServiceError } from "@/lib/action-result";
 import {
   ACTION_OF_EVENT,
@@ -27,14 +27,19 @@ import type {
 } from "./allocation.types";
 import deployment from "./contract/EquipmentAllocation.json";
 
-const CONTRACT_ADDRESS = deployment.address.toLowerCase();
+/** Online (Sepolia) the address comes from the environment; locally from the JSON (Ganache). */
+const ENV_ADDRESS = process.env.ALLOCATION_CONTRACT_ADDRESS?.trim() ?? "";
+const ADDRESS = isAddress(ENV_ADDRESS) ? ENV_ADDRESS : deployment.address;
+const CONTRACT_ADDRESS = ADDRESS.toLowerCase();
 const CHAIN_ID = Number(process.env.NEXT_PUBLIC_CHAIN_ID ?? deployment.chainId);
 /** The server may reach Ganache by another URL than the browser (e.g. from Docker). */
 const SERVER_RPC_URL =
   process.env.GANACHE_RPC_URL ?? process.env.NEXT_PUBLIC_RPC_URL ?? "http://127.0.0.1:8545";
 
 const OFFLINE =
-  "The blockchain is unreachable. Start the shared Ganache (npm run ganache in the contracts folder) and try again.";
+  CHAIN_ID === 1337
+    ? "The blockchain is unreachable. Start the shared Ganache (npm run ganache in the contracts folder) and try again."
+    : "The blockchain is unreachable right now. Please try again in a moment.";
 
 let provider: JsonRpcProvider | undefined;
 let contract: Contract | undefined;
@@ -73,7 +78,7 @@ async function onChain<T>(fn: (c: Contract, p: JsonRpcProvider) => Promise<T>): 
 /** Public settings for the browser: where the contract is and which chain MetaMask must use. */
 export function getChainConfig(): ChainConfig {
   return {
-    address: deployment.address,
+    address: ADDRESS,
     chainId: CHAIN_ID,
     rpcUrl: process.env.NEXT_PUBLIC_RPC_URL ?? "http://127.0.0.1:8545",
   };

@@ -9,6 +9,8 @@ dotenv.config({ path: fileURLToPath(new URL("../.env", import.meta.url)), quiet:
 dotenv.config({ path: fileURLToPath(new URL("../.env.local", import.meta.url)), quiet: true, override: true });
 
 const accounts = process.env.STUDIO_PRIVATE_KEY ? [process.env.STUDIO_PRIVATE_KEY] : [];
+// Sepolia: the studio SERVER account's own key, so the local Ganache settings stay untouched.
+const sepoliaStudioKey = process.env.SEPOLIA_STUDIO_PRIVATE_KEY?.trim();
 
 const config: HardhatUserConfig = {
   solidity: {
@@ -22,11 +24,11 @@ const config: HardhatUserConfig = {
       chainId: 1337,
       accounts,
     },
-    // Sepolia testnet (production / Vercel)
+    // Sepolia testnet (the deployed site): npm run deploy:sepolia / deploy:allocation:sepolia
     sepolia: {
-      url: process.env.BLOCKCHAIN_RPC_URL ?? "",
+      url: process.env.SEPOLIA_RPC_URL?.trim() || "https://ethereum-sepolia-rpc.publicnode.com",
       chainId: 11155111,
-      accounts,
+      accounts: sepoliaStudioKey ? [sepoliaStudioKey] : [],
     },
   },
 };

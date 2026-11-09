@@ -5,7 +5,7 @@ import { Copy } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
-/** Shortened transaction hash with a copy button (Ganache has no block explorer). */
+/** Shortened transaction hash with a copy button (works on Ganache, which has no block explorer). */
 export function TxHash({
   hash,
   block,

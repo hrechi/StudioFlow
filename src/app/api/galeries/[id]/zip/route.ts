@@ -1,21 +1,12 @@
 /* Module : Gestion des Photos & Galeries · Responsable : Louay Herichi */
-import { Zip, ZipPassThrough } from "fflate";
 import type { NextRequest } from "next/server";
 import { getCurrentUser } from "@/lib/guards";
+import { zipToWebStream } from "@/lib/streams";
 import { can } from "@/lib/rbac";
 import { getGalerieById } from "@/modules/photos-galeries/galerie.service";
 import { attachmentHeader } from "@/modules/photos-galeries/photo-file-response";
 import { listDownloadablePhotos } from "@/modules/photos-galeries/photo.service";
 import { clientOriginalsGate, loadProofContext } from "@/modules/snapseal/snapseal.guards";
-
-/** Same file name twice in a gallery → "name (2).jpg". */
-function uniqueName(name: string, used: Map<string, number>): string {
-  const count = (used.get(name) ?? 0) + 1;
-  used.set(name, count);
-  if (count === 1) return name;
-  const dot = name.lastIndexOf(".");
-  return dot > 0 ? `${name.slice(0, dot)} (${count})${name.slice(dot)}` : `${name} (${count})`;
-}
 
 /**
  * "Download all": the gallery's photos as one ZIP (every photo for staff, the non-rejected ones for the client),
@@ -61,27 +52,7 @@ export async function GET(_request: NextRequest, ctx: RouteContext<"/api/galerie
 
   // Staff get every photo of the gallery; the client never sees the ones culled out.
   const photos = await listDownloadablePhotos(galerie.id, { includeRejected: isStaff, onlyIds });
-  const stream = new ReadableStream<Uint8Array>({
-    async start(controller) {
-      const zip = new Zip((error, chunk, final) => {
-        if (error) return controller.error(error);
-        controller.enqueue(chunk);
-        if (final) controller.close();
-      });
-      const used = new Map<string, number>();
-      try {
-        for (const photo of photos) {
-          const entry = new ZipPassThrough(uniqueName(photo.nomFichier, used));
-          zip.add(entry);
-          for await (const chunk of await photo.read()) entry.push(new Uint8Array(chunk));
-          entry.push(new Uint8Array(0), true);
-        }
-        zip.end();
-      } catch (error) {
-        controller.error(error);
-      }
-    },
-  });
+  const stream = zipToWebStream(photos);
 
   const filename = `${galerie.titre.replace(/[\/:*?"<>|]+/g, "-").trim() || "gallery"}.zip`;
   return new Response(stream, {

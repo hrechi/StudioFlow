@@ -3,11 +3,14 @@ require("@nomicfoundation/hardhat-ethers");
 
 const path = require("node:path");
 
-// contracts/.env is optional: only deploying to Sepolia needs it.
-try {
-  process.loadEnvFile(path.join(__dirname, ".env"));
-} catch {
-  // No .env file.
+// Settings come from the StudioFlow .env (one .env for the whole project); a contracts/.env,
+// if any, is read too. Only deploying to Sepolia needs them (SEPOLIA_PRIVATE_KEY, SEPOLIA_RPC_URL).
+for (const file of [path.join(__dirname, "..", ".env"), path.join(__dirname, ".env")]) {
+  try {
+    process.loadEnvFile(file);
+  } catch {
+    // No such file.
+  }
 }
 
 const sepoliaKey = process.env.SEPOLIA_PRIVATE_KEY?.trim();

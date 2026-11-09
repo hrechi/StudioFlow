@@ -5,6 +5,7 @@
 import "server-only";
 import { randomBytes } from "node:crypto";
 import { Readable } from "node:stream";
+import { nodeStreamToWeb } from "@/lib/streams";
 import mongoose, { Types } from "mongoose";
 import sharp from "sharp";
 import { connectDB } from "@/lib/db";
@@ -183,7 +184,7 @@ export async function openApercu(token: string) {
   const b = await bucket();
   const [file] = await b.find({ _id: doc.apercu }).limit(1).toArray();
   if (!file) return null;
-  return { stream: Readable.toWeb(b.openDownloadStream(doc.apercu)) as ReadableStream<Uint8Array>, length: file.length };
+  return { stream: nodeStreamToWeb(b.openDownloadStream(doc.apercu)), length: file.length };
 }
 
 // ---------------------------------------------------------------------------
@@ -238,7 +239,7 @@ export async function openImage(id: string, actor: Actor | null) {
     }));
   if (!autorise) return null;
   return {
-    stream: Readable.toWeb(b.openDownloadStream(_id)) as ReadableStream<Uint8Array>,
+    stream: nodeStreamToWeb(b.openDownloadStream(_id)),
     length: file.length,
     contentType: (file.metadata?.contentType as string | undefined) ?? "image/webp",
   };

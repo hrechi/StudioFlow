@@ -27,7 +27,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { getWalletLinkMessageAction, linkWalletAction } from "../allocation.actions";
-import type { ChainConfig } from "../allocation.types";
+import { chainName, type ChainConfig } from "../allocation.types";
 import {
   connectWallet,
   ensureChain,
@@ -218,7 +218,11 @@ export function WalletPanel({ isAdmin }: { isAdmin: boolean }) {
   } else if (!rightChain) {
     body = (
       <Line icon={AlertTriangle} tone="warn">
-        MetaMask is on another network. Switch to <strong>Ganache (chain {config.chainId})</strong>.
+        MetaMask is on another network. Switch to{" "}
+        <strong>
+          {chainName(config.chainId)} (chain {config.chainId})
+        </strong>
+        .
       </Line>
     );
     action = (
@@ -244,7 +248,7 @@ export function WalletPanel({ isAdmin }: { isAdmin: boolean }) {
     body = (
       <Line icon={ShieldX} tone="warn">
         This wallet is not the contract owner: admin steps (confirm, return, register) will be
-        refused. Link the Ganache account #0 instead.
+        refused. Link the wallet that deployed the contract (the studio admin&apos;s) instead.
       </Line>
     );
   } else if (!isAdmin && !status.staff) {
@@ -278,7 +282,7 @@ export function WalletPanel({ isAdmin }: { isAdmin: boolean }) {
                 rightChain ? "bg-success/10 text-success-text" : "bg-warning/10 text-warning-text",
               )}
             >
-              {rightChain ? `Ganache · ${config.chainId}` : "Wrong network"}
+              {rightChain ? `${chainName(config.chainId)} · ${config.chainId}` : "Wrong network"}
             </span>
           )}
           {linked && status.owner && (
@@ -296,12 +300,20 @@ export function WalletPanel({ isAdmin }: { isAdmin: boolean }) {
         </div>
         {!status.chainReachable ? (
           <Line icon={ServerOff} tone="danger">
-            Ganache is offline: start it with <code>npm run ganache</code> in the contracts folder.
+            The {chainName(config.chainId)} network can&apos;t be reached right now
+            {config.chainId === 1337 ? (
+              <>
+                : start it with <code>npm run ganache</code> in the contracts folder.
+              </>
+            ) : (
+              ". Try again in a moment."
+            )}
           </Line>
         ) : status.chainDeployed === false ? (
           <Line icon={ServerOff} tone="danger">
-            The allocation contract is not deployed on this Ganache: run{" "}
-            <code>npm run deploy:allocation</code> in the reframe-blockchain folder.
+            The allocation contract is not deployed on {chainName(config.chainId)}: run{" "}
+            <code>npm run deploy:allocation</code> in the reframe-blockchain folder (see
+            DEPLOYMENT.md).
           </Line>
         ) : (
           body

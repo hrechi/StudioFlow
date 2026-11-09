@@ -7,6 +7,12 @@ const nextConfig: NextConfig = {
   // Docker build only (see Dockerfile): self-contained server in .next/standalone.
   // Off locally so `npm run start` keeps working as usual.
   output: process.env.NEXT_OUTPUT_STANDALONE === "1" ? "standalone" : undefined,
+  // Vercel: the invitation pages check on disk which music files the studio added
+  // (invitation.musique.ts); public/ is not on the server's disk there unless traced in.
+  outputFileTracingIncludes: {
+    "/invitation/*": ["./public/invitations/musique/**/*"],
+    "/espace-client/invitations/*": ["./public/invitations/musique/**/*"],
+  },
   // Cache Components is intentionally off: every page here reads the session or
   // MongoDB, so the classic dynamic rendering model is simpler for every developer.
   // See README > "Next.js notes" before turning it on.

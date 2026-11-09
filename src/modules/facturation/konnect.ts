@@ -1,4 +1,5 @@
 import "server-only";
+import { siteUrl } from "@/lib/site-url";
 
 /**
  * Konnect (konnect.network) — Tunisian payment gateway: bank card, e-Dinar and Konnect wallet,
@@ -32,7 +33,7 @@ export function passerellesDisponibles(): Passerelle[] {
 
 /** Public base URL of the app, used for the gateway callback (the browser is redirected there). */
 export function appUrl(): string {
-  return (process.env.APP_URL || process.env.AUTH_URL || "http://localhost:3000").replace(/\/$/, "");
+  return siteUrl();
 }
 
 async function call<T>(path: string, init: RequestInit): Promise<T> {

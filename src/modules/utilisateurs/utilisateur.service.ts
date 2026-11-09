@@ -139,6 +139,22 @@ export async function getUtilisateurWallet(id: string): Promise<string | null> {
   return doc?.walletAddress ?? null;
 }
 
+/** Guided tour: on until the user has seen it (a missing field means "never shown yet"). */
+export async function isTutorialEnabled(id: string): Promise<boolean> {
+  const _id = toObjectId(id);
+  if (!_id) return false;
+  await connectDB();
+  const doc = await Utilisateur.findById(_id).select("tutorielActif").lean<{ tutorielActif?: boolean }>();
+  return !!doc && doc.tutorielActif !== false;
+}
+
+export async function setTutorialEnabled(id: string, enabled: boolean): Promise<void> {
+  const _id = toObjectId(id);
+  if (!_id) return;
+  await connectDB();
+  await Utilisateur.updateOne({ _id }, { $set: { tutorielActif: enabled } });
+}
+
 /** SnapSeal: saves a wallet already proven by a signature (snapseal linkWalletAction only). */
 export async function setUtilisateurWallet(id: string, walletAddress: string): Promise<void> {
   const _id = toObjectId(id);

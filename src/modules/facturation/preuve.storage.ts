@@ -1,5 +1,6 @@
 import "server-only";
 import { Readable } from "node:stream";
+import { nodeStreamToWeb } from "@/lib/streams";
 import mongoose, { Types } from "mongoose";
 import { connectDB } from "@/lib/db";
 
@@ -30,7 +31,7 @@ export async function openPreuve(id: Types.ObjectId) {
   const [file] = await bucket.find({ _id: id }).limit(1).toArray();
   if (!file) return null;
   return {
-    stream: Readable.toWeb(bucket.openDownloadStream(id)) as ReadableStream<Uint8Array>,
+    stream: nodeStreamToWeb(bucket.openDownloadStream(id)),
     contentType: (file.metadata?.contentType as string | undefined) ?? "application/octet-stream",
     length: file.length,
     filename: file.filename,

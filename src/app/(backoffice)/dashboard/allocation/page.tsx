@@ -1,6 +1,7 @@
 /* Module : Allocation Blockchain · Responsable : Mohamed Yessine Nehdi */
 import { Blocks, CheckCheck, Hourglass, PackageOpen, ServerOff } from "lucide-react";
 import type { Metadata } from "next";
+import { chainName } from "@/modules/allocation/allocation.types";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatCard } from "@/components/shared/stat-card";
 import { requireArea } from "@/lib/guards";
@@ -38,11 +39,17 @@ export default async function AllocationPage() {
   const chainOk = chain.reachable && chain.deployed;
   const count = (statut: string) => allocations.filter((a) => a.statut === statut).length;
 
+  const config = getChainConfig();
+  const network = chainName(config.chainId);
   return (
     <WalletProvider
-      config={getChainConfig()}
-      // Two facts, two flags: "offline" only when Ganache really can't be reached.
-      status={{ ...wallet, chainReachable: chain.reachable && wallet.chainReachable, chainDeployed: chain.deployed }}
+      config={config}
+      // Two facts, two flags: "offline" only when the chain really can't be reached.
+      status={{
+        ...wallet,
+        chainReachable: chain.reachable && wallet.chainReachable,
+        chainDeployed: chain.deployed,
+      }}
     >
       <div className="space-y-6">
         <PageHeader
@@ -54,8 +61,10 @@ export default async function AllocationPage() {
           <p className="flex items-start gap-2 rounded-xl bg-destructive/10 p-4 text-sm text-destructive-text ring-1 ring-destructive/20">
             <ServerOff className="mt-0.5 size-4 shrink-0" aria-hidden />
             {chain.reachable
-              ? "Ganache is running but the EquipmentAllocation contract is not deployed there. Run npm run deploy:allocation in the reframe-blockchain folder, then restart the app."
-              : "Ganache is offline. Run npm run ganache in the contracts folder (keep it open), then reload."}
+              ? `${network} is reachable but the EquipmentAllocation contract is not deployed there. Run npm run deploy:allocation in the reframe-blockchain folder (see DEPLOYMENT.md), then redeploy the app.`
+              : network === "Ganache"
+                ? "Ganache is offline. Run npm run ganache in the contracts folder (keep it open), then reload."
+                : `${network} can't be reached right now. Try again in a moment.`}
           </p>
         )}
 

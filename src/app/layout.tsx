@@ -9,6 +9,7 @@ import {
   PortfolioTransitionProvider,
   PortfolioTransitionOverlay,
 } from "@/modules/portfolio/components/transitions";
+import { siteUrl } from "@/lib/site-url";
 import "./globals.css";
 
 // next/font/google removed: requires internet access at build time (fonts.gstatic.com).
@@ -18,7 +19,7 @@ const DESCRIPTION =
   "ReFrame, photography studio in Tunis: weddings, portraits, products and events. Book your session, discover your private gallery and approve your selection online.";
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.SITE_URL ?? "http://localhost:3000"),
+  metadataBase: new URL(siteUrl()),
   applicationName: "ReFrame",
   title: {
     default: "ReFrame — Photography studio",

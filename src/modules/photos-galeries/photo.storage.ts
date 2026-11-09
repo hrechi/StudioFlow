@@ -3,6 +3,7 @@ import { Readable } from "node:stream";
 import mongoose, { Types } from "mongoose";
 import sharp from "sharp";
 import { connectDB } from "@/lib/db";
+import { nodeStreamToWeb } from "@/lib/streams";
 
 /**
  * Image and video bytes are stored in MongoDB with GridFS (bucket `photoFiles`:
@@ -77,7 +78,7 @@ export async function openFile(id: Types.ObjectId): Promise<StoredFile | null> {
   if (!file) return null;
   const nodeStream = bucket.openDownloadStream(id);
   return {
-    stream: Readable.toWeb(nodeStream) as ReadableStream<Uint8Array>,
+    stream: nodeStreamToWeb(nodeStream),
     contentType: (file.metadata?.contentType as string | undefined) ?? "application/octet-stream",
     length: file.length,
   };

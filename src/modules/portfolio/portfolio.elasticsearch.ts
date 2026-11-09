@@ -15,10 +15,12 @@ type QueryClause = Record<string, unknown>;
  * Returns the Elasticsearch client instance or null if not configured / unavailable.
  */
 export function getElasticsearchClient(): Client | null {
+  // Online (e.g. Vercel) with no Elasticsearch set: off, so search uses MongoDB right away
+  // instead of waiting on a localhost that doesn't exist there.
   const node =
     process.env.ELASTICSEARCH_URL ||
     process.env.ELASTICSEARCH_NODE ||
-    "http://localhost:9200";
+    (process.env.NODE_ENV === "production" ? "" : "http://localhost:9200");
 
   if (!node) return null;
 

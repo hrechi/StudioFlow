@@ -1,6 +1,7 @@
 import "server-only";
 import { Types } from "mongoose";
 import { ServiceError } from "@/lib/action-result";
+import { siteUrl } from "@/lib/site-url";
 import { connectDB } from "@/lib/db";
 import { Galerie } from "@/modules/photos-galeries/galerie.model";
 import { Photo } from "@/modules/photos-galeries/photo.model";
@@ -1337,7 +1338,7 @@ export async function publishPortfolio(
 
   return {
     slug,
-    url: `${process.env.PORTFOLIO_BASE_URL ?? "http://localhost:3000"}/portfolio/${slug}`,
+    url: `${process.env.PORTFOLIO_BASE_URL?.trim() || siteUrl()}/portfolio/${slug}`,
     removedElements: removed,
   };
 }

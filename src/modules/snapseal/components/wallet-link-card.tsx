@@ -69,7 +69,7 @@ export function WalletLinkCard({
   };
 
   return (
-    <Card>
+    <Card data-tour="wallet-link">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Wallet className="size-4 text-primary" aria-hidden />

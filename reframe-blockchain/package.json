@@ -6,7 +6,8 @@
     "test": "hardhat test",
     "deploy:ganache": "hardhat run scripts/deploy.ts --network ganache",
     "deploy:sepolia": "hardhat run scripts/deploy.ts --network sepolia",
-    "deploy:allocation": "hardhat run scripts/deploy-allocation.ts --network ganache"
+    "deploy:allocation": "hardhat run scripts/deploy-allocation.ts --network ganache",
+    "deploy:allocation:sepolia": "hardhat run scripts/deploy-allocation.ts --network sepolia"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox": "^5.0.0",

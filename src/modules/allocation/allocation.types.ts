@@ -82,6 +82,13 @@ export type EquipementChain = { registered: boolean; etat?: EtatEquipement; acti
 /** Public contract info handed to the browser (address + ABI are public anyway). */
 export type ChainConfig = { address: string; chainId: number; rpcUrl: string };
 
+/** "Ganache" locally, "Sepolia" online (the testnet used by the deployed site). */
+export function chainName(chainId: number): string {
+  if (chainId === 11155111) return "Sepolia";
+  if (chainId === 1337 || chainId === 31337) return "Ganache";
+  return `chain ${chainId}`;
+}
+
 export const statutAllocationConfig: StatusConfig<StatutAllocation> = statutReservationConfig;
 export const etatEquipementConfig: StatusConfig<EtatEquipement> = etatMaterielConfig;
 

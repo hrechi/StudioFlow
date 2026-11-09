@@ -25,6 +25,11 @@ export interface IUtilisateur {
   derniereConnexion?: Date;
   /** SnapSeal: wallet proven by a signature (never set by profile or admin forms). */
   walletAddress?: string;
+  /**
+   * Guided tour: shown while true. Missing = never shown yet (first login), so it shows once.
+   * Turned off when the tour ends or on sign-out; turned back on from the profile.
+   */
+  tutorielActif?: boolean;
   createdAt: Date; // = dateCreation
   updatedAt: Date;
 }
@@ -54,6 +59,7 @@ const utilisateurSchema = new Schema<IUtilisateur>(
     statut: { type: String, enum: STATUTS_COMPTE, default: "ACTIF", required: true },
     derniereConnexion: { type: Date },
     walletAddress: { type: String, lowercase: true, trim: true },
+    tutorielActif: { type: Boolean },
   },
   { timestamps: true, collection: "utilisateurs" },
 );

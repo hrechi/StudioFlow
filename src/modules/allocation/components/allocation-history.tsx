@@ -48,8 +48,7 @@ export function AllocationHistory({ detail }: { detail: AllocationDetail }) {
         {!chain.reachable ? (
           <p className="flex items-center gap-2 rounded-lg bg-destructive/10 p-3 text-sm text-destructive-text">
             <ServerOff className="size-4 shrink-0" aria-hidden />
-            Ganache is offline: the history cannot be read. Start it with{" "}
-            <code>npm run ganache</code>.
+            The blockchain can&apos;t be reached: the history cannot be read right now.
           </p>
         ) : differences.length > 0 ? (
           <div className="space-y-1.5 rounded-lg bg-warning/10 p-3 text-sm text-warning-text ring-1 ring-warning/25">

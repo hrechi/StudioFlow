@@ -10,7 +10,7 @@ import {
   type ActionResult,
 } from "@/lib/action-result";
 import { signIn, signOut, updateSession } from "@/lib/auth";
-import { requireRole, requireUser } from "@/lib/guards";
+import { getCurrentUser, requireRole, requireUser } from "@/lib/guards";
 import { homeForRole, resolveRedirect } from "@/lib/rbac";
 import {
   adminCreateUser,
@@ -22,6 +22,7 @@ import {
   deleteUser,
   findUtilisateurByEmail,
   registerClient,
+  setTutorialEnabled,
   updateProfile,
 } from "./utilisateur.service";
 import {
@@ -90,6 +91,10 @@ export async function registerAction(
 }
 
 export async function logoutAction(): Promise<void> {
+  // The guided tour switches itself off when the user signs out (it can be turned back on
+  // from the profile). Never blocks the sign-out.
+  const user = await getCurrentUser().catch(() => null);
+  if (user) await setTutorialEnabled(user.id, false).catch(() => undefined);
   await signOut({ redirectTo: "/?deconnecte=1" });
 }
 

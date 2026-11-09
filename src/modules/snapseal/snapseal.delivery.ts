@@ -2,11 +2,11 @@ import "server-only";
 import { createHash } from "node:crypto";
 import { Readable } from "node:stream";
 import type { ReadableStream as WebReadableStream } from "node:stream/web";
-import { Zip, ZipPassThrough } from "fflate";
 import { Types } from "mongoose";
 import { ServiceError } from "@/lib/action-result";
 import { connectDB } from "@/lib/db";
-import { listPackagePhotos, type PackagePhoto } from "@/modules/photos-galeries/photo.service";
+import { zipToWebStream } from "@/lib/streams";
+import { listPackagePhotos } from "@/modules/photos-galeries/photo.service";
 import { deleteFiles, saveStream } from "@/modules/photos-galeries/photo.storage";
 import { syncGalerieProof } from "./snapseal.guards";
 import { GalerieSeal } from "./snapseal.model";
@@ -20,40 +20,6 @@ import type { LivraisonDTO } from "./snapseal.types";
  */
 
 export const DELIVERY_MAX_BYTES = 500 * 1024 * 1024;
-
-/** Same file name twice in the package → "name (2).jpg". */
-function uniqueName(name: string, used: Map<string, number>): string {
-  const count = (used.get(name) ?? 0) + 1;
-  used.set(name, count);
-  if (count === 1) return name;
-  const dot = name.lastIndexOf(".");
-  return dot > 0 ? `${name.slice(0, dot)} (${count})${name.slice(dot)}` : `${name} (${count})`;
-}
-
-/** The ZIP as a stream of chunks (photos are already compressed: entries are stored). */
-function zipStream(photos: PackagePhoto[]): ReadableStream<Uint8Array> {
-  return new ReadableStream<Uint8Array>({
-    async start(controller) {
-      const zip = new Zip((error, chunk, final) => {
-        if (error) return controller.error(error);
-        controller.enqueue(chunk);
-        if (final) controller.close();
-      });
-      const used = new Map<string, number>();
-      try {
-        for (const photo of photos) {
-          const entry = new ZipPassThrough(uniqueName(photo.nomFichier, used));
-          zip.add(entry);
-          for await (const chunk of await photo.read()) entry.push(new Uint8Array(chunk));
-          entry.push(new Uint8Array(0), true);
-        }
-        zip.end();
-      } catch (error) {
-        controller.error(error);
-      }
-    },
-  });
-}
 
 function safeFileName(titre: string): string {
   return `${titre.replace(/[\/:*?"<>|]+/g, "-").trim() || "gallery"} - delivery.zip`;
@@ -89,7 +55,7 @@ export async function buildDeliveryPackage(
 
   const nomFichier = safeFileName(ctx.galerie.titre);
   const hash = createHash("sha256");
-  const zip = Readable.fromWeb(zipStream(photos) as WebReadableStream<Uint8Array>);
+  const zip = Readable.fromWeb(zipToWebStream(photos) as WebReadableStream<Uint8Array>);
   const saved = await saveStream(zip, nomFichier, "application/zip", (chunk) => hash.update(chunk));
   const livraison = {
     fichier: saved.id,

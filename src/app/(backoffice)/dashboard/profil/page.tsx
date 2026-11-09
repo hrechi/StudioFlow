@@ -7,9 +7,11 @@ import { getVisaStudio } from "@/modules/facturation/visa.service";
 import { WalletLinkCard } from "@/modules/snapseal/components/wallet-link-card";
 import { getSnapSealConfig } from "@/modules/snapseal/snapseal.config";
 import { ProfileView } from "@/modules/utilisateurs/components/profile-view";
+import { TutorialToggleCard } from "@/modules/tutorial/components/tutorial-toggle-card";
 import {
   getUtilisateurWallet,
   isLastActiveAdmin,
+  isTutorialEnabled,
 } from "@/modules/utilisateurs/utilisateur.service";
 
 export const metadata: Metadata = { title: "My profile" };
@@ -20,6 +22,7 @@ export default async function DashboardProfilPage() {
   const visa = user.role === "ADMIN" ? await getVisaStudio(user) : null;
   // SnapSeal: only when the contracts are configured.
   const wallet = getSnapSealConfig() ? await getUtilisateurWallet(user.id) : undefined;
+  const tutorial = await isTutorialEnabled(user.id);
   return (
     <div className="space-y-6">
       <PageHeader
@@ -28,6 +31,7 @@ export default async function DashboardProfilPage() {
       />
       <ProfileView user={user} isLastAdmin={isLastAdmin} />
       {wallet !== undefined && <WalletLinkCard userId={user.id} linkedAddress={wallet} role="STAFF" />}
+      <TutorialToggleCard enabled={tutorial} />
       {visa && <VisaStudioCard visa={visa} />}
     </div>
   );
