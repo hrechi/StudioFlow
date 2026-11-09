@@ -3,11 +3,19 @@
 import { getAddress, isAddress, verifyMessage } from "ethers";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { failure, success, toFailure, validationFailure, type ActionResult } from "@/lib/action-result";
+import {
+  failure,
+  success,
+  toFailure,
+  validationFailure,
+  type ActionResult,
+} from "@/lib/action-result";
 import { requireUser } from "@/lib/guards";
 import {
+  findWalletOwner,
   getUtilisateurWallet,
   setUtilisateurWallet,
+  unsetUtilisateurWallet,
 } from "@/modules/utilisateurs/utilisateur.service";
 import { assertWalletChangeAllowed } from "./snapseal.guards";
 import { WALLET_LINK_MAX_AGE_MS, walletLinkMessage } from "./snapseal.wallet";
@@ -26,7 +34,9 @@ const CLOCK_SKEW_MS = 60 * 1000;
  * names THIS session's user and a time under 5 minutes old (the server rebuilds the message, so
  * a signature made for another account or replayed later never matches).
  */
-export async function linkWalletAction(input: unknown): Promise<ActionResult<{ address: string }>> {
+export async function linkWalletAction(
+  input: unknown,
+): Promise<ActionResult<{ address: string; movedFromAnotherAccount: boolean }>> {
   const user = await requireUser();
   const parsed = linkWalletSchema.safeParse(input);
   if (!parsed.success) return validationFailure(parsed.error);
@@ -49,10 +59,29 @@ export async function linkWalletAction(input: unknown): Promise<ActionResult<{ a
 
   try {
     await assertWalletChangeAllowed(user.id, await getUtilisateurWallet(user.id), address);
-    await setUtilisateurWallet(user.id, address);
+    // Linked to another account: it moves here, unless that account still needs it for a seal.
+    const previousOwner = await findWalletOwner(address, user.id);
+    if (previousOwner) await assertWalletChangeAllowed(previousOwner, address, "", true);
+    const { movedFromAnotherAccount } = await setUtilisateurWallet(user.id, address);
     revalidatePath("/dashboard/profil");
     revalidatePath("/espace-client/profil");
-    return success({ address: getAddress(address) });
+    return success({ address: getAddress(address), movedFromAnotherAccount });
+  } catch (error) {
+    return toFailure(error);
+  }
+}
+
+/** Removes the signed-in account's wallet (same rule: not while a seal still needs it). */
+export async function unlinkWalletAction(): Promise<ActionResult<null>> {
+  const user = await requireUser();
+  try {
+    const current = await getUtilisateurWallet(user.id);
+    if (!current) return success(null);
+    await assertWalletChangeAllowed(user.id, current, "");
+    await unsetUtilisateurWallet(user.id);
+    revalidatePath("/dashboard/profil");
+    revalidatePath("/espace-client/profil");
+    return success(null);
   } catch (error) {
     return toFailure(error);
   }

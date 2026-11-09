@@ -269,6 +269,8 @@ export async function assertWalletChangeAllowed(
   userId: string,
   currentWallet: string | null,
   nextWallet: string,
+  /** The wallet is being taken from ANOTHER account (wording of the refusal). */
+  otherAccount = false,
 ): Promise<void> {
   if (!currentWallet || currentWallet.toLowerCase() === nextWallet.toLowerCase()) return;
   const _id = toId(userId);
@@ -286,7 +288,9 @@ export async function assertWalletChangeAllowed(
   });
   if (open) {
     throw new ServiceError(
-      "One of your galleries is sealed with your current wallet and isn't finished yet. Keep this wallet until you confirm the reception.",
+      otherAccount
+        ? "This wallet is used by another account for a sealed gallery that isn't finished yet, so it can't move now. Pick another MetaMask account."
+        : "One of your galleries is sealed with your current wallet and isn't finished yet. Keep this wallet until you confirm the reception.",
     );
   }
 }

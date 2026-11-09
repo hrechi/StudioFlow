@@ -155,21 +155,49 @@ export async function setTutorialEnabled(id: string, enabled: boolean): Promise<
   await Utilisateur.updateOne({ _id }, { $set: { tutorielActif: enabled } });
 }
 
-/** SnapSeal: saves a wallet already proven by a signature (snapseal linkWalletAction only). */
-export async function setUtilisateurWallet(id: string, walletAddress: string): Promise<void> {
+/** SnapSeal: the other account this wallet is linked to, if any (to release it first). */
+export async function findWalletOwner(walletAddress: string, exceptId: string): Promise<string | null> {
+  const _id = toObjectId(exceptId);
+  await connectDB();
+  const owner = await Utilisateur.findOne({ walletAddress: walletAddress.toLowerCase(), _id: { $ne: _id } })
+    .select("_id")
+    .lean<{ _id: Types.ObjectId }>();
+  return owner?._id.toString() ?? null;
+}
+
+/**
+ * SnapSeal: saves a wallet already proven by a signature (snapseal linkWalletAction only).
+ * A wallet belongs to one account: if another account had it, it is removed from that account
+ * first (the signature proves the wallet is now this user's). The caller checks it may move.
+ */
+export async function setUtilisateurWallet(
+  id: string,
+  walletAddress: string,
+): Promise<{ movedFromAnotherAccount: boolean }> {
+  const _id = toObjectId(id);
+  if (!_id) throw new ServiceError("Account not found.");
+  const wallet = walletAddress.toLowerCase();
+  await connectDB();
+  const released = await Utilisateur.updateMany(
+    { walletAddress: wallet, _id: { $ne: _id } },
+    { $unset: { walletAddress: "" } },
+  );
+  try {
+    await Utilisateur.updateOne({ _id }, { $set: { walletAddress: wallet } });
+  } catch (error) {
+    // Linked elsewhere at this very moment: ask to try again rather than steal it twice.
+    if (isDuplicateKeyError(error)) throw new ServiceError("This wallet was just linked elsewhere. Please try again.");
+    throw error;
+  }
+  return { movedFromAnotherAccount: released.modifiedCount > 0 };
+}
+
+/** SnapSeal: removes the account's wallet (it can be linked again, here or elsewhere). */
+export async function unsetUtilisateurWallet(id: string): Promise<void> {
   const _id = toObjectId(id);
   if (!_id) throw new ServiceError("Account not found.");
   await connectDB();
-  try {
-    await Utilisateur.updateOne({ _id }, { $set: { walletAddress: walletAddress.toLowerCase() } });
-  } catch (error) {
-    if (isDuplicateKeyError(error)) {
-      throw new ServiceError(
-        `This wallet (${walletAddress.slice(0, 6)}…${walletAddress.slice(-4)}) is already linked to another account. Pick another account in the MetaMask window.`,
-      );
-    }
-    throw error;
-  }
+  await Utilisateur.updateOne({ _id }, { $unset: { walletAddress: "" } });
 }
 
 export async function findUtilisateurByEmail(email: string): Promise<UtilisateurDTO | null> {
