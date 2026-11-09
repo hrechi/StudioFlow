@@ -92,6 +92,16 @@ function findTarget(target: TourTarget | undefined): HTMLElement | null {
   return null;
 }
 
+/** Comfortably visible: not under the header, not cut at the bottom. */
+function onScreen(r: DOMRect): boolean {
+  return (
+    r.top >= 72 &&
+    r.bottom <= window.innerHeight - 24 &&
+    r.left >= 0 &&
+    r.right <= window.innerWidth
+  );
+}
+
 const PAD = 6; // space between the target and the highlight ring
 const CARD_W = 352;
 
@@ -213,26 +223,34 @@ export function TutorialProvider({
     setSearching(true);
     let tries = 0;
     let previous = "";
+    let scrolled = false;
     let timer: ReturnType<typeof setInterval> | undefined;
+    // One straight glide per step: the highlight only moves once its target has reached its
+    // final place. So: wait until the target stops moving (page loading), scroll it into view
+    // only if it is off screen, wait for that scroll to end, THEN move there.
     const look = () => {
       const el = findTarget(step.target);
       if (el) {
-        // Wait until it stops moving (a page still loading shifts things around).
         const r = el.getBoundingClientRect();
         const where = [r.top, r.left, r.width, r.height].map(Math.round).join("|");
-        if (where !== previous && ++tries <= 30) {
+        if (where !== previous && ++tries <= 45) {
           previous = where;
+          return false;
+        }
+        if (!scrolled && !onScreen(r) && tries <= 45) {
+          scrolled = true;
+          previous = "";
+          el.scrollIntoView({
+            behavior: reduceMotion ? "auto" : "smooth",
+            block: "center",
+            inline: "nearest",
+          });
           return false;
         }
       } else if (++tries <= 30) return false;
       clearInterval(timer);
       setSearching(false);
       if (el) {
-        el.scrollIntoView({
-          behavior: reduceMotion ? "auto" : "smooth",
-          block: "center",
-          inline: "nearest",
-        });
         setTargetEl(el);
         setShownOn(pathname);
       } else {
@@ -631,32 +649,46 @@ function TourCard({
     observer.observe(cardEl);
     return () => observer.disconnect();
   }, [cardEl]);
+  const placeHeight = height;
 
   const vw = typeof window === "undefined" ? 1280 : window.innerWidth;
   const vh = typeof window === "undefined" ? 800 : window.innerHeight;
   const width = Math.min(CARD_W, vw - 24);
   let style: { top: number; left: number };
   if (!hole) {
-    style = { top: Math.max(12, vh / 2 - height / 2), left: vw / 2 - width / 2 };
+    style = { top: Math.max(12, vh / 2 - placeHeight / 2), left: vw / 2 - width / 2 };
   } else if (hole.left + hole.width < 320 && vw > 700) {
     // A sidebar item: beside it, so the hand never hides the text.
     style = {
-      top: Math.min(Math.max(12, hole.top - 24), vh - height - 12),
+      top: Math.min(Math.max(12, hole.top - 24), vh - placeHeight - 12),
       left: hole.left + hole.width + 72,
     };
   } else {
     const below = hole.top + hole.height + 76; // room for the hand
-    const fitsBelow = below + height < vh - 12;
+    const fitsBelow = below + placeHeight < vh - 12;
     style = {
-      top: fitsBelow ? below : Math.max(12, hole.top - height - 18),
+      top: fitsBelow ? below : Math.max(12, hole.top - placeHeight - 18),
       left: Math.min(Math.max(12, hole.left + hole.width / 2 - width / 2), vw - width - 12),
     };
   }
   // Whatever the placement, the whole card (and its buttons) stays on screen.
   style = {
-    top: Math.min(Math.max(12, style.top), Math.max(12, vh - height - 12)),
+    top: Math.min(Math.max(12, style.top), Math.max(12, vh - placeHeight - 12)),
     left: Math.min(Math.max(12, style.left), Math.max(12, vw - width - 12)),
   };
+  // While the next target is being found (same page, or the next page loading), the card stays
+  // exactly where it is; then it makes ONE straight move to its new place, instead of going via
+  // the middle of the screen or shifting when its new text changes its height.
+  const lastStyle = useRef(style);
+  useEffect(() => {
+    if (!searching) lastStyle.current = style;
+  });
+  const [frozenStyle, setFrozenStyle] = useState<typeof style | null>(null);
+  useLayoutEffect(() => {
+    setFrozenStyle(searching ? lastStyle.current : null);
+  }, [searching]);
+  const place = frozenStyle ?? style;
+
   const nextLabel = last ? "Finish" : step.click ? "Show me" : "Next";
 
   // "Getting there..." only when the next place takes a while (not on every step).
@@ -675,7 +707,7 @@ function TourCard({
     <motion.div
       ref={setCardEl}
       initial={{ opacity: 0, y: 12, scale: 0.97, top: style.top, left: style.left }}
-      animate={{ opacity: 1, y: 0, scale: 1, top: style.top, left: style.left }}
+      animate={{ opacity: 1, y: 0, scale: 1, top: place.top, left: place.left }}
       transition={{ ...GLIDE, opacity: { duration: 0.25 } }}
       className="absolute z-[3] overflow-hidden rounded-2xl bg-card text-card-foreground shadow-2xl ring-1 ring-border"
       style={{ width }}
@@ -700,7 +732,20 @@ function TourCard({
             <Sparkles className="size-3" aria-hidden />
             {tourLabel}
           </span>
-          <span className="text-xs text-muted-foreground tabular-nums">
+          <span className="flex items-center gap-2 text-xs text-muted-foreground tabular-nums">
+            {/* In the header row, so it never changes the card's size (no shift). */}
+            <AnimatePresence>
+              {slow && (
+                <motion.span
+                  className="italic"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                >
+                  Getting there…
+                </motion.span>
+              )}
+            </AnimatePresence>
             {stepNumber} / {total}
           </span>
         </div>
@@ -709,18 +754,6 @@ function TourCard({
             {step.title}
           </h2>
           <p className="text-sm leading-relaxed text-muted-foreground">{step.body}</p>
-          <AnimatePresence>
-            {slow && (
-              <motion.p
-                className="text-xs text-muted-foreground italic"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-              >
-                Getting there…
-              </motion.p>
-            )}
-          </AnimatePresence>
         </div>
         <div className="flex items-center justify-between gap-2 pt-1">
           <button
