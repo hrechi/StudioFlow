@@ -29,12 +29,13 @@ export async function signSelection({
 }): Promise<void> {
   const wallet = getInjectedWallet();
   if (!wallet) throw new Error("MetaMask was not found in this browser.");
-  const signer = await connectWallet(wallet, config);
+  // The gallery's client wallet is used directly when this site may (no account switching).
+  const signer = await connectWallet(wallet, config, false, expectedWallet);
   const address = await signer.getAddress();
   // Warn before signing: the contract would refuse any other wallet anyway.
   if (expectedWallet && !sameAddress(address, expectedWallet)) {
     throw new WrongWalletError(
-      `This gallery is sealed for the wallet ${shorten(expectedWallet)}, but MetaMask is on ${shorten(address)}. Switch account in MetaMask, then approve again.`,
+      `This gallery is sealed for the wallet ${shorten(expectedWallet)}, but MetaMask is on ${shorten(address)}. Choose that account in MetaMask (or link it in your profile), then approve again.`,
     );
   }
   // Two photos with identical bytes share one fingerprint, and the contract refuses duplicates.

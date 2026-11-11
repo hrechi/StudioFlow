@@ -22,11 +22,13 @@ export default async function GalerieSnapSealPage({
   if (!galerie) notFound();
 
   const config = getSnapSealConfig();
-  const [seal, photos, clientWallet] = await Promise.all([
+  const [seal, photos, clientWallet, myWallet] = await Promise.all([
     config ? getGalerieSeal(galerie.id, config.registryAddress) : null,
     listPhotosOfGalerie(galerie.id),
     // Required galleries are sealed for the client's linked wallet, read here on the server.
     galerie.preuveBlockchainRequise ? getUtilisateurWallet(galerie.client.id) : null,
+    // The signed-in staff member's own wallet (profile): MetaMask connects to it by itself.
+    getUtilisateurWallet(user.id),
   ]);
   const sealedIds = new Set(seal?.photos.map((photo) => photo.photoId));
   const unsealedPhotos = seal
@@ -57,6 +59,7 @@ export default async function GalerieSnapSealPage({
           clientWallet={clientWallet}
           unsealedPhotos={unsealedPhotos}
           isAdmin={user.role === "ADMIN"}
+          linkedWallet={myWallet}
         />
       ) : (
         <SnapSealNotConfigured />

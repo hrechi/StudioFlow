@@ -40,7 +40,10 @@ export function PhotographerPanel({
   clientWallet,
   unsealedPhotos,
   isAdmin = false,
+  linkedWallet = null,
 }: {
+  /** The signed-in staff member's wallet (profile): connected automatically. */
+  linkedWallet?: string | null;
   /** Admins can reset a seal that isn't delivered yet (sealed with the wrong wallets). */
   isAdmin?: boolean;
   config: SnapSealConfig;
@@ -55,6 +58,7 @@ export function PhotographerPanel({
   const { address, chain, chainError, busy, connect, run } = useSnapSeal(
     config,
     seal?.onChainId ?? null,
+    linkedWallet,
   );
   const [pastedWallet, setPastedWallet] = useState("");
   // The transaction succeeded but recording it failed: retry without paying again.
@@ -111,6 +115,7 @@ export function PhotographerPanel({
           expectedLabel="photographer"
           networkName={config.networkName}
           onConnect={connect}
+          linkedWallet={linkedWallet}
         />
         <SealSection title="Seal this gallery">
           <p className="text-sm text-muted-foreground">
@@ -254,6 +259,7 @@ export function PhotographerPanel({
         expectedLabel="photographer"
         networkName={config.networkName}
         onConnect={connect}
+        linkedWallet={linkedWallet}
         canReset={isAdmin && !seal.deliveredAt && !chain?.deliveredAt}
       />
       {chainError && <p className="text-sm text-destructive-text">{chainError}</p>}

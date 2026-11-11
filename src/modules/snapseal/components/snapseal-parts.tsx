@@ -18,7 +18,10 @@ export function WalletCard({
   networkName,
   onConnect,
   canReset = false,
+  linkedWallet = null,
 }: {
+  /** The wallet linked in this account's profile (connected automatically when allowed). */
+  linkedWallet?: string | null;
   address: string | null;
   expected?: string;
   expectedLabel: string;
@@ -37,10 +40,23 @@ export function WalletCard({
           {address ? (
             <span>
               Connected on {networkName}: <code className="text-xs">{shorten(address)}</code>
+              {linkedWallet && sameAddress(address, linkedWallet) && (
+                <span className="ml-2 rounded-full bg-success/10 px-2 py-0.5 text-xs font-medium text-success-text">
+                  Linked to your profile
+                </span>
+              )}
             </span>
           ) : (
             <span className="text-muted-foreground">
-              Connect MetaMask to sign on the blockchain.
+              {linkedWallet ? (
+                <>
+                  Connect MetaMask once to use your linked wallet{" "}
+                  <code className="text-xs">{shorten(linkedWallet)}</code>: it connects by itself
+                  next time.
+                </>
+              ) : (
+                "Connect MetaMask to sign on the blockchain. Link a wallet in your profile to connect automatically."
+              )}
             </span>
           )}
         </div>

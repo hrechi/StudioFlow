@@ -8,13 +8,19 @@ import {
   explainChainError,
   getInjectedWallet,
   readChainState,
+  reconnectLinkedWallet,
   readOnlyProvider,
   type ChainState,
 } from "../snapseal.chain";
 import type { SnapSealConfig } from "../snapseal.types";
 
 /** Wallet connection, on-chain state of the gallery, and "run a transaction" for both panels. */
-export function useSnapSeal(config: SnapSealConfig, onChainId: number | null) {
+export function useSnapSeal(
+  config: SnapSealConfig,
+  onChainId: number | null,
+  /** The wallet linked in the signed-in account's profile: connected automatically. */
+  linkedWallet?: string | null,
+) {
   const [signer, setSigner] = useState<JsonRpcSigner | null>(null);
   const [address, setAddress] = useState<string | null>(null);
   const [chain, setChain] = useState<ChainState | null>(null);
@@ -40,21 +46,34 @@ export function useSnapSeal(config: SnapSealConfig, onChainId: number | null) {
     void refresh();
   }, [refresh]);
 
-  // Switching MetaMask account (photographer / client) or network drops the old signer.
+  // The profile's linked wallet is connected by itself (no popup) whenever MetaMask already
+  // allows it for this site: on arrival, and again after any account or network change.
+  // Otherwise the old signer is dropped and "Connect MetaMask" is shown.
   useEffect(() => {
     const wallet = getInjectedWallet();
-    if (!wallet?.on) return;
-    const reset = () => {
-      setSigner(null);
-      setAddress(null);
+    if (!wallet) return;
+    let active = true;
+    const sync = async () => {
+      let next: JsonRpcSigner | null = null;
+      try {
+        next = linkedWallet ? await reconnectLinkedWallet(wallet, config, linkedWallet) : null;
+      } catch {
+        next = null;
+      }
+      if (!active) return;
+      setSigner(next);
+      setAddress(next ? await next.getAddress() : null);
     };
-    wallet.on("accountsChanged", reset);
-    wallet.on("chainChanged", reset);
+    void sync();
+    if (!wallet.on) return;
+    wallet.on("accountsChanged", sync);
+    wallet.on("chainChanged", sync);
     return () => {
-      wallet.removeListener?.("accountsChanged", reset);
-      wallet.removeListener?.("chainChanged", reset);
+      active = false;
+      wallet.removeListener?.("accountsChanged", sync);
+      wallet.removeListener?.("chainChanged", sync);
     };
-  }, []);
+  }, [config, linkedWallet]);
 
   const connect = useCallback(
     async (pick = false) => {
@@ -64,14 +83,14 @@ export function useSnapSeal(config: SnapSealConfig, onChainId: number | null) {
         return;
       }
       try {
-        const nextSigner = await connectWallet(wallet, config, pick);
+        const nextSigner = await connectWallet(wallet, config, pick, pick ? null : linkedWallet);
         setSigner(nextSigner);
         setAddress(await nextSigner.getAddress());
       } catch (error) {
         toast.error(explainChainError(error));
       }
     },
-    [config],
+    [config, linkedWallet],
   );
 
   /** Runs one step with the busy state, the error toast and a re-read of the chain. */

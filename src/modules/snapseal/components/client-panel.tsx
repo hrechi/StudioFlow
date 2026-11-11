@@ -34,7 +34,10 @@ export function ClientPanel({
   seal,
   photos,
   deliveryAvailable,
+  linkedWallet = null,
 }: {
+  /** The client's wallet (profile): connected automatically. */
+  linkedWallet?: string | null;
   config: SnapSealConfig;
   galerieId: string;
   /** Proof-required gallery: the selection is made in the gallery itself. */
@@ -45,7 +48,11 @@ export function ClientPanel({
   deliveryAvailable: boolean;
 }) {
   const router = useRouter();
-  const { address, chain, chainError, busy, connect, run } = useSnapSeal(config, seal.onChainId);
+  const { address, chain, chainError, busy, connect, run } = useSnapSeal(
+    config,
+    seal.onChainId,
+    linkedWallet,
+  );
   const [picked, setPicked] = useState<Set<string>>(new Set());
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [verify, setVerify] = useState<VerifyResult | null>(null);
@@ -100,6 +107,7 @@ export function ClientPanel({
         expectedLabel="client"
         networkName={config.networkName}
         onConnect={connect}
+        linkedWallet={linkedWallet}
       />
       {chainError && <p className="text-sm text-destructive-text">{chainError}</p>}
       <SealTimeline chain={chain} />

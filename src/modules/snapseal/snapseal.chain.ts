@@ -54,6 +54,8 @@ export async function connectWallet(
   config: SnapSealConfig,
   /** Open MetaMask's account picker: the site otherwise keeps the account it first saw. */
   pick = false,
+  /** The wallet linked in the profile: used whenever MetaMask allows it for this site. */
+  preferred?: string | null,
 ): Promise<JsonRpcSigner> {
   const chainId = `0x${config.chainId.toString(16)}`;
   if (pick) {
@@ -81,7 +83,39 @@ export async function connectWallet(
       ],
     });
   }
-  return new BrowserProvider(wallet).getSigner();
+  return signerFor(wallet, preferred);
+}
+
+/** The signer for `preferred` when this site may use it, else MetaMask's current account. */
+async function signerFor(
+  wallet: InjectedWallet,
+  preferred?: string | null,
+): Promise<JsonRpcSigner> {
+  const provider = new BrowserProvider(wallet);
+  if (preferred) {
+    const allowed = (await wallet.request({ method: "eth_accounts" })) as string[];
+    const match = allowed.find((a) => a.toLowerCase() === preferred.toLowerCase());
+    if (match) return provider.getSigner(match);
+  }
+  return provider.getSigner();
+}
+
+/**
+ * No popup: connects to the profile's linked wallet only if MetaMask already allows it for this
+ * site (it remembers that across visits and sign-ins) and is on the right network. Otherwise
+ * null, and the page shows the usual "Connect MetaMask" button.
+ */
+export async function reconnectLinkedWallet(
+  wallet: InjectedWallet,
+  config: SnapSealConfig,
+  linked: string,
+): Promise<JsonRpcSigner | null> {
+  const allowed = (await wallet.request({ method: "eth_accounts" })) as string[];
+  const match = allowed.find((a) => a.toLowerCase() === linked.toLowerCase());
+  if (!match) return null;
+  const chainId = Number.parseInt((await wallet.request({ method: "eth_chainId" })) as string, 16);
+  if (chainId !== config.chainId) return null;
+  return new BrowserProvider(wallet).getSigner(match);
 }
 
 export async function readChainState(

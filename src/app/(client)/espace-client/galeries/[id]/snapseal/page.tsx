@@ -8,6 +8,7 @@ import { requireArea } from "@/lib/guards";
 import { getGalerieOfClient } from "@/modules/photos-galeries/galerie.service";
 import { listPhotosOfGalerie } from "@/modules/photos-galeries/photo.service";
 import { ClientPanel } from "@/modules/snapseal/components/client-panel";
+import { getUtilisateurWallet } from "@/modules/utilisateurs/utilisateur.service";
 import { DeliveryDownloads } from "@/modules/snapseal/components/delivery-downloads";
 import { SnapSealNotConfigured } from "@/modules/snapseal/components/snapseal-parts";
 import { syncGalerieProof } from "@/modules/snapseal/snapseal.guards";
@@ -76,6 +77,7 @@ export default async function ClientSnapSealPage({
           deliveryAvailable={deliveryAvailable}
           seal={seal}
           photos={seal.photos.filter((photo) => visibleIds.has(photo.photoId))}
+          linkedWallet={await getUtilisateurWallet(user.id)}
         />
       ) : (
         <Card>
