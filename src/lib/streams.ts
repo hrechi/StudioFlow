@@ -88,41 +88,47 @@ export function zipToWebStream(files: ZipSource[]): ReadableStream<Uint8Array> {
     wake?.();
     wake = null;
   };
-  return new ReadableStream<Uint8Array>({
-    async start(controller) {
-      const zip = new Zip((error, chunk, final) => {
-        if (cancelled) return;
-        try {
-          if (error) return controller.error(error);
-          controller.enqueue(chunk);
-          if (final) controller.close();
-        } catch {
-          cancelled = true;
-        }
-      });
-      const used = new Map<string, number>();
+  // The ZIP is written by `produce`, started but NOT awaited by start(): a ReadableStream only
+  // calls pull() once start() has returned, so awaiting the whole ZIP there would wait forever
+  // for a pull() that never comes as soon as the ZIP is bigger than the first chunk.
+  const produce = async (controller: ReadableStreamDefaultController<Uint8Array>) => {
+    const zip = new Zip((error, chunk, final) => {
+      if (cancelled) return;
       try {
-        for (const file of files) {
-          if (cancelled) return;
-          const entry = new ZipPassThrough(uniqueName(file.nomFichier, used));
-          zip.add(entry);
-          for await (const chunk of await file.read()) {
-            if (cancelled) return;
-            entry.push(new Uint8Array(chunk));
-            if ((controller.desiredSize ?? 1) <= 0) await new Promise<void>((r) => (wake = r));
-          }
-          entry.push(new Uint8Array(0), true);
-        }
-        zip.end();
-      } catch (error) {
-        if (cancelled) return;
+        if (error) return controller.error(error);
+        controller.enqueue(chunk);
+        if (final) controller.close();
+      } catch {
         cancelled = true;
-        try {
-          controller.error(error);
-        } catch {
-          // Already closed.
-        }
       }
+    });
+    const used = new Map<string, number>();
+    try {
+      for (const file of files) {
+        if (cancelled) return;
+        const entry = new ZipPassThrough(uniqueName(file.nomFichier, used));
+        zip.add(entry);
+        for await (const chunk of await file.read()) {
+          if (cancelled) return;
+          entry.push(new Uint8Array(chunk));
+          if ((controller.desiredSize ?? 1) <= 0) await new Promise<void>((r) => (wake = r));
+        }
+        entry.push(new Uint8Array(0), true);
+      }
+      zip.end();
+    } catch (error) {
+      if (cancelled) return;
+      cancelled = true;
+      try {
+        controller.error(error);
+      } catch {
+        // Already closed.
+      }
+    }
+  };
+  return new ReadableStream<Uint8Array>({
+    start(controller) {
+      void produce(controller);
     },
     pull() {
       resume();
