@@ -2,6 +2,7 @@
  * Each block reads another module's MOCK data; replace with that module's service when it exists. */
 import {
   ArrowRight,
+  Blocks,
   BookImage,
   CalendarDays,
   ClipboardList,
@@ -28,6 +29,7 @@ import { fullName } from "@/lib/mock-data-helpers";
 import { FRONT_IMAGES } from "@/lib/mock-images";
 import { can, type Area } from "@/lib/rbac";
 import { cn, formatCurrency, formatDate, formatTime } from "@/lib/utils";
+import { AllocationDashboardCard } from "@/modules/allocation/components/allocation-dashboard-card";
 import { RECLAMATIONS } from "@/modules/avis-reclamations/mock-data";
 import { listFactures } from "@/modules/facturation/devis.service";
 import { countReservationsActives } from "@/modules/materiel/reservation-materiel.service";
@@ -49,6 +51,7 @@ const QUICK_ACTIONS: QuickAction[] = [
   { label: "AI Search", href: "/dashboard/photos/recherche", icon: ScanSearch, area: "photos-galeries", ai: true },
   { label: "Reserve equipment", href: "/dashboard/materiel/reservations", icon: Package, area: "materiel" },
   { label: "Portfolio", href: "/dashboard/portfolio", icon: BookImage, area: "portfolio" },
+  { label: "Blockchain allocation", href: "/dashboard/allocation", icon: Blocks, area: "dashboard" },
 ];
 
 export default async function DashboardPage() {
@@ -168,6 +171,8 @@ export default async function DashboardPage() {
               </CardContent>
             </Card>
           )}
+
+          <AllocationDashboardCard user={user} />
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
